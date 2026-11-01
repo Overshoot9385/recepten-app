@@ -149,7 +149,16 @@ button { cursor: pointer; }
 .day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .day-head h2 { font-size: 17px; }
 .day-head .muted { font-size: 13px; }
-.meal { display: grid; grid-template-columns: 1fr auto 32px; align-items: center; gap: 8px; }
+.meal { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 32px; align-items: center; gap: 8px; }
+.plan-with { display: flex; align-items: center; gap: 0; font-size: 14px; color: var(--muted); font-weight: 600; }
+.plan-with .avatar { margin-right: -6px; box-shadow: 0 0 0 2px var(--bg); }
+.plan-with span:last-child { margin-left: 14px; }
+.plan-banner { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; background: var(--surface); border: 1px solid var(--herb); border-radius: var(--r); padding: 12px 14px; }
+.plan-banner-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.plan-banner-actions .btn { flex: 1 1 auto; min-height: 40px; }
+.added-by { display: grid; }
+.actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.actions-row .btn { font-size: 15px; line-height: 1.2; padding: 8px 10px; white-space: normal; text-align: left; justify-content: flex-start; }
 .meal-open { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; text-align: left; min-width: 0; }
 .meal-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--sunk); display: grid; place-items: center; flex: none; color: var(--herb); }
@@ -354,6 +363,8 @@ const ICON = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   search: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  bag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16l-1.5 9.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M9 6V5a3 3 0 0 1 6 0v1"/></svg>',
   jar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8v3H8z"/><path d="M7 6h10a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1z"/><path d="M6 11h12"/></svg>',
   star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
   starOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
@@ -639,12 +650,23 @@ function liveStore() {
       const q = on ? sb.from("favorites").insert({ recipe_id: recipeId }) : sb.from("favorites").delete().eq("recipe_id", recipeId);
       const { error } = await q; fail(error);
     },
+    async planInfo(userId) {
+      const [{ data: members, error: e1 }, { data: requests, error: e2 }] = await Promise.all([
+        sb.from("plan_members").select("user_id"), sb.from("plan_requests").select("from_user,to_user")]);
+      fail(e1); fail(e2);
+      const ids = members.map((m) => m.user_id);
+      return { members: ids.includes(userId) ? ids : [], incoming: requests.filter((r) => r.to_user === userId).map((r) => r.from_user), outgoing: requests.filter((r) => r.from_user === userId).map((r) => r.to_user) };
+    },
+    async requestPlan(userId) { const { error } = await sb.rpc("request_plan_partner", { p_user: userId }); fail(error); },
+    async acceptPlan(fromId) { const { error } = await sb.rpc("accept_plan_request", { p_from: fromId }); fail(error); },
+    async declinePlan(fromId, toId) { const { error } = await sb.from("plan_requests").delete().eq("from_user", fromId).eq("to_user", toId); fail(error); },
+    async leavePlan() { const { error } = await sb.rpc("leave_plan_group"); fail(error); },
     async mealPlan(from, to) {
-      const { data, error } = await sb.from("meal_plan").select("id,plan_date,recipe_id,servings").gte("plan_date", from).lte("plan_date", to).order("created_at");
+      const { data, error } = await sb.from("meal_plan").select("id,plan_date,recipe_id,servings,user_id").gte("plan_date", from).lte("plan_date", to).order("created_at");
       fail(error); return data;
     },
     async addMeal(householdId, date, recipeId, servings) {
-      const { data, error } = await sb.from("meal_plan").insert({ household_id: householdId, plan_date: date, recipe_id: recipeId, servings }).select("id,plan_date,recipe_id,servings").single();
+      const { data, error } = await sb.from("meal_plan").insert({ household_id: householdId, plan_date: date, recipe_id: recipeId, servings }).select("id,plan_date,recipe_id,servings,user_id").single();
       fail(error); return data;
     },
     async updateMeal(id, patch) { const { error } = await sb.from("meal_plan").update(patch).eq("id", id); fail(error); },
@@ -734,9 +756,10 @@ function demoStore() {
   const favs = new Set(["r1"]);
   const today = isoDate(new Date());
   const meals = [
-    { id: uid(), plan_date: today, recipe_id: "r1", servings: 2 },
-    { id: uid(), plan_date: isoDate(addDays(new Date(), 2)), recipe_id: "r3", servings: 2 },
+    { id: uid(), plan_date: today, recipe_id: "r1", servings: 2, user_id: me.id },
+    { id: uid(), plan_date: isoDate(addDays(new Date(), 2)), recipe_id: "r3", servings: 2, user_id: partner.id },
   ];
+  const plan = { members: [me.id, partner.id], incoming: [mama.id], outgoing: [] };
   let shop = [];
   const now = () => new Date().toISOString();
   return {
@@ -776,8 +799,13 @@ function demoStore() {
     async deleteRecipe(rec) { recs.splice(recs.findIndex((x) => x.id === rec.id), 1); },
     async favorites() { return [...favs]; },
     async setFavorite(id, on) { if (on) favs.add(id); else favs.delete(id); },
-    async mealPlan(from, to) { return meals.filter((m) => m.plan_date >= from && m.plan_date <= to); },
-    async addMeal(hid, date, recipeId, servings) { const m = { id: uid(), plan_date: date, recipe_id: recipeId, servings }; meals.push(m); return m; },
+    async planInfo() { return { members: [...plan.members], incoming: [...plan.incoming], outgoing: [...plan.outgoing] }; },
+    async requestPlan(id) { plan.outgoing.push(id); },
+    async acceptPlan(id) { plan.incoming = plan.incoming.filter((x) => x !== id); plan.members = [me.id, id]; },
+    async declinePlan(fromId, toId) { plan.incoming = plan.incoming.filter((x) => x !== fromId); plan.outgoing = plan.outgoing.filter((x) => x !== toId); },
+    async leavePlan() { plan.members = []; },
+    async mealPlan(from, to) { return meals.filter((m) => m.plan_date >= from && m.plan_date <= to && (m.user_id === me.id || plan.members.includes(m.user_id))); },
+    async addMeal(hid, date, recipeId, servings) { const m = { id: uid(), plan_date: date, recipe_id: recipeId, servings, user_id: me.id }; meals.push(m); return m; },
     async updateMeal(id, patch) { Object.assign(meals.find((m) => m.id === id), patch); },
     async removeMeal(id) { meals.splice(meals.findIndex((m) => m.id === id), 1); },
     async shopping() { return shop.slice().sort((a, b) => a.position - b.position); },
@@ -796,6 +824,25 @@ const S = {
 };
 const ROLE_LABEL = { admin: "Beheerder", editor: "Bewerker", viewer: "Lezer" };
 const ROLE_HELP = { admin: "Alles, plus leden en uitnodigingen beheren", editor: "Recepten bekijken, toevoegen en wijzigen", viewer: "Recepten alleen bekijken" };
+function planPartners() { return ((S.plan && S.plan.members) || []).filter((id) => id !== S.user.id); }
+function planWithText() { const p = planPartners().map(nameOf); return p.length ? "Samen met " + (p.length > 1 ? p.slice(0, -1).join(", ") + " en " + p[p.length - 1] : p[0]) : ""; }
+function planRequestBanner() {
+  const inc = (S.plan && S.plan.incoming) || [];
+  return inc.map((id) => `<div class="plan-banner">${avatarHTML(id, 34)}<span><b>${esc(nameOf(id))}</b> wil samen het weekmenu en de boodschappenlijst maken.</span>
+    <span class="plan-banner-actions"><button class="btn primary" data-accept="${esc(id)}">Samen plannen</button><button class="btn" data-decline="${esc(id)}">Nee, bedankt</button></span></div>`).join("");
+}
+async function handlePlanBanner(e, after) {
+  const b = e.target.closest("[data-accept],[data-decline]"); if (!b) return false;
+  try {
+    if (b.dataset.accept) {
+      if (planPartners().length && !(await confirmSheet(`Je plant nu samen met ${planPartners().map(nameOf).join(", ")}. Overstappen naar ${nameOf(b.dataset.accept)}?`, "Overstappen"))) return true;
+      await store.acceptPlan(b.dataset.accept); toast(`Je plant nu samen met ${nameOf(b.dataset.accept)}`);
+    } else { await store.declinePlan(b.dataset.decline, S.user.id); toast("Verzoek geweigerd"); }
+    S.plan = await store.planInfo(S.user.id);
+    after();
+  } catch (err) { toast(err.message); }
+  return true;
+}
 function canEdit() { return S.role === "admin" || S.role === "editor"; }
 function isAdmin() { return S.role === "admin"; }
 function nameOf(id) { return S.names[id] || "onbekend"; }
@@ -853,6 +900,7 @@ async function loadAll() {
     S.household = m.household; S.role = m.role;
     const [profiles, recipes, favs, members, shop] = await Promise.all([store.profiles(), store.recipes(), store.favorites(), store.members(), store.shopping()]);
     S.shop = shop;
+    S.plan = await store.planInfo(S.user.id);
     S.names = Object.fromEntries(profiles.map((p) => [p.id, p.display_name]));
     S.avatars = Object.fromEntries(profiles.map((p) => [p.id, { path: p.avatar_path || null, url: p.avatar_url || null }]));
     S.roles = Object.fromEntries(members.map((x) => [x.user_id, x.role]));
@@ -1113,7 +1161,10 @@ function renderDetail() {
       ${r.subtitle ? `<p class="sub" style="margin:0">${esc(r.subtitle)}</p>` : ""}
       <div class="meta">${r.prep_time_minutes ? `<span>${r.prep_time_minutes} minuten</span>` : ""}${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--herb)">Bron bekijken</a>` : ""}</div>
       ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
-      <button class="btn primary" id="to-menu" style="margin-top:8px;justify-self:start;white-space:nowrap">${ICON.plus}Op mijn weekmenu</button>
+      <div class="actions-row">
+        <button class="btn primary" id="to-menu">${ICON.cal}<span>Op mijn weekmenu</span></button>
+        <button class="btn" id="to-menu-list">${ICON.bag}<span>Op mijn weekmenu + boodschappenlijst</span></button>
+      </div>
     </div>
     <section class="section">
       <div class="section-head"><h2>Ingrediënten</h2>
@@ -1141,7 +1192,8 @@ function renderDetail() {
     ${canEdit() ? `<div class="actions"><button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>` : ""}
     <div style="height:24px"></div>`;
   $("#back").onclick = () => go(S.from || "list");
-  $("#to-menu").onclick = () => addToMenuSheet(r);
+  $("#to-menu").onclick = () => addToMenuSheet(r, false);
+  $("#to-menu-list").onclick = () => addToMenuSheet(r, true);
   const pantry = $("#pantry");
   if (pantry) pantry.onclick = async (e) => {
     const b = e.target.closest("[data-pantry]"); if (!b || b.disabled) return;
@@ -1362,6 +1414,8 @@ function drawMenu() {
   $("#app").innerHTML = `
     <header class="top">
       <div class="brand"><h1>Weekmenu</h1>${thisWeek ? "" : `<button class="linkbtn" id="to-today">Deze week</button>`}</div>
+      ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 26)).join("")}<span>${esc(planWithText())}</span></div>` : ""}
+      <div id="plan-banners">${planRequestBanner()}</div>
       <div class="weeknav">
         <button class="iconbtn" id="prev-week" aria-label="Vorige week">${ICON.back}</button>
         <div class="weeklabel"><b>Week ${weekNumber(ws)}</b><span class="muted">${fmtDay(ws)} – ${fmtDay(we)}</span></div>
@@ -1378,6 +1432,7 @@ function drawMenu() {
             <div class="meal" data-meal="${m.id}">
               <button class="meal-open" data-open="${m.recipe_id}">${miniThumb(r)}<span class="meal-title">${esc(r ? r.title : "Verwijderd recept")}</span></button>
               <div class="servings small" aria-label="Personen"><button data-dec="${m.id}" aria-label="Minder personen">−</button><output>${m.servings}p</output><button data-inc="${m.id}" aria-label="Meer personen">+</button></div>
+              ${planPartners().length && m.user_id && m.user_id !== S.user.id ? `<span class="added-by" title="Gepland door ${esc(nameOf(m.user_id))}">${avatarHTML(m.user_id, 22)}</span>` : `<span></span>`}
               <button class="x" data-rm="${m.id}" aria-label="Haal van weekmenu">×</button>
             </div>`; }).join("")}
           <button class="add-meal" data-add="${iso}">+ Gerecht</button>
@@ -1385,7 +1440,7 @@ function drawMenu() {
       }).join("")}
       <div class="menu-foot">
         <button class="btn primary block" id="make-list" ${total ? "" : "disabled"}>Boodschappenlijst maken${total ? ` (${total} ${total === 1 ? "gerecht" : "gerechten"})` : ""}</button>
-        <p class="muted" style="margin:0;font-size:14px">Je weekmenu is van jou alleen. Anderen in het receptenboek zien het niet.</p>
+        <p class="muted" style="margin:0;font-size:14px">${planPartners().length ? `Dit weekmenu en de boodschappenlijst deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je weekmenu is van jou alleen. Samen plannen stel je in bij Instellingen."}</p>
       </div>
     </main>
     ${tabBarHTML("menu")}`;
@@ -1394,6 +1449,7 @@ function drawMenu() {
   $("#prev-week").onclick = () => shift(-7);
   $("#next-week").onclick = () => shift(7);
   const tt = $("#to-today"); if (tt) tt.onclick = async () => { S.weekStart = startOfWeek(new Date()); await loadWeek(); drawMenu(); };
+  $("#plan-banners").onclick = (e) => handlePlanBanner(e, async () => { await loadWeek(); drawMenu(); });
   $(".days").onclick = async (e) => {
     const t = e.target.closest("button"); if (!t) return;
     try {
@@ -1434,18 +1490,19 @@ function pickRecipeSheet(date) {
     } catch (err) { toast(err.message); }
   };
 }
-function addToMenuSheet(r) {
+function addToMenuSheet(r, withList = false) {
   const start = new Date();
   const days = Array.from({ length: 14 }, (_, i) => addDays(start, i));
   let servings = r.servings || 2;
   let chosen = isoDate(days[0]);
   const s = sheet(`
-    <div class="sheet-head"><h2>Op je weekmenu</h2></div>
+    <div class="sheet-head"><h2>${withList ? "Op weekmenu en boodschappenlijst" : "Op je weekmenu"}</h2></div>
     <p class="muted" style="margin:-6px 0 0">${esc(r.title)}</p>
     <div class="daygrid" id="daygrid">${days.map((d, i) => `<button data-day="${isoDate(d)}" aria-pressed="${i === 0}"><small>${i === 0 ? "Vandaag" : i === 1 ? "Morgen" : DAY_NAMES[(d.getDay() + 6) % 7].slice(0, 2)}</small><b>${d.getDate()}</b></button>`).join("")}</div>
     <div class="section-head"><span style="font-weight:600">Personen</span>
       <div class="servings"><button id="m-minus" aria-label="Minder personen">−</button><output id="m-pp">${servings} pers.</output><button id="m-plus" aria-label="Meer personen">+</button></div></div>
-    <button class="btn primary block" id="m-add">Zet op weekmenu</button>`);
+    ${withList ? `<p class="muted" style="margin:0;font-size:14px">De ingrediënten komen omgerekend op je boodschappenlijst. Dingen uit de voorraadkast niet: die kun je los toevoegen.</p>` : ""}
+    <button class="btn primary block" id="m-add">${withList ? "Zet op weekmenu en lijst" : "Zet op weekmenu"}</button>`);
   $("#daygrid", s.el).onclick = (e) => {
     const b = e.target.closest("[data-day]"); if (!b) return;
     chosen = b.dataset.day;
@@ -1457,14 +1514,33 @@ function addToMenuSheet(r) {
   $("#m-add", s.el).onclick = async () => {
     try {
       await store.addMeal(S.household.id, chosen, r.id, servings);
+      let added = 0;
+      if (withList) added = await addRecipeToList(r, servings);
       s.close();
       const d = new Date(chosen + "T12:00:00");
-      toast(`Op je weekmenu voor ${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()} ${d.getDate()}`);
+      const day = `${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()} ${d.getDate()}`;
+      toast(withList ? `Op je weekmenu voor ${day}, ${added} ${added === 1 ? "product" : "producten"} op je lijst` : `Op je weekmenu voor ${day}`);
     } catch (err) { toast(err.message); }
   };
 }
 
 /* ================= Boodschappen ================= */
+// Zet de ingrediënten van één recept op de lijst en tel ze op bij wat er al uit het weekmenu op staat
+async function addRecipeToList(r, servings) {
+  const items = aggregate([{ recipe_id: r.id, servings }]);
+  S.shop = await store.shopping();
+  const key = (n, u) => norm(n).replace(/\s+/g, " ").trim() + "|" + (u || "");
+  const fresh = [];
+  for (const it of items) {
+    const ex = S.shop.find((x) => !x.is_checked && !x.is_manual && key(x.name, x.unit) === key(it.name, it.unit));
+    if (ex && ex.amount != null && it.amount != null) {
+      ex.amount = Math.round((ex.amount + it.amount) * 1000) / 1000;
+      await store.updateShopping(ex.id, { amount: ex.amount });
+    } else if (!ex) fresh.push({ name: it.name, amount: it.amount == null ? null : Math.round(it.amount * 1000) / 1000, unit: it.unit, is_manual: false, position: 0 });
+  }
+  if (fresh.length) S.shop.push(...(await store.addShopping(S.household.id, fresh)));
+  return items.length;
+}
 const UNIT_NORM = { gram: "g", gr: "g", stuks: "stuk", "stuk(s)": "stuk", eetlepel: "el", theelepel: "tl", "zakje(s)": "zakje", zakjes: "zakje" };
 function aggregate(meals, pantry = false) {
   const map = new Map();
@@ -1672,6 +1748,16 @@ function renderSettings() {
           ${[["auto", "Automatisch"], ["light", "Licht"], ["dark", "Donker"]].map(([v, l]) => `<button role="radio" data-theme-opt="${v}" aria-selected="${getTheme() === v}" aria-checked="${getTheme() === v}">${l}</button>`).join("")}
         </div>
         <p class="muted" style="margin:0;font-size:14px">Automatisch volgt de instelling van je telefoon. Je keuze wordt op dit toestel onthouden.</p></div>
+      <div class="panel" id="plan-panel"><p class="label" style="margin:0">Samen plannen</p>
+        ${planRequestBanner()}
+        ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 30)).join("")}<span>${esc(planWithText())}</span></div>
+          <p class="muted" style="margin:0;font-size:14px">Jullie delen het weekmenu en de boodschappenlijst. Recepten en favorieten blijven zoals ze zijn.</p>
+          <button class="btn" id="plan-leave">Stoppen met samen plannen</button>`
+        : `<p class="muted" style="margin:0;font-size:14px">Maak samen met iemand uit het receptenboek één weekmenu en één boodschappenlijst. Die persoon moet het eerst accepteren.</p>`}
+        <ul class="members">${Object.keys(S.names).filter((id) => id !== S.user.id && S.roles[id] && !planPartners().includes(id) && !((S.plan && S.plan.incoming) || []).includes(id)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "nl")).map((id) => {
+          const pending = ((S.plan && S.plan.outgoing) || []).includes(id);
+          return `<li>${avatarHTML(id, 32)}<span>${esc(nameOf(id))}</span><span class="n">${pending ? `<span class="muted">Gevraagd</span> · <button class="linkbtn danger-text" data-cancel="${esc(id)}">Intrekken</button>` : `<button class="linkbtn" data-ask="${esc(id)}">Vraag om samen te plannen</button>`}</span></li>`;
+        }).join("")}</ul></div>
       <div class="panel"><p class="label" style="margin:0">In ${esc(S.household.name || APP_NAME)}</p>
         <ul class="members">${Object.keys(S.names).filter((id) => S.roles[id]).sort((a, b) => (a === S.user.id ? -1 : b === S.user.id ? 1 : nameOf(a).localeCompare(nameOf(b), "nl"))).map((id) => `<li>${avatarHTML(id, 36)}<span>${esc(nameOf(id))}${id === S.user.id ? ' <span class="muted">(jij)</span>' : ""}<small class="muted" style="display:block">${ROLE_LABEL[S.roles[id]] || ""}</small></span><span class="n">${((n) => n === 1 ? "1 recept" : n + " recepten")(S.recipes.filter((r) => ownerOf(r) === id).length)}</span></li>`).join("")}</ul>
         ${isAdmin() ? `<button class="btn" id="to-members">Leden en uitnodigingen beheren</button>` : `<p class="muted" style="margin:0;font-size:14px">Jij bent ${esc((ROLE_LABEL[S.role] || "").toLowerCase())}: ${esc((ROLE_HELP[S.role] || "").toLowerCase())}.</p>`}</div>
@@ -1698,6 +1784,19 @@ function renderSettings() {
   };
   $("#back").onclick = () => go("list");
   if ($("#to-members")) $("#to-members").onclick = () => go("members");
+  $("#plan-panel").onclick = async (e) => {
+    if (await handlePlanBanner(e, renderSettings)) return;
+    const b = e.target.closest("button"); if (!b) return;
+    try {
+      if (b.dataset.ask) { await store.requestPlan(b.dataset.ask); toast(`Gevraagd aan ${nameOf(b.dataset.ask)}. Zodra die accepteert, plannen jullie samen.`); }
+      else if (b.dataset.cancel) { await store.declinePlan(S.user.id, b.dataset.cancel); toast("Verzoek ingetrokken"); }
+      else if (b.id === "plan-leave") {
+        if (!(await confirmSheet("Stoppen met samen plannen? Je neemt je eigen gerechten en boodschappen mee.", "Stoppen"))) return;
+        await store.leavePlan(); toast("Je plant nu weer alleen");
+      } else return;
+      S.plan = await store.planInfo(S.user.id); renderSettings();
+    } catch (err) { toast(err.message); }
+  };
   $("#name-form").onsubmit = async (e) => {
     e.preventDefault();
     try { const n = $("#s-name").value.trim(); await store.updateName(S.user.id, n); S.names[S.user.id] = n; toast("Naam opgeslagen"); renderSettings(); }
