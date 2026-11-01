@@ -1,0 +1,1637 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Recepten">
+<meta name="theme-color" content="#F4F6F1">
+<meta name="robots" content="noindex">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Tom's Receptenboek</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: één kolom, mobiel eerst; zoekbalk bovenaan, ronde knop rechtsonder om toe te voegen */
+:root {
+  --bg: #F4F6F1;          /* licht, groen getint papier */
+  --surface: #FFFFFF;
+  --sunk: #E8ECE4;
+  --ink: #18241D;
+  --muted: #5F6D63;
+  --line: #D5DCD0;
+  --herb: #2F6B4F;        /* basilicumgroen: hoofdkleur */
+  --herb-ink: #FFFFFF;
+  --saffron: #E3A02F;     /* saffraan: accent voor favorieten en porties */
+  --danger: #B3402E;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111814; --surface: #19221C; --sunk: #222D26; --ink: #E9EFE9; --muted: #9AAA9F;
+    --line: #2E3A32; --herb: #6FB892; --herb-ink: #0D1611; --saffron: #F0B54E; --danger: #E5765F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111814; --surface: #19221C; --sunk: #222D26; --ink: #E9EFE9; --muted: #9AAA9F;
+  --line: #2E3A32; --herb: #6FB892; --herb-ink: #0D1611; --saffron: #F0B54E; --danger: #E5765F;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap {
+  max-width: 680px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px 170px;
+}
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; text-wrap: balance; margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* Kop */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: grid; gap: 10px; padding-block: 12px 10px;
+}
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand h1 { font-size: 28px; font-weight: 800; letter-spacing: -.01em; }
+.iconbtn {
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); display: grid; place-items: center; flex: none;
+}
+.iconbtn svg { width: 20px; height: 20px; }
+.search {
+  display: flex; align-items: center; gap: 8px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; height: 46px;
+}
+.search input { border: 0; background: transparent; flex: 1; min-width: 0; height: 100%; outline: none; font-size: 16px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px; font-size: 14px; font-weight: 600; white-space: nowrap;
+}
+.chip[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
+.filterbar { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.filterbar::-webkit-scrollbar { display: none; }
+.fbtn {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px 0 14px;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  font-size: 14px; font-weight: 600; white-space: nowrap; max-width: 60vw;
+}
+.fbtn svg { width: 14px; height: 14px; flex: none; opacity: .65; }
+.fbtn[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
+.fbtn[aria-pressed="true"] svg { opacity: 1; }
+.fbtn.star { width: 38px; padding: 0; justify-content: center; color: var(--saffron); margin-left: auto; }
+.fbtn.star svg { width: 18px; height: 18px; opacity: 1; }
+.fbtn.star[aria-pressed="true"] { background: var(--saffron); border-color: var(--saffron); color: #2A1C02; }
+.avatar {
+  --hue: 152; flex: none; display: inline-grid; place-items: center; border-radius: 50%; overflow: hidden;
+  background: hsl(var(--hue) 38% 82%); color: hsl(var(--hue) 45% 24%); font-weight: 700; line-height: 1;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .avatar { background: hsl(var(--hue) 28% 30%); color: hsl(var(--hue) 50% 86%); } }
+:root[data-theme="dark"] .avatar { background: hsl(var(--hue) 28% 30%); color: hsl(var(--hue) 50% 86%); }
+.owner-dot { position: absolute; left: 8px; bottom: 8px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); display: grid; }
+.byline-owner { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.owner-pick { display: flex; align-items: center; gap: 10px; }
+.owner-pick select { flex: 1; min-width: 0; }
+.profile-row { display: flex; align-items: center; gap: 16px; }
+.members { list-style: none; margin: 0; padding: 0; display: grid; }
+.members li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.members li:last-child { border-bottom: 0; }
+.members .n { margin-left: auto; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tabs.three { grid-template-columns: repeat(3, 1fr); }
+/* Tabbalk onderin */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+}
+.tab { border: 0; background: none; display: grid; justify-items: center; gap: 2px; padding: 4px 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+.tab svg { width: 24px; height: 24px; }
+.tab[aria-current="page"] { color: var(--herb); }
+.fab { bottom: calc(env(safe-area-inset-bottom, 0px) + 82px); }
+
+/* Weekmenu */
+.weeknav { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 8px; }
+.weeklabel { display: grid; justify-items: center; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.weeklabel .muted { font-size: 14px; }
+.iconbtn.flip svg { transform: scaleX(-1); }
+.days { display: grid; gap: 12px; padding-top: 4px; }
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; }
+.day.today { border-color: var(--herb); box-shadow: inset 3px 0 0 var(--herb); }
+.day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.day-head h2 { font-size: 17px; }
+.day-head .muted { font-size: 13px; }
+.meal { display: grid; grid-template-columns: 1fr auto 32px; align-items: center; gap: 8px; }
+.meal-open { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; text-align: left; min-width: 0; }
+.meal-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--sunk); display: grid; place-items: center; flex: none; color: var(--herb); }
+.mini img { width: 100%; height: 100%; object-fit: cover; }
+.servings.small button { width: 30px; height: 30px; font-size: 17px; }
+.servings.small output { min-width: 30px; font-size: 14px; }
+.x { width: 32px; height: 32px; border: 0; background: none; color: var(--muted); font-size: 22px; line-height: 1; }
+.add-meal { justify-self: start; border: 1px dashed var(--line); background: none; color: var(--herb); font-weight: 600; border-radius: 10px; padding: 6px 12px; font-size: 14px; }
+.menu-foot { display: grid; gap: 10px; margin-top: 8px; }
+.pick { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 10px 0; text-align: left; }
+.pick span:not(.mini) { display: grid; min-width: 0; }
+.pick small { font-size: 13px; }
+.pick-star { margin-left: auto; color: var(--saffron); width: 16px; height: 16px; display: grid !important; }
+.daygrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.daygrid button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 6px 0; display: grid; justify-items: center; line-height: 1.2; }
+.daygrid small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.daygrid b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.daygrid button[aria-pressed="true"] { background: var(--herb); border-color: var(--herb); color: var(--herb-ink); }
+.daygrid button[aria-pressed="true"] small { color: inherit; }
+
+/* Boodschappen */
+.shop-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0 14px; }
+.shop-item { display: flex; align-items: center; gap: 12px; min-height: 50px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.shop-item:last-child { border-bottom: 0; }
+.shop-item input { width: 22px; height: 22px; margin: 0; accent-color: var(--herb); flex: none; }
+.shop-name { flex: 1; min-width: 0; }
+.shop-amt { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 15px; }
+.shop-item.done .shop-name { text-decoration: line-through; color: var(--muted); }
+#shop-add { padding-right: 6px; }
+#shop-add input { border: 0; background: transparent; flex: 1; min-width: 0; height: 100%; outline: none; font-size: 16px; }
+
+/* Leden */
+.invite-text { background: var(--sunk); border-radius: 12px; padding: 12px 14px; margin: 0; font-size: 15px; user-select: text; -webkit-user-select: text; }
+.code.small { font-size: 15px; letter-spacing: .08em; flex: none; }
+.member-row .member-name { flex: 1; min-width: 0; }
+select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6px 8px; font-size: 14px; }
+.member-row .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.danger-text { color: var(--danger) !important; }
+.results { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 4px; min-height: 28px; }
+.linkbtn { border: 0; background: none; color: var(--herb); font-weight: 600; font-size: 15px; padding: 4px 0; }
+.sheet { animation: rise .22s ease-out; max-height: 85vh; }
+@keyframes rise { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+.grabber { width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: -8px auto 2px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sheet-head h2 { font-size: 21px; }
+.opts { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
+.opt { display: flex; align-items: center; gap: 14px; min-height: 50px; border-bottom: 1px solid var(--line); font-size: 16px; cursor: pointer; }
+.opt:last-of-type { border-bottom: 0; }
+.opt input { width: 21px; height: 21px; margin: 0; accent-color: var(--herb); flex: none; }
+.opt .n { margin-left: auto; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.opt-group { margin: 16px 0 2px; }
+
+/* Lijst */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 6px; }
+.card { background: none; border: 0; padding: 0; text-align: left; display: grid; gap: 8px; min-width: 0; }
+.thumb {
+  aspect-ratio: 4 / 3; width: 100%; max-width: 100%; border-radius: var(--r); overflow: hidden;
+  background: var(--sunk); display: grid; place-items: center; position: relative;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb .initial { font-family: var(--font-display); font-size: 44px; font-weight: 800; color: var(--herb); opacity: .55; }
+.fav-dot { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; color: var(--saffron); }
+.fav-dot svg { width: 15px; height: 15px; }
+.card h3 { font-size: 17px; font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.empty { text-align: center; padding: 48px 16px; display: grid; gap: 10px; justify-items: center; }
+.empty h2 { font-size: 22px; }
+
+/* Ronde knop */
+.fab {
+  position: fixed; z-index: 6;
+  right: calc(max(16px, env(safe-area-inset-right, 0px)) + 4px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  height: 56px; padding: 0 22px 0 18px; border-radius: 999px; border: 0;
+  background: var(--herb); color: var(--herb-ink); font-weight: 700; font-size: 16px;
+  display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .18);
+}
+.fab svg { width: 22px; height: 22px; }
+
+/* Knoppen en velden */
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 12px;
+  min-height: 46px; padding: 0 16px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn.primary { background: var(--herb); border-color: var(--herb); color: var(--herb-ink); }
+.btn.danger { color: var(--danger); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .55; }
+.field { display: grid; gap: 6px; }
+.field > span { font-size: 14px; font-weight: 600; }
+.input, textarea.input, select.input {
+  width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 12px;
+  padding: 11px 13px; font-size: 16px; min-height: 46px;
+}
+textarea.input { resize: vertical; line-height: 1.45; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > * { flex: 1 1 140px; min-width: 0; }
+.stack { display: grid; gap: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 14px; }
+.notice { border-radius: 12px; padding: 10px 14px; font-size: 14px; background: var(--sunk); }
+.notice.error { color: var(--danger); }
+
+/* Detail */
+.back { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-block: 12px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 5; }
+.hero { aspect-ratio: 16 / 10; width: 100%; max-width: 100%; border-radius: var(--r); overflow: hidden; background: var(--sunk); display: grid; place-items: center; }
+.hero img { width: 100%; height: 100%; object-fit: cover; }
+.hero .initial { font-family: var(--font-display); font-size: 80px; font-weight: 800; color: var(--herb); opacity: .5; }
+.title-block { display: grid; gap: 6px; margin-top: 16px; }
+.title-block h1 { font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
+.title-block .sub { font-size: 17px; color: var(--muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 13px; font-weight: 600; background: var(--sunk); border-radius: 999px; padding: 3px 10px; }
+.section { margin-top: 28px; display: grid; gap: 12px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.section-head h2 { font-size: 21px; }
+.servings { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.servings button { width: 40px; height: 38px; border: 0; background: none; font-size: 20px; font-weight: 600; }
+.servings output { min-width: 64px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ing { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ing li { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ing .amt { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.ing .amt.scaled { color: var(--herb); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; counter-increment: s; }
+.steps li::before {
+  content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--herb); color: var(--herb-ink);
+  display: grid; place-items: center; font-weight: 700; font-size: 15px;
+}
+.steps b { display: block; margin-bottom: 2px; }
+.tip { background: var(--sunk); border-radius: var(--r); padding: 14px 16px; }
+.tip b { display: block; }
+.byline { font-size: 14px; color: var(--muted); display: grid; gap: 2px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.actions > * { flex: 1 1 140px; }
+
+/* Bewerken */
+.ing-edit { display: grid; gap: 8px; }
+.ing-row { display: grid; grid-template-columns: 1fr 76px 76px 38px; gap: 6px; align-items: center; }
+.ing-row .input { min-height: 42px; padding: 8px 10px; }
+.ing-row button { height: 38px; border: 0; background: none; color: var(--muted); font-size: 20px; }
+.step-edit { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.step-edit .head { display: flex; gap: 6px; }
+.step-edit .head .input { flex: 1; min-width: 0; }
+.step-edit .head button { border: 0; background: none; color: var(--muted); font-size: 20px; width: 38px; }
+.photo-pick { display: flex; gap: 12px; align-items: center; }
+.photo-pick .thumb { width: 110px; flex: none; }
+.warn { color: var(--danger); font-size: 14px; }
+
+/* Bevestiging en melding */
+.sheet-bg { position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: 20; display: grid; align-items: end; }
+.sheet {
+  background: var(--surface); border-radius: 18px 18px 0 0; display: grid; gap: 12px;
+  padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  max-width: 680px; width: 100%; margin: 0 auto;
+}
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 90px);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px;
+  max-width: calc(100% - 32px);
+}
+.demo-banner { font-size: 13px; background: var(--saffron); color: #1E1503; border-radius: 10px; padding: 8px 12px; font-weight: 600; }
+.auth { min-height: 80vh; display: grid; align-content: center; gap: 22px; padding-top: 24px; }
+.auth h1 { font-size: 38px; font-weight: 800; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--sunk); border-radius: 12px; padding: 4px; }
+.tabs button { border: 0; background: none; border-radius: 9px; min-height: 40px; font-weight: 600; }
+.tabs button[aria-selected="true"] { background: var(--surface); }
+.code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 26px; font-weight: 700; letter-spacing: .12em; }
+.spinner { width: 22px; height: 22px; border: 3px solid var(--line); border-top-color: var(--herb); border-radius: 50%; animation: spin .8s linear infinite; margin: 40px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+</style>
+
+</head>
+<body>
+<div id="app" class="wrap"><div class="spinner" aria-label="Laden"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+"use strict";
+/* ================= Instellingen ================= */
+const SUPABASE_URL = "https://eyhdbqnjyjwyjxwjiwkn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_N4Y5pydWbUrVzXR081r0Ng_B7gbFQot"; // publishable key: mag in de app
+const BUCKET = "recipe-photos";
+const APP_NAME = "Tom's Receptenboek";
+const host = location.hostname;
+const LIVE = host.endsWith("github.io") || host === "localhost" || host === "127.0.0.1";
+
+/* ================= Hulpjes ================= */
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ICON = {
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  search: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
+  starOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+};
+function toast(msg) {
+  document.querySelectorAll(".toast").forEach((x) => x.remove());
+  const t = document.createElement("div");
+  t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+function confirmSheet(text, okLabel) {
+  return new Promise((resolve) => {
+    const bg = document.createElement("div");
+    bg.className = "sheet-bg";
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><p style="margin:0;font-weight:600">${esc(text)}</p>
+      <button class="btn danger block" id="sheet-ok">${esc(okLabel)}</button><button class="btn block" id="sheet-cancel">Annuleren</button></div>`;
+    const done = (v) => { bg.remove(); resolve(v); };
+    bg.addEventListener("click", (e) => { if (e.target === bg) done(false); });
+    document.body.appendChild(bg);
+    $("#sheet-ok", bg).onclick = () => done(true);
+    $("#sheet-cancel", bg).onclick = () => done(false);
+  });
+}
+function fmtDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+}
+
+/* ================= Hoeveelheden ================= */
+const FRAC = { "½": .5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": .25, "¾": .75, "⅛": .125 };
+function parseAmount(text) {
+  const raw = String(text || "").trim();
+  const m = raw.match(/^(\d+(?:[.,]\d+)?)?\s*([½⅓⅔¼¾⅛])?\s*(?:-\s*\d+(?:[.,]\d+)?\s*)?(.*)$/);
+  if (!m || (!m[1] && !m[2])) return { amount: null, unit: raw || null, original: raw };
+  let v = m[1] ? parseFloat(m[1].replace(",", ".")) : 0;
+  if (m[2]) v += FRAC[m[2]];
+  return { amount: Math.round(v * 1000) / 1000, unit: m[3].trim() || null, original: raw };
+}
+function fmtAmount(v, unit) {
+  if (v == null) return "";
+  const u = (unit || "").toLowerCase();
+  if (["g", "gr", "gram", "ml", "kg", "l", "cl", "dl"].includes(u) && v >= 10) {
+    const r = v >= 100 ? Math.round(v / 5) * 5 : Math.round(v);
+    return String(r);
+  }
+  const whole = Math.floor(v + 1e-9);
+  const rest = v - whole;
+  const opts = [[0, ""], [.25, "¼"], [1 / 3, "⅓"], [.5, "½"], [2 / 3, "⅔"], [.75, "¾"], [1, ""]];
+  let best = opts[0];
+  for (const o of opts) if (Math.abs(o[0] - rest) < Math.abs(best[0] - rest)) best = o;
+  if (Math.abs(best[0] - rest) > .09) return String(Math.round(v * 10) / 10).replace(".", ",");
+  const w = best[0] === 1 ? whole + 1 : whole;
+  if (!best[1]) return String(w);
+  return (w ? String(w) : "") + best[1];
+}
+
+/* ================= Recept uit Notes inlezen ================= */
+const SECTIONS = [
+  { key: "ing", re: /^ingredi[eë]nten\b/i },
+  { key: "steps", re: /^(bereidingswijze|bereiding|werkwijze|instructies)\b/i },
+  { key: "tips", re: /^(kooktips|tips)\b/i },
+];
+const TAG_RULES = [
+  ["kip", /\bkip|kippen/i], ["vlees", /gehakt|rund|varken|spek|ham\b|worst|lams/i],
+  ["vis", /zalm|vis\b|kabeljauw|tonijn|garnal|pangasius|makreel/i],
+  ["pasta", /orzo|pasta|spaghetti|penne|tagliatelle|fusilli|lasagne|gnocchi|macaroni/i],
+  ["rijst", /rijst|risotto/i], ["noedels", /noedel|mie\b/i], ["curry", /curry/i], ["soep", /soep/i],
+];
+function suggestTags(r) {
+  const tags = [...(r.tags || [])];
+  const all = [r.title, r.subtitle, ...(r.ingredients || []).map((i) => i.name)].join(" ");
+  for (const [tag, re] of TAG_RULES) if (re.test(all)) tags.push(tag);
+  if (/\bbowl\b/i.test(r.title || "")) tags.push("bowl");
+  if (!tags.some((t) => ["kip", "vlees", "vis"].includes(t))) tags.push("vegetarisch");
+  return [...new Set(tags)];
+}
+function splitTitled(line) {
+  const t = line.replace(/^\s*(?:[*•\-–]|\d+[.)])\s*/, "").trim();
+  const m = t.match(/^([^:]{2,45}):\s+(.+)$/);
+  return m ? { title: m[1].trim(), text: m[2].trim() } : { title: "", text: t };
+}
+function parseRecipeText(src) {
+  const lines = String(src).replace(/\r/g, "").split("\n").map((l) => l.replace(/ /g, " ").trimEnd());
+  const out = { title: "", subtitle: "", servings: 2, prep_time_minutes: null, ingredients: [], steps: [], tips: [], tags: [], source_url: "" };
+  let section = "head";
+  const warnings = [];
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const url = line.match(/https?:\/\/\S+/);
+    if (url) { out.source_url = url[0]; continue; }
+    if (/-url$/i.test(line) || /^(bron|link|url)\s*:?$/i.test(line)) continue;
+    const sec = SECTIONS.find((s) => s.re.test(line) && line.length < 40);
+    if (sec) { section = sec.key; continue; }
+    const time = line.match(/(\d+)\s*(?:min|minuten)\b/i);
+    if (section === "head") {
+      if (!out.title) out.title = line;
+      else if (!out.subtitle) out.subtitle = line;
+      if (time && !out.prep_time_minutes) out.prep_time_minutes = +time[1];
+      continue;
+    }
+    if (section === "ing") {
+      const pm = line.match(/\((\d+)\s*p(?:ers(?:onen)?)?\)/i);
+      if (/hoeveelheid/i.test(line)) { if (pm) out.servings = +pm[1]; continue; }
+      let name, qty;
+      const parts = line.split(/\t+|\s{2,}/).map((s) => s.trim()).filter(Boolean);
+      if (parts.length >= 2) { qty = parts.pop(); name = parts.join(" "); }
+      else {
+        const m = line.match(/^(.*?)\s+(\d+(?:[.,]\d+)?\s*[½⅓⅔¼¾⅛]?\s*\S*|[½⅓⅔¼¾⅛]\s*\S*)$/);
+        if (m) { name = m[1]; qty = m[2]; } else { name = line; qty = ""; }
+      }
+      const a = parseAmount(qty);
+      out.ingredients.push({ name: name.replace(/^[*•\-–]\s*/, ""), amount: a.amount, unit: a.unit, original_text: a.original });
+      continue;
+    }
+    if (section === "steps") { out.steps.push(splitTitled(line)); continue; }
+    if (section === "tips") { out.tips.push(splitTitled(line)); continue; }
+  }
+  out.tags = suggestTags(out);
+  if (!out.title) warnings.push("Geen titel gevonden: zet de naam van het gerecht op de eerste regel.");
+  if (!out.ingredients.length) warnings.push("Geen ingrediënten gevonden: zet ze onder een kopje “Ingrediënten”.");
+  if (!out.steps.length) warnings.push("Geen bereiding gevonden: zet de stappen onder een kopje “Bereidingswijze”.");
+  const typos = [];
+  for (const i of out.ingredients) if (/vierde olijfolie/i.test(i.name)) typos.push(`“${i.name}” bedoel je “extra vierge olijfolie”?`);
+  out.warnings = warnings.concat(typos);
+  return out;
+}
+
+/* ================= Foto verkleinen ================= */
+function dataUrlToBlob(dataUrl) {
+  const [head, b64] = dataUrl.split(",");
+  const type = (head.match(/^data:([^;]+)/) || [])[1] || "image/jpeg";
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+async function squareAvatar(file) {
+  const bmp = await createImageBitmap(file).catch(async () => {
+    const url = URL.createObjectURL(file);
+    const img = new Image(); img.src = url; await img.decode(); return img;
+  });
+  const side = Math.min(bmp.width, bmp.height);
+  const c = document.createElement("canvas");
+  c.width = c.height = 320;
+  c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 320, 320);
+  const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+  if (!blob || blob.size > 290 * 1024) throw new Error("Deze foto lukt niet. Kies een andere foto.");
+  return blob;
+}
+async function shrinkPhoto(file) {
+  const bmp = await createImageBitmap(file).catch(async () => {
+    const url = URL.createObjectURL(file);
+    const img = new Image(); img.src = url; await img.decode(); return img;
+  });
+  const max = 1600;
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  for (const q of [0.82, 0.72, 0.62, 0.5, 0.4]) {
+    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", q));
+    if (blob && blob.size <= 480 * 1024) return blob;
+  }
+  throw new Error("Deze foto is te groot, ook na verkleinen. Kies een andere foto.");
+}
+
+/* ================= Opslag: echt (Supabase) of voorbeeld ================= */
+function liveStore() {
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fail = (error) => { if (error) throw new Error(error.message); };
+  const signed = async (bucket, paths) => {
+    if (!paths.length) return {};
+    const { data } = await sb.storage.from(bucket).createSignedUrls(paths, 60 * 60 * 12);
+    return Object.fromEntries((data || []).map((u) => [u.path, u.signedUrl]));
+  };
+  return {
+    sb,
+    async session() { const { data } = await sb.auth.getSession(); return data.session; },
+    onAuth(cb) { sb.auth.onAuthStateChange((_e, s) => cb(s)); },
+    async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); fail(error); },
+    async signUp(email, password, name, inviteCode) {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { display_name: name, invite_code: inviteCode || null } } });
+      fail(error);
+      if (!data.session) throw new Error("Account gemaakt. Bevestig eerst je e-mail via de link in je inbox, en log daarna in.");
+    },
+    async signOut() { await sb.auth.signOut(); },
+    async membership(userId) {
+      const { data, error } = await sb.from("household_members").select("role, households(id,name)").eq("user_id", userId).limit(1); fail(error);
+      if (!data[0]) return null;
+      return { role: data[0].role, household: data[0].households };
+    },
+    async createHousehold(name) { const { error } = await sb.rpc("create_household", { p_name: name }); fail(error); },
+    async redeemInvite(code) { const { error } = await sb.rpc("redeem_invite", { p_code: code }); fail(error); },
+    async members() {
+      const { data, error } = await sb.from("household_members").select("user_id, role, joined_at"); fail(error);
+      return data;
+    },
+    async setRole(userId, role) { const { error, count } = await sb.from("household_members").update({ role }, { count: "exact" }).eq("user_id", userId); fail(error); if (!count) throw new Error("Dat mag alleen een beheerder."); },
+    async removeMember(userId) { const { error } = await sb.from("household_members").delete().eq("user_id", userId); fail(error); },
+    async invites() {
+      const { data, error } = await sb.from("household_invites").select("*").is("used_by", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
+      fail(error); return data;
+    },
+    async createInvite(householdId, name, role) {
+      const { data, error } = await sb.from("household_invites").insert({ household_id: householdId, name, role }).select("*").single(); fail(error); return data;
+    },
+    async revokeInvite(id) { const { error } = await sb.from("household_invites").delete().eq("id", id); fail(error); },
+    async profiles() {
+      const { data, error } = await sb.from("profiles").select("id,display_name,avatar_path"); fail(error);
+      const map = await signed("avatars", data.map((p) => p.avatar_path).filter(Boolean));
+      for (const p of data) p.avatar_url = p.avatar_path ? map[p.avatar_path] : null;
+      return data;
+    },
+    async updateName(id, name) { const { error } = await sb.from("profiles").update({ display_name: name }).eq("id", id); fail(error); },
+    async setAvatar(id, blob, oldPath) {
+      let path = null;
+      if (blob) {
+        path = `${id}/avatar-${Date.now()}.jpg`;
+        const { error } = await sb.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg" }); fail(error);
+      }
+      const { error } = await sb.from("profiles").update({ avatar_path: path }).eq("id", id); fail(error);
+      if (oldPath) await sb.storage.from("avatars").remove([oldPath]);
+      if (!path) return { path: null, url: null };
+      const { data } = await sb.storage.from("avatars").createSignedUrl(path, 60 * 60 * 12);
+      return { path, url: data?.signedUrl || null };
+    },
+    async recipes() {
+      const { data, error } = await sb.from("recipes")
+        .select("*, recipe_ingredients(id,position,name,amount,unit,original_text)")
+        .order("title"); fail(error);
+      for (const r of data) r.recipe_ingredients.sort((a, b) => a.position - b.position);
+      const map = await signed(BUCKET, data.map((r) => r.photo_path).filter(Boolean));
+      for (const r of data) r.photo_url = r.photo_path ? map[r.photo_path] : null;
+      return data;
+    },
+    async saveRecipe(householdId, rec, ingredients, photoBlob, removePhoto) {
+      const fields = {
+        title: rec.title, subtitle: rec.subtitle || null, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes || null, owner_id: rec.owner_id || null,
+        steps: rec.steps, tips: rec.tips, tags: rec.tags, source_url: rec.source_url || null, notes: rec.notes || null,
+      };
+      let id = rec.id;
+      if (id) { const { error } = await sb.from("recipes").update(fields).eq("id", id); fail(error); }
+      else {
+        const { data, error } = await sb.from("recipes").insert({ ...fields, household_id: householdId }).select("id").single(); fail(error);
+        id = data.id;
+      }
+      { const { error } = await sb.from("recipe_ingredients").delete().eq("recipe_id", id); fail(error); }
+      if (ingredients.length) {
+        const rows = ingredients.map((i, n) => ({ recipe_id: id, position: n, name: i.name, amount: i.amount, unit: i.unit, original_text: i.original_text || null }));
+        const { error } = await sb.from("recipe_ingredients").insert(rows); fail(error);
+      }
+      if (photoBlob || removePhoto) {
+        let path = null;
+        if (photoBlob) {
+          path = `${householdId}/${id}-${Date.now()}.jpg`;
+          const { error } = await sb.storage.from(BUCKET).upload(path, photoBlob, { contentType: "image/jpeg" }); fail(error);
+        }
+        const { error } = await sb.from("recipes").update({ photo_path: path }).eq("id", id); fail(error);
+        if (rec.photo_path) await sb.storage.from(BUCKET).remove([rec.photo_path]);
+      }
+      return id;
+    },
+    async importUrl(url) {
+      const { data, error } = await sb.functions.invoke("recept-ophalen", { body: { url } });
+      if (error) {
+        let msg = "Het ophalen lukte niet. Controleer je internetverbinding en probeer het opnieuw.";
+        try { const b = await error.context.json(); if (b && b.error) msg = b.error; } catch (_) { /* standaardmelding */ }
+        throw new Error(msg);
+      }
+      return data.recipe;
+    },
+    async deleteRecipe(rec) {
+      const { error } = await sb.from("recipes").delete().eq("id", rec.id); fail(error);
+      if (rec.photo_path) await sb.storage.from(BUCKET).remove([rec.photo_path]);
+    },
+    async favorites() { const { data, error } = await sb.from("favorites").select("recipe_id"); fail(error); return data.map((f) => f.recipe_id); },
+    async setFavorite(recipeId, on) {
+      const q = on ? sb.from("favorites").insert({ recipe_id: recipeId }) : sb.from("favorites").delete().eq("recipe_id", recipeId);
+      const { error } = await q; fail(error);
+    },
+    async mealPlan(from, to) {
+      const { data, error } = await sb.from("meal_plan").select("id,plan_date,recipe_id,servings").gte("plan_date", from).lte("plan_date", to).order("created_at");
+      fail(error); return data;
+    },
+    async addMeal(householdId, date, recipeId, servings) {
+      const { data, error } = await sb.from("meal_plan").insert({ household_id: householdId, plan_date: date, recipe_id: recipeId, servings }).select("id,plan_date,recipe_id,servings").single();
+      fail(error); return data;
+    },
+    async updateMeal(id, patch) { const { error } = await sb.from("meal_plan").update(patch).eq("id", id); fail(error); },
+    async removeMeal(id) { const { error } = await sb.from("meal_plan").delete().eq("id", id); fail(error); },
+    async shopping() {
+      const { data, error } = await sb.from("shopping_items").select("id,name,amount,unit,is_checked,is_manual,position").order("position").order("created_at");
+      fail(error); return data;
+    },
+    async addShopping(householdId, items) {
+      const { data, error } = await sb.from("shopping_items").insert(items.map((i) => ({ household_id: householdId, ...i }))).select("id,name,amount,unit,is_checked,is_manual,position");
+      fail(error); return data;
+    },
+    async updateShopping(id, patch) { const { error } = await sb.from("shopping_items").update(patch).eq("id", id); fail(error); },
+    async removeShopping(ids) { if (!ids.length) return; const { error } = await sb.from("shopping_items").delete().in("id", ids); fail(error); },
+  };
+}
+
+const SAMPLE_TEXT = `Bowl met orzo en kippendijreepjes
+met komkommer, cherrytomaten, munt en Griekse yoghurt
+
+Ingrediënten
+Ingrediënt\tHoeveelheid (2p)
+Kippendijreepjes (kebab)\t200 g
+Orzo\t150 g
+Griekse yoghurt\t150 g
+Rode cherrytomaten\t200 g
+Komkommer\t1 stuk
+Rode ui\t1 stuk
+Knoflookteen\t1 stuk
+Paprikapoeder\t⅔ zakje
+Zwarte balsamicoazijn\t2 tl
+Verse munt\t10 g
+Citroen\t1 stuk
+Groentebouillon\t350 ml
+Roomboter\t1 el
+Olijfolie\t1 el
+Extra vierge olijfolie\t2 tl
+Bereidingswijze
+* Orzo bereiden: Bereid de bouillon. Verhit de olijfolie in een pan met deksel en fruit de rode ui, knoflook en het paprikapoeder 2 minuten. Voeg de orzo toe en roerbak 1 minuut. Schenk de bouillon erbij en kook de orzo, afgedekt, in 10 - 12 minuten droog.
+* Kip bakken: Verhit de roomboter in een koekenpan en bak de kippendijreepjes in 6 - 8 minuten rondom goudbruin en gaar.
+* Salade maken: Halveer de komkommer in de lengte en snijd in halve maantjes. Halveer de cherrytomaten. Meng beide in een kom met de olijfolie met balsamico. Breng op smaak met peper en zout.
+* Yoghurtdressing: Snijd de munt fijn. Meng in een kleine kom de Griekse yoghurt met de helft van de munt en het sap van 1 citroenpartje per persoon.
+* Serveren: Schep de orzo in diepe kommen. Verdeel de tomaat-komkommersalade en de kipreepjes erover. Werk af met de yoghurtdressing en de resterende munt.
+
+Kooktips
+* Orzo textuur: Orzo lijkt op rijst maar is een pasta. Als het te droog wordt voordat de korrel gaar is, voeg dan een extra scheutje water of bouillon toe.
+* Smaakmaker: Citroen is de sleutel in dit gerecht. Het frisse zuur snijdt prachtig door de romige yoghurt en de kruidige kebabkip.
+
+HelloFresh-URL
+https://www.hellofresh.nl/recipes/bowl-met-orzo-en-kippendijreepjes-628665bf439bffaaa70d603e`;
+
+function demoStore() {
+  const me = { id: "demo-me", display_name: "Tom" };
+  const partner = { id: "demo-2", display_name: "Vriendin" };
+  const mama = { id: "demo-3", display_name: "Mama" };
+  let n = 0;
+  const uid = () => "x" + Math.random().toString(36).slice(2, 10);
+  const mk = (p, extra) => ({
+    id: "r" + (++n), household_id: "demo-h", title: p.title, subtitle: p.subtitle, servings: p.servings,
+    prep_time_minutes: p.prep_time_minutes, steps: p.steps, tips: p.tips, tags: p.tags, source_url: p.source_url,
+    photo_path: null, photo_url: null, notes: null,
+    recipe_ingredients: p.ingredients.map((i, k) => ({ ...i, id: "i" + n + k, position: k })),
+    created_by: me.id, updated_by: me.id, created_at: "2026-10-30T18:00:00Z", updated_at: "2026-10-30T18:00:00Z", ...extra,
+    owner_id: (extra && (extra.owner_id || extra.created_by)) || p.owner_id || me.id,
+  });
+  const ing = (rows) => rows.map(([name, amount, unit]) => ({ name, amount, unit, original_text: `${amount} ${unit}` }));
+  const orzo = parseRecipeText(SAMPLE_TEXT);
+  orzo.prep_time_minutes = 25;
+  const recs = [
+    mk(orzo, { updated_by: partner.id, updated_at: "2026-10-31T17:20:00Z" }),
+    mk({ title: "Oma's hachee", subtitle: "met rode kool en gekookte aardappelen", servings: 4, prep_time_minutes: 180, tags: ["vlees", "stoofpot"], source_url: "",
+      ingredients: ing([["Runderlappen", 800, "g"], ["Uien", 4, "stuk"], ["Laurierblaadjes", 3, "stuk"], ["Kruidnagels", 4, "stuk"], ["Azijn", 2, "el"], ["Bouillon", 500, "ml"]]),
+      steps: [{ title: "Aanbraden", text: "Braad het vlees in porties bruin en schep het uit de pan." }, { title: "Stoven", text: "Fruit de uien, voeg vlees, kruiden, azijn en bouillon toe en laat 3 uur zachtjes stoven." }],
+      tips: [{ title: "Van oma", text: "Nog lekkerder als je hem een dag van tevoren maakt." }] }, { owner_id: mama.id }),
+    mk({ title: "Shakshuka met feta", subtitle: "met paprika, komijn en vers brood", servings: 2, prep_time_minutes: 30, tags: ["vegetarisch", "eieren"], source_url: "",
+      ingredients: ing([["Eieren", 4, "stuk"], ["Gepelde tomaten", 400, "g"], ["Rode paprika", 1, "stuk"], ["Ui", 1, "stuk"], ["Komijnzaad", 1, "tl"], ["Feta", 75, "g"], ["Desembrood", 2, "sneetjes"]]),
+      steps: [{ title: "Saus", text: "Fruit ui en paprika 5 minuten, voeg komijn en tomaten toe en laat 10 minuten pruttelen." }, { title: "Eieren", text: "Maak kuiltjes, breek de eieren erin en laat afgedekt 6 tot 8 minuten garen." }, { title: "Serveren", text: "Verkruimel de feta erover en serveer met geroosterd brood." }],
+      tips: [] }, { created_by: partner.id, updated_by: partner.id }),
+    mk({ title: "Zalm uit de oven", subtitle: "met krieltjes, sperziebonen en dille", servings: 2, prep_time_minutes: 35, tags: ["vis"], source_url: "",
+      ingredients: ing([["Zalmfilet", 2, "stuk"], ["Krieltjes", 400, "g"], ["Sperziebonen", 250, "g"], ["Verse dille", 5, "g"], ["Citroen", 0.5, "stuk"]]),
+      steps: [{ title: "Krieltjes", text: "Rooster de krieltjes 25 minuten op 200 °C." }, { title: "Zalm", text: "Leg de zalm de laatste 12 minuten erbij." }, { title: "Bonen", text: "Kook de sperziebonen 6 minuten en serveer alles met dille en citroen." }],
+      tips: [] }, { created_by: mama.id, updated_by: mama.id }),
+  ];
+  const profs = [me, partner, mama];
+  const members = [{ user_id: me.id, role: "admin" }, { user_id: partner.id, role: "editor" }, { user_id: mama.id, role: "viewer" }];
+  const invites = [{ id: "inv1", code: "K7Q2M9XD", name: "Broer", role: "viewer", expires_at: new Date(Date.now() + 5 * 864e5).toISOString() }];
+  const favs = new Set(["r1"]);
+  const today = isoDate(new Date());
+  const meals = [
+    { id: uid(), plan_date: today, recipe_id: "r1", servings: 2 },
+    { id: uid(), plan_date: isoDate(addDays(new Date(), 2)), recipe_id: "r3", servings: 2 },
+  ];
+  let shop = [];
+  const now = () => new Date().toISOString();
+  return {
+    demo: true,
+    async session() { return { user: { id: me.id, email: "tom@voorbeeld.nl" } }; },
+    onAuth() {},
+    async signOut() { toast("In de voorbeeldweergave kun je niet uitloggen"); },
+    async membership() { return { role: members[0].role, household: { id: "demo-h", name: APP_NAME } }; },
+    async members() { return members; },
+    async setRole(userId, role) { members.find((m) => m.user_id === userId).role = role; },
+    async removeMember(userId) { members.splice(members.findIndex((m) => m.user_id === userId), 1); },
+    async invites() { return invites; },
+    async createInvite(hid, name, role) {
+      const inv = { id: uid(), code: Math.random().toString(36).slice(2, 10).toUpperCase(), name, role, expires_at: new Date(Date.now() + 7 * 864e5).toISOString() };
+      invites.unshift(inv); return inv;
+    },
+    async revokeInvite(id) { invites.splice(invites.findIndex((i) => i.id === id), 1); },
+    async profiles() { return profs.filter((p) => members.some((m) => m.user_id === p.id)); },
+    async updateName(id, name) { me.display_name = name; },
+    async setAvatar(id, blob) { return blob ? { path: "demo", url: URL.createObjectURL(blob) } : { path: null, url: null }; },
+    async recipes() { return recs.slice().sort((a, b) => a.title.localeCompare(b.title, "nl")); },
+    async saveRecipe(hid, rec, ingredients, photoBlob, removePhoto) {
+      let r = recs.find((x) => x.id === rec.id);
+      if (!r) { r = mk({ ...rec, ingredients: [] }); recs.push(r); }
+      Object.assign(r, { owner_id: rec.owner_id || me.id, title: rec.title, subtitle: rec.subtitle, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes, steps: rec.steps, tips: rec.tips, tags: rec.tags, source_url: rec.source_url, updated_by: me.id, updated_at: now() });
+      r.recipe_ingredients = ingredients.map((i, k) => ({ ...i, position: k }));
+      if (photoBlob) r.photo_url = URL.createObjectURL(photoBlob);
+      if (removePhoto) r.photo_url = null;
+      return r.id;
+    },
+    async importUrl() {
+      await new Promise((r) => setTimeout(r, 700));
+      const p = parseRecipeText(SAMPLE_TEXT);
+      toast("Voorbeeld: in de echte app wordt de link echt opgehaald");
+      return { ...p, tags: ["grieks"], prep_time_minutes: 15, image: null };
+    },
+    async deleteRecipe(rec) { recs.splice(recs.findIndex((x) => x.id === rec.id), 1); },
+    async favorites() { return [...favs]; },
+    async setFavorite(id, on) { if (on) favs.add(id); else favs.delete(id); },
+    async mealPlan(from, to) { return meals.filter((m) => m.plan_date >= from && m.plan_date <= to); },
+    async addMeal(hid, date, recipeId, servings) { const m = { id: uid(), plan_date: date, recipe_id: recipeId, servings }; meals.push(m); return m; },
+    async updateMeal(id, patch) { Object.assign(meals.find((m) => m.id === id), patch); },
+    async removeMeal(id) { meals.splice(meals.findIndex((m) => m.id === id), 1); },
+    async shopping() { return shop.slice().sort((a, b) => a.position - b.position); },
+    async addShopping(hid, items) { const rows = items.map((i) => ({ id: uid(), is_checked: false, is_manual: true, position: 0, ...i })); shop.push(...rows); return rows; },
+    async updateShopping(id, patch) { Object.assign(shop.find((s) => s.id === id), patch); },
+    async removeShopping(ids) { shop = shop.filter((s) => !ids.includes(s.id)); },
+  };
+}
+
+/* ================= App-status ================= */
+const store = LIVE && window.supabase ? liveStore() : demoStore();
+const S = {
+  view: "list", user: null, role: null, household: null, recipes: [], names: {}, avatars: {}, roles: {}, favs: new Set(),
+  query: "", tags: [], time: "all", favOnly: false, owner: "all", current: null, scale: null, draft: null,
+  weekStart: startOfWeek(new Date()), meals: [], shop: [],
+};
+const ROLE_LABEL = { admin: "Beheerder", editor: "Bewerker", viewer: "Lezer" };
+const ROLE_HELP = { admin: "Alles, plus leden en uitnodigingen beheren", editor: "Recepten bekijken, toevoegen en wijzigen", viewer: "Recepten alleen bekijken" };
+function canEdit() { return S.role === "admin" || S.role === "editor"; }
+function isAdmin() { return S.role === "admin"; }
+function nameOf(id) { return S.names[id] || "onbekend"; }
+function ownerOf(r) { return r.owner_id || r.created_by; }
+const AVATAR_HUES = [152, 32, 200, 340, 265, 90, 12];
+function avatarHTML(id, size = 28) {
+  const a = (S.avatars || {})[id];
+  const n = nameOf(id);
+  const style = `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.42)}px`;
+  if (a && a.url) return `<span class="avatar" style="${style}"><img src="${esc(a.url)}" alt=""></span>`;
+  let h = 0; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `<span class="avatar" style="${style};--hue:${AVATAR_HUES[h % AVATAR_HUES.length]}" aria-hidden="true">${esc((n[0] || "?").toUpperCase())}</span>`;
+}
+
+/* ================= Datums ================= */
+function isoDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function startOfWeek(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const wd = (x.getDay() + 6) % 7; return addDays(x, -wd); }
+function weekNumber(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - y0) / 864e5 + 1) / 7);
+}
+const DAY_NAMES = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"];
+function fmtDay(d) { return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" }); }
+
+/* ================= Weergave: licht, donker of automatisch ================= */
+const THEME_KEY = "receptenboek-thema";
+function getTheme() { try { return localStorage.getItem(THEME_KEY) || "auto"; } catch (_) { return "auto"; } }
+let themeForced = false;
+function applyTheme(t) {
+  const root = document.documentElement;
+  if (t === "light" || t === "dark") { root.setAttribute("data-theme", t); themeForced = true; }
+  else if (themeForced) { root.removeAttribute("data-theme"); themeForced = false; }
+  const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#111814" : "#F4F6F1");
+}
+function setTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) { /* alleen voor deze sessie */ } applyTheme(t); }
+applyTheme(getTheme());
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => applyTheme(getTheme()));
+function getRecipe(id) { return S.recipes.find((r) => r.id === id); }
+
+async function boot() {
+  const session = await store.session();
+  S.user = session?.user || null;
+  if (!S.user) return renderAuth();
+  await loadAll();
+}
+async function loadAll() {
+  try {
+    const m = await store.membership(S.user.id);
+    if (!m) return renderHousehold();
+    S.household = m.household; S.role = m.role;
+    const [profiles, recipes, favs, members] = await Promise.all([store.profiles(), store.recipes(), store.favorites(), store.members()]);
+    S.names = Object.fromEntries(profiles.map((p) => [p.id, p.display_name]));
+    S.avatars = Object.fromEntries(profiles.map((p) => [p.id, { path: p.avatar_path || null, url: p.avatar_url || null }]));
+    S.roles = Object.fromEntries(members.map((x) => [x.user_id, x.role]));
+    S.recipes = recipes;
+    S.favs = new Set(favs);
+    render();
+  } catch (e) { renderError(e); }
+}
+function go(view, id) {
+  if (["list", "menu", "shop"].includes(S.view) && view === "detail") S.from = S.view;
+  if (["list", "menu", "shop"].includes(view)) S.from = view;
+  S.view = view; S.current = id || null; S.scale = null;
+  render(); window.scrollTo(0, 0);
+}
+function render() {
+  if (S.view === "detail") return renderDetail();
+  if (S.view === "edit") return canEdit() ? renderEdit() : go("list");
+  if (S.view === "paste") return canEdit() ? renderPaste() : go("list");
+  if (S.view === "settings") return renderSettings();
+  if (S.view === "members") return isAdmin() ? renderMembers() : go("settings");
+  if (S.view === "menu") return renderMenu();
+  if (S.view === "shop") return renderShop();
+  renderList();
+}
+function tabBarHTML(active) {
+  const tab = (id, label, icon) => `<button class="tab" data-tab="${id}" aria-current="${active === id ? "page" : "false"}">${icon}<span>${label}</span></button>`;
+  return `<nav class="tabbar" aria-label="Hoofdmenu">
+    ${tab("list", "Recepten", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>')}
+    ${tab("menu", "Weekmenu", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>')}
+    ${tab("shop", "Boodschappen", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16l-1.5 9.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M9 6V5a3 3 0 0 1 6 0v1"/></svg>')}
+  </nav>`;
+}
+function bindTabBar() {
+  const bar = $(".tabbar"); if (!bar) return;
+  bar.onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) go(b.dataset.tab); };
+}
+function renderError(e) {
+  $("#app").innerHTML = `<div class="auth"><h1>Er ging iets mis</h1><p class="notice error">${esc(e.message)}</p>
+    <button class="btn primary" id="retry">Opnieuw proberen</button></div>`;
+  $("#retry").onclick = () => boot();
+}
+
+/* ================= Inloggen ================= */
+function renderAuth(mode = "in", msg = "") {
+  $("#app").innerHTML = `<div class="auth">
+    <div><p class="label">Alleen op uitnodiging</p><h1>${esc(APP_NAME)}</h1></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-in" aria-selected="${mode === "in"}">Inloggen</button>
+      <button role="tab" id="tab-up" aria-selected="${mode === "up"}">Account maken</button>
+    </div>
+    <form id="auth-form" class="stack">
+      ${mode === "up" ? `<label class="field"><span>Uitnodigingscode</span><input class="input" id="a-code" autocapitalize="characters" autocomplete="off" placeholder="Bijv. K7Q2M9XD"></label>
+        <label class="field"><span>Je naam</span><input class="input" id="a-name" autocomplete="given-name" required placeholder="Bijv. Tom"></label>` : ""}
+      <label class="field"><span>E-mail</span><input class="input" id="a-email" type="email" autocomplete="email" required></label>
+      <label class="field"><span>Wachtwoord</span><input class="input" id="a-pass" type="password" minlength="6" autocomplete="${mode === "up" ? "new-password" : "current-password"}" required></label>
+      ${msg ? `<p class="notice error">${esc(msg)}</p>` : ""}
+      <button class="btn primary block" id="a-submit">${mode === "up" ? "Account maken" : "Inloggen"}</button>
+      ${mode === "up" ? `<p class="muted" style="margin:0;font-size:14px">De code krijg je van de beheerder van het receptenboek.</p>` : ""}
+    </form></div>`;
+  $("#tab-in").onclick = () => renderAuth("in");
+  $("#tab-up").onclick = () => renderAuth("up");
+  $("#auth-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("#a-submit"); btn.disabled = true;
+    try {
+      const email = $("#a-email").value.trim(), pass = $("#a-pass").value;
+      if (mode === "up") await store.signUp(email, pass, $("#a-name").value.trim(), $("#a-code").value.trim().toUpperCase());
+      else await store.signIn(email, pass);
+      await boot();
+    } catch (err) {
+      renderAuth(mode, /invalid login/i.test(err.message) ? "E-mail of wachtwoord klopt niet." : err.message);
+    }
+  };
+}
+
+/* ================= Nog geen lid ================= */
+function renderHousehold(msg = "") {
+  $("#app").innerHTML = `<div class="auth">
+    <div><p class="label">Nog één stap</p><h1>Doe mee met ${esc(APP_NAME)}</h1></div>
+    <form id="hh-join" class="panel">
+      <h2 style="font-size:20px">Ik heb een uitnodigingscode</h2>
+      <input class="input" id="hh-code" placeholder="Bijv. K7Q2M9XD" autocapitalize="characters" required>
+      <button class="btn primary">Meedoen</button>
+    </form>
+    <details class="panel"><summary style="font-weight:600;cursor:pointer">Ik stel de app voor het eerst in</summary>
+      <form id="hh-new" class="stack" style="margin-top:12px">
+        <p class="muted" style="margin:0">Dit kan maar één keer: jij wordt dan de beheerder.</p>
+        <input class="input" id="hh-name" value="${esc(APP_NAME)}" required>
+        <button class="btn">Receptenboek aanmaken</button>
+      </form></details>
+    ${msg ? `<p class="notice error">${esc(msg)}</p>` : ""}
+    <button class="btn" id="hh-out">Uitloggen</button></div>`;
+  $("#hh-join").onsubmit = async (e) => { e.preventDefault(); try { await store.redeemInvite($("#hh-code").value); await loadAll(); } catch (err) { renderHousehold(err.message); } };
+  $("#hh-new").onsubmit = async (e) => { e.preventDefault(); try { await store.createHousehold($("#hh-name").value.trim()); await loadAll(); } catch (err) { renderHousehold(err.message); } };
+  $("#hh-out").onclick = async () => { await store.signOut(); S.user = null; renderAuth(); };
+}
+
+/* ================= Overzicht ================= */
+function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+const TIME_OPTS = [["all", "Elke duur"], ["20", "Tot 20 minuten"], ["30", "Tot 30 minuten"], ["45", "Tot 45 minuten"], ["long", "Langer dan 45 minuten"]];
+const TIME_SHORT = { "20": "≤ 20 min", "30": "≤ 30 min", "45": "≤ 45 min", long: "> 45 min" };
+function matches(r, f) {
+  if (f.favOnly && !S.favs.has(r.id)) return false;
+  if (f.owner === "me" && ownerOf(r) !== S.user.id) return false;
+  if (f.owner === "others" && ownerOf(r) === S.user.id) return false;
+  if (!["all", "me", "others"].includes(f.owner) && ownerOf(r) !== f.owner) return false;
+  if (f.tags.length && !f.tags.every((t) => (r.tags || []).includes(t))) return false;
+  if (f.time !== "all") {
+    const t = r.prep_time_minutes;
+    if (!t) return false;
+    if (f.time === "long" ? t <= 45 : t > +f.time) return false;
+  }
+  const terms = norm(f.query).split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+  const hay = norm([r.title, r.subtitle, (r.tags || []).join(" "), r.recipe_ingredients.map((i) => i.name).join(" ")].join(" "));
+  return terms.every((t) => hay.includes(t));
+}
+function filtered(f = S) { return S.recipes.filter((r) => matches(r, f)); }
+function filtersActive() { return S.owner !== "all" || S.tags.length > 0 || S.time !== "all" || S.favOnly; }
+function people() {
+  return Object.entries(S.names).filter(([id]) => id !== S.user.id).sort((a, b) => a[1].localeCompare(b[1], "nl"));
+}
+function filterBarHTML() {
+  const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  const person = S.owner === "all" ? "Persoon" : S.owner === "me" ? "Van mij" : S.owner === "others" ? "Van anderen" : nameOf(S.owner);
+  const tags = !S.tags.length ? "Tags" : S.tags[0] + (S.tags.length > 1 ? ` +${S.tags.length - 1}` : "");
+  const time = S.time === "all" ? "Tijd" : TIME_SHORT[S.time];
+  return `
+    <button class="fbtn" data-sheet="person" aria-pressed="${S.owner !== "all"}" aria-haspopup="dialog">${esc(person)}${chev}</button>
+    <button class="fbtn" data-sheet="tags" aria-pressed="${S.tags.length > 0}" aria-haspopup="dialog">${esc(tags)}${chev}</button>
+    <button class="fbtn" data-sheet="time" aria-pressed="${S.time !== "all"}" aria-haspopup="dialog">${esc(time)}${chev}</button>
+    <button class="fbtn star" data-fav aria-pressed="${S.favOnly}" aria-label="Alleen favorieten">${S.favOnly ? ICON.star : ICON.starOff}</button>`;
+}
+function openFilterSheet(kind) {
+  const f = { query: S.query, owner: S.owner, tags: [...S.tags], time: S.time, favOnly: S.favOnly };
+  const count = (patch) => filtered({ ...f, ...patch }).length;
+  const titles = { person: "Recept van", tags: "Tags", time: "Bereidingstijd" };
+  const bg = document.createElement("div");
+  bg.className = "sheet-bg";
+  const optionsHTML = () => {
+    if (kind === "person") {
+      const opts = [["all", "Iedereen"], ["me", "Van mij"], ["others", "Van anderen"], ...people()];
+      return opts.map(([v, label], i) => `${i === 3 ? `<p class="label opt-group">Personen</p>` : ""}
+        <label class="opt"><input type="radio" name="opt" value="${esc(v)}" ${f.owner === v ? "checked" : ""}>${i >= 3 ? avatarHTML(v, 30) : ""}<span>${esc(label)}</span><span class="n">${count({ owner: v })}</span></label>`).join("");
+    }
+    if (kind === "tags") {
+      const all = [...new Set(S.recipes.flatMap((r) => r.tags || []))].sort((a, b) => a.localeCompare(b, "nl"));
+      if (!all.length) return `<p class="muted">Er zijn nog geen tags. Voeg ze toe bij het bewerken van een recept.</p>`;
+      return all.map((t) => `<label class="opt"><input type="checkbox" value="${esc(t)}" ${f.tags.includes(t) ? "checked" : ""}><span>${esc(t)}</span><span class="n">${S.recipes.filter((r) => (r.tags || []).includes(t)).length}</span></label>`).join("");
+    }
+    return TIME_OPTS.map(([v, label]) => `<label class="opt"><input type="radio" name="opt" value="${v}" ${f.time === v ? "checked" : ""}><span>${label}</span><span class="n">${count({ time: v })}</span></label>`).join("")
+      + `<p class="muted" style="font-size:13px;margin:10px 0 0">Recepten zonder bereidingstijd vallen weg zodra je een duur kiest.</p>`;
+  };
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="grabber" aria-hidden="true"></div>
+      <div class="sheet-head"><h2 id="sheet-title">${titles[kind]}</h2><button class="linkbtn" id="sheet-clear">Wissen</button></div>
+      ${kind === "tags" ? `<p class="muted" style="margin:-4px 0 0;font-size:14px">Je ziet recepten met álle gekozen tags.</p>` : ""}
+      <div class="opts" id="sheet-opts">${optionsHTML()}</div>
+      <button class="btn primary block" id="sheet-apply"></button></div>`;
+  const apply = $("#sheet-apply", bg);
+  const refreshCount = () => { const n = filtered(f).length; apply.textContent = n === 1 ? "Toon 1 recept" : `Toon ${n} recepten`; };
+  const close = () => { document.removeEventListener("keydown", onKey); bg.remove(); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  $("#sheet-opts", bg).addEventListener("change", (e) => {
+    const inp = e.target;
+    if (kind === "person") f.owner = inp.value;
+    else if (kind === "time") f.time = inp.value;
+    else f.tags = [...$("#sheet-opts", bg).querySelectorAll("input:checked")].map((i) => i.value);
+    refreshCount();
+  });
+  $("#sheet-clear", bg).onclick = () => {
+    if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = "all"; else f.tags = [];
+    $("#sheet-opts", bg).innerHTML = optionsHTML(); refreshCount();
+  };
+  apply.onclick = () => { Object.assign(S, { owner: f.owner, tags: f.tags, time: f.time }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
+  bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
+  document.addEventListener("keydown", onKey);
+  refreshCount();
+  document.body.appendChild(bg);
+  apply.focus({ preventScroll: true });
+}
+function thumbHTML(r, cls) {
+  const inner = r.photo_url ? `<img src="${esc(r.photo_url)}" alt="" loading="lazy">` : `<span class="initial">${esc((r.title || "?")[0])}</span>`;
+  const owner = cls === "thumb" && r.id && ownerOf(r) ? `<span class="owner-dot" title="Recept van ${esc(nameOf(ownerOf(r)))}">${avatarHTML(ownerOf(r), 26)}</span>` : "";
+  return `<div class="${cls}">${inner}${cls === "thumb" && S.favs.has(r.id) ? `<span class="fav-dot" aria-label="Favoriet">${ICON.star}</span>` : ""}${owner}</div>`;
+}
+function renderList() {
+  $("#app").innerHTML = `
+    <header class="top">
+      ${store.demo ? `<div class="demo-banner">Voorbeeldweergave met voorbeeldrecepten. Wat je hier wijzigt, wordt niet opgeslagen.</div>` : ""}
+      <div class="brand"><h1>${esc(S.household?.name || APP_NAME)}</h1>
+        <button class="iconbtn" id="to-settings" aria-label="Instellingen">${ICON.gear}</button></div>
+      <label class="search">${ICON.search}<input id="q" type="search" placeholder="Zoek op gerecht of ingrediënt" value="${esc(S.query)}" autocomplete="off"></label>
+      <div class="filterbar" id="filters" role="group" aria-label="Filters">${filterBarHTML()}</div>
+    </header>
+    <main id="list"></main>
+    ${canEdit() ? `<button class="fab" id="add">${ICON.plus}Recept</button>` : ""}
+    ${tabBarHTML("list")}`;
+  bindTabBar();
+  drawList();
+  $("#q").oninput = (e) => { S.query = e.target.value; drawList(); };
+  $("#filters").onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.hasAttribute("data-fav")) { S.favOnly = !S.favOnly; $("#filters").innerHTML = filterBarHTML(); drawList(); return; }
+    openFilterSheet(b.dataset.sheet);
+  };
+  if ($("#add")) $("#add").onclick = () => { S.draft = null; go("paste"); };
+  $("#to-settings").onclick = () => go("settings");
+}
+function drawList() {
+  const list = filtered();
+  const el = $("#list");
+  if (!S.recipes.length) {
+    el.innerHTML = `<div class="empty"><h2>Nog geen recepten</h2><p class="muted" style="margin:0">${canEdit() ? "Tik op <b>Recept</b> en plak een link of de tekst uit Notes." : "Zodra iemand een recept toevoegt, zie je het hier."}</p></div>`;
+    return;
+  }
+  if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && S.time === "all" && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
+  const clearBtn = filtersActive() ? `<button class="linkbtn" id="clear-filters">Filters wissen</button>` : "";
+  if (!list.length) { el.innerHTML = `<div class="empty"><h2>Niets gevonden</h2><p class="muted" style="margin:0">Probeer een ander woord, of zet de filters uit.</p>${clearBtn}</div>`; }
+  else el.innerHTML = `<div class="results"><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p>${clearBtn}</div><div class="grid">${list.map((r) => `
+    <button class="card" data-id="${r.id}">
+      ${thumbHTML(r, "thumb")}
+      <h3>${esc(r.title)}</h3>
+      <div class="meta">${r.prep_time_minutes ? `<span>${r.prep_time_minutes} min</span>` : ""}<span>${r.servings}p</span><span>${r.recipe_ingredients.length} ingrediënten</span></div>
+    </button>`).join("")}</div>`;
+  el.onclick = (e) => {
+    if (e.target.closest("#clear-filters")) {
+      Object.assign(S, { owner: "all", tags: [], time: "all", favOnly: false });
+      $("#filters").innerHTML = filterBarHTML(); drawList(); return;
+    }
+    const c = e.target.closest(".card"); if (c) go("detail", c.dataset.id);
+  };
+}
+
+/* ================= Recept bekijken ================= */
+function renderDetail() {
+  const r = getRecipe(S.current);
+  if (!r) return go("list");
+  const base = r.servings || 2;
+  const n = S.scale || base;
+  const f = n / base;
+  $("#app").innerHTML = `
+    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button>
+      <button class="iconbtn" id="fav" aria-label="${S.favs.has(r.id) ? "Geen favoriet meer" : "Maak favoriet"}" aria-pressed="${S.favs.has(r.id)}" style="color:var(--saffron)">${S.favs.has(r.id) ? ICON.star : ICON.starOff}</button></div>
+    ${thumbHTML(r, "hero")}
+    <div class="title-block">
+      <h1>${esc(r.title)}</h1>
+      ${r.subtitle ? `<p class="sub" style="margin:0">${esc(r.subtitle)}</p>` : ""}
+      <div class="meta">${r.prep_time_minutes ? `<span>${r.prep_time_minutes} minuten</span>` : ""}${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--herb)">Bron bekijken</a>` : ""}</div>
+      ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+      <button class="btn primary" id="to-menu" style="margin-top:8px;justify-self:start;white-space:nowrap">${ICON.plus}Op mijn weekmenu</button>
+    </div>
+    <section class="section">
+      <div class="section-head"><h2>Ingrediënten</h2>
+        <div class="servings" aria-label="Aantal personen"><button id="minus" aria-label="Minder personen">−</button><output id="pp">${n} pers.</output><button id="plus" aria-label="Meer personen">+</button></div></div>
+      <ul class="ing">${r.recipe_ingredients.map((i) => {
+        const amt = i.amount == null ? (i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
+        return `<li><span>${esc(i.name)}</span><span class="amt${f !== 1 && i.amount != null ? " scaled" : ""}">${amt}</span></li>`;
+      }).join("")}</ul>
+      ${f !== 1 ? `<p class="muted" style="margin:0;font-size:14px">Omgerekend van ${base} naar ${n} personen.</p>` : ""}
+    </section>
+    ${(r.steps || []).length ? `<section class="section"><h2>Bereiding</h2><ol class="steps">${r.steps.map((s) => `<li><div>${s.title ? `<b>${esc(s.title)}</b>` : ""}${esc(s.text)}</div></li>`).join("")}</ol></section>` : ""}
+    ${(r.tips || []).length ? `<section class="section"><h2>Kooktips</h2>${r.tips.map((t) => `<div class="tip">${t.title ? `<b>${esc(t.title)}</b>` : ""}${esc(t.text)}</div>`).join("")}</section>` : ""}
+    <div class="byline">
+      <div class="byline-owner">${avatarHTML(ownerOf(r), 40)}<div><span class="label" style="display:block">Recept van</span><b style="color:var(--ink);font-size:16px">${esc(nameOf(ownerOf(r)))}</b></div></div>
+      <span>Toegevoegd door ${esc(nameOf(r.created_by))} op ${fmtDate(r.created_at)}</span>
+      <span>Laatst gewijzigd door ${esc(nameOf(r.updated_by || r.created_by))} op ${fmtDate(r.updated_at)}</span></div>
+    ${canEdit() ? `<div class="actions"><button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>` : ""}
+    <div style="height:24px"></div>`;
+  $("#back").onclick = () => go(S.from || "list");
+  $("#to-menu").onclick = () => addToMenuSheet(r);
+  $("#minus").onclick = () => { if (n > 1) { S.scale = n - 1; renderDetail(); } };
+  $("#plus").onclick = () => { if (n < 20) { S.scale = n + 1; renderDetail(); } };
+  $("#fav").onclick = async () => {
+    const on = !S.favs.has(r.id);
+    try { await store.setFavorite(r.id, on); if (on) S.favs.add(r.id); else S.favs.delete(r.id); renderDetail(); }
+    catch (e) { toast(e.message); }
+  };
+  if (!canEdit()) return;
+  $("#edit").onclick = () => { S.draft = draftFrom(r); S.view = "edit"; render(); window.scrollTo(0, 0); };
+  $("#del").onclick = async () => {
+    if (!(await confirmSheet(`“${r.title}” verwijderen? Dit kan niet ongedaan worden gemaakt.`, "Verwijderen"))) return;
+    try { await store.deleteRecipe(r); S.recipes = S.recipes.filter((x) => x.id !== r.id); go("list"); toast("Recept verwijderd"); }
+    catch (e) { toast(e.message); }
+  };
+}
+
+/* ================= Plakken uit Notes ================= */
+function renderPaste() {
+  $("#app").innerHTML = `
+    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Nieuw recept</span><span style="width:40px"></span></div>
+    <div class="stack">
+      <h1 style="font-size:28px">Plak je recept</h1>
+      <p class="muted" style="margin:0">Plak een <b>link</b> naar een receptensite, zoals HelloFresh, of de <b>tekst</b> van een recept uit Notes. De app vult titel, ingrediënten, stappen en foto zelf in. Daarna kun je alles nog aanpassen.</p>
+      <textarea class="input" id="paste" rows="10" placeholder="https://www.hellofresh.nl/recipes/…&#10;&#10;of de tekst uit Notes:&#10;Bowl met orzo en kippendijreepjes&#10;Ingrediënten&#10;Orzo	150 g&#10;…"></textarea>
+      <p class="notice error" id="paste-err" hidden></p>
+      <button class="btn primary block" id="parse">Inlezen</button>
+      <button class="btn block" id="manual">Zelf invullen</button>
+      ${store.demo ? `<button class="btn block" id="sample">Probeer met het orzo-voorbeeld</button><button class="btn block" id="sample-link">Probeer met een HelloFresh-link</button>` : ""}
+    </div>`;
+  $("#back").onclick = () => go("list");
+  $("#parse").onclick = async () => {
+    const txt = $("#paste").value;
+    if (!txt.trim()) { toast("Plak eerst een recept of een link"); return; }
+    const onlyUrl = txt.trim().match(/^(https?:\/\/\S+)$/i) || (txt.trim().split(/\s+/).length <= 3 && txt.match(/https?:\/\/\S+/i));
+    if (onlyUrl) {
+      const btn = $("#parse"), err = $("#paste-err");
+      btn.disabled = true; btn.textContent = "Recept ophalen…"; err.hidden = true;
+      try {
+        const r = await store.importUrl((onlyUrl[1] || onlyUrl[0]).trim());
+        const d = { id: null, photo_path: null, photo_url: null, owner_id: S.user.id, warnings: [], ...r, tags: suggestTags(r) };
+        delete d.image; delete d.image_url; delete d.description;
+        if (r.image) {
+          try { d.newPhoto = await shrinkPhoto(dataUrlToBlob(r.image)); d.newPhotoUrl = URL.createObjectURL(d.newPhoto); }
+          catch (_) { /* zonder foto verder */ }
+        }
+        if (!d.ingredients.length) d.warnings.push("Er zijn geen ingrediënten gevonden. Vul ze zelf in of plak de tekst.");
+        S.draft = d; S.view = "edit"; render(); window.scrollTo(0, 0);
+      } catch (e) {
+        btn.disabled = false; btn.textContent = "Inlezen";
+        err.textContent = e.message; err.hidden = false;
+      }
+      return;
+    }
+    const p = parseRecipeText(txt);
+    S.draft = { id: null, photo_path: null, photo_url: null, owner_id: S.user.id, ...p, ingredients: p.ingredients };
+    S.view = "edit"; render(); window.scrollTo(0, 0);
+  };
+  $("#manual").onclick = () => { S.draft = emptyDraft(); S.view = "edit"; render(); };
+  const sample = $("#sample"); if (sample) sample.onclick = () => { $("#paste").value = SAMPLE_TEXT.replace("Extra vierge", "Extra vierde"); };
+  const sampleLink = $("#sample-link"); if (sampleLink) sampleLink.onclick = () => { $("#paste").value = "https://www.hellofresh.nl/recipes/bowl-met-orzo-en-kippendijreepjes-628665bf439bffaaa70d603e"; };
+}
+function emptyDraft() {
+  return { id: null, owner_id: S.user.id, title: "", subtitle: "", servings: 2, prep_time_minutes: null, ingredients: [{ name: "", amount: null, unit: "", original_text: "" }], steps: [{ title: "", text: "" }], tips: [], tags: [], source_url: "", photo_path: null, photo_url: null, warnings: [] };
+}
+function draftFrom(r) {
+  return { id: r.id, owner_id: ownerOf(r), title: r.title, subtitle: r.subtitle || "", servings: r.servings, prep_time_minutes: r.prep_time_minutes, tags: [...(r.tags || [])],
+    ingredients: r.recipe_ingredients.map((i) => ({ name: i.name, amount: i.amount, unit: i.unit || "", original_text: i.original_text || "" })),
+    steps: (r.steps || []).map((s) => ({ ...s })), tips: (r.tips || []).map((s) => ({ ...s })), source_url: r.source_url || "",
+    photo_path: r.photo_path, photo_url: r.photo_url, warnings: [] };
+}
+
+/* ================= Bewerken ================= */
+function renderEdit() {
+  const d = S.draft;
+  const ingRow = (i, k) => `<div class="ing-row" data-k="${k}">
+      <input class="input" id="ing-name-${k}" value="${esc(i.name)}" placeholder="Ingrediënt" aria-label="Ingrediënt">
+      <input class="input" id="ing-amt-${k}" value="${i.amount == null ? "" : esc(fmtAmount(i.amount, ""))}" inputmode="decimal" placeholder="200" aria-label="Hoeveelheid">
+      <input class="input" id="ing-unit-${k}" value="${esc(i.unit || "")}" placeholder="g" aria-label="Eenheid">
+      <button type="button" data-rm-ing="${k}" aria-label="Verwijder ingrediënt">×</button></div>`;
+  const stepRow = (s, k, kind) => `<div class="step-edit">
+      <div class="head"><input class="input" id="${kind}-title-${k}" value="${esc(s.title)}" placeholder="${kind === "step" ? "Kopje, bijv. Kip bakken" : "Kopje, bijv. Smaakmaker"}">
+      <button type="button" data-rm-${kind}="${k}" aria-label="Verwijderen">×</button></div>
+      <textarea class="input" id="${kind}-text-${k}" rows="3">${esc(s.text)}</textarea></div>`;
+  $("#app").innerHTML = `
+    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">${d.id ? "Recept bewerken" : "Controleer en bewaar"}</span><span style="width:40px"></span></div>
+    <form id="edit-form" class="stack">
+      ${(d.warnings || []).map((w) => `<p class="notice warn" style="margin:0">${esc(w)}</p>`).join("")}
+      <label class="field"><span>Naam van het gerecht</span><input class="input" id="e-title" value="${esc(d.title)}" required></label>
+      <label class="field"><span>Ondertitel</span><input class="input" id="e-sub" value="${esc(d.subtitle)}" placeholder="met …"></label>
+      <label class="field"><span>Recept van</span>
+        <span class="owner-pick">${avatarHTML(d.owner_id || S.user.id, 46)}
+          <select class="input" id="e-owner">
+            <option value="${esc(S.user.id)}" ${(d.owner_id || S.user.id) === S.user.id ? "selected" : ""}>${esc(nameOf(S.user.id))} (ik)</option>
+            ${people().map(([id, n]) => `<option value="${esc(id)}" ${d.owner_id === id ? "selected" : ""}>${esc(n)}</option>`).join("")}
+          </select></span></label>
+      <div class="row">
+        <label class="field"><span>Personen</span><input class="input" id="e-serv" type="number" min="1" max="20" value="${d.servings}"></label>
+        <label class="field"><span>Bereidingstijd (min)</span><input class="input" id="e-time" type="number" min="1" value="${d.prep_time_minutes || ""}"></label>
+      </div>
+      <label class="field"><span>Tags, gescheiden door komma's</span><input class="input" id="e-tags" value="${esc((d.tags || []).join(", "))}" placeholder="kip, pasta, snel"></label>
+      <div class="field"><span>Foto</span>
+        <div class="photo-pick">${thumbHTML({ ...d, photo_url: d.newPhotoUrl || (d.removePhoto ? null : d.photo_url) }, "thumb")}
+          <div class="stack" style="gap:8px"><label class="btn" for="e-photo">Kies foto</label>
+          <input id="e-photo" type="file" accept="image/*" hidden>
+          ${d.photo_url || d.newPhotoUrl ? `<button type="button" class="btn danger" id="rm-photo">Foto weghalen</button>` : ""}</div></div>
+        <span class="muted" style="font-size:13px;font-weight:400">De app verkleint de foto automatisch.</span></div>
+
+      <div class="section" style="margin-top:12px"><h2>Ingrediënten</h2>
+        <div class="ing-edit" id="ings">${d.ingredients.map(ingRow).join("")}</div>
+        <button type="button" class="btn" id="add-ing">+ Ingrediënt</button></div>
+      <div class="section"><h2>Bereiding</h2>
+        <div class="stack" id="steps">${d.steps.map((s, k) => stepRow(s, k, "step")).join("")}</div>
+        <button type="button" class="btn" id="add-step">+ Stap</button></div>
+      <div class="section"><h2>Kooktips</h2>
+        <div class="stack" id="tips">${d.tips.map((s, k) => stepRow(s, k, "tip")).join("")}</div>
+        <button type="button" class="btn" id="add-tip">+ Tip</button></div>
+      <label class="field"><span>Bron (link)</span><input class="input" id="e-url" type="url" value="${esc(d.source_url)}" placeholder="https://"></label>
+      <button class="btn primary block" id="save">Bewaren</button>
+    </form>`;
+  $("#back").onclick = () => (d.id ? go("detail", d.id) : go("list"));
+  const sync = () => {
+    d.title = $("#e-title").value.trim(); d.subtitle = $("#e-sub").value.trim();
+    d.owner_id = $("#e-owner").value;
+    d.servings = Math.max(1, parseInt($("#e-serv").value, 10) || 2);
+    d.prep_time_minutes = parseInt($("#e-time").value, 10) || null;
+    d.tags = $("#e-tags").value.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+    d.source_url = $("#e-url").value.trim();
+    d.ingredients = d.ingredients.map((_, k) => {
+      const name = $(`#ing-name-${k}`).value.trim(), amtTxt = $(`#ing-amt-${k}`).value.trim(), unit = $(`#ing-unit-${k}`).value.trim();
+      const a = parseAmount(amtTxt);
+      return { name, amount: a.amount, unit: unit || null, original_text: [amtTxt, unit].filter(Boolean).join(" ") };
+    });
+    d.steps = d.steps.map((_, k) => ({ title: $(`#step-title-${k}`).value.trim(), text: $(`#step-text-${k}`).value.trim() }));
+    d.tips = d.tips.map((_, k) => ({ title: $(`#tip-title-${k}`).value.trim(), text: $(`#tip-text-${k}`).value.trim() }));
+    d.warnings = [];
+  };
+  const rerender = () => { const y = window.scrollY; renderEdit(); window.scrollTo(0, y); };
+  $("#add-ing").onclick = () => { sync(); d.ingredients.push({ name: "", amount: null, unit: "" }); rerender(); };
+  $("#add-step").onclick = () => { sync(); d.steps.push({ title: "", text: "" }); rerender(); };
+  $("#add-tip").onclick = () => { sync(); d.tips.push({ title: "", text: "" }); rerender(); };
+  $("#edit-form").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    for (const kind of ["ing", "step", "tip"]) {
+      const k = b.getAttribute(`data-rm-${kind}`);
+      if (k != null) { sync(); ({ ing: d.ingredients, step: d.steps, tip: d.tips })[kind].splice(+k, 1); rerender(); }
+    }
+  });
+  $("#e-owner").onchange = () => { sync(); rerender(); };
+  $("#e-photo").onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    sync();
+    try { d.newPhoto = await shrinkPhoto(file); d.newPhotoUrl = URL.createObjectURL(d.newPhoto); d.removePhoto = false; rerender(); }
+    catch (err) { toast(err.message); }
+  };
+  const rm = $("#rm-photo"); if (rm) rm.onclick = () => { sync(); d.newPhoto = null; d.newPhotoUrl = null; d.removePhoto = true; rerender(); };
+  $("#edit-form").onsubmit = async (e) => {
+    e.preventDefault(); sync();
+    if (!d.title) { toast("Geef het gerecht een naam"); return; }
+    const ingredients = d.ingredients.filter((i) => i.name);
+    const steps = d.steps.filter((s) => s.text || s.title), tips = d.tips.filter((s) => s.text || s.title);
+    const btn = $("#save"); btn.disabled = true; btn.textContent = "Bewaren…";
+    try {
+      const id = await store.saveRecipe(S.household.id, { ...d, steps, tips }, ingredients, d.newPhoto || null, !!(d.removePhoto && d.photo_path));
+      S.recipes = await store.recipes();
+      S.draft = null; go("detail", id); toast("Recept bewaard");
+    } catch (err) { btn.disabled = false; btn.textContent = "Bewaren"; toast(err.message); }
+  };
+}
+
+/* ================= Weekmenu ================= */
+function sheet(html) {
+  const bg = document.createElement("div");
+  bg.className = "sheet-bg";
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grabber" aria-hidden="true"></div>${html}</div>`;
+  const close = () => { document.removeEventListener("keydown", onKey); bg.remove(); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(bg);
+  return { el: bg, close };
+}
+function miniThumb(r) {
+  return r && r.photo_url ? `<span class="mini"><img src="${esc(r.photo_url)}" alt=""></span>` : `<span class="mini"><b>${esc(((r && r.title) || "?")[0])}</b></span>`;
+}
+async function loadWeek() {
+  const from = isoDate(S.weekStart), to = isoDate(addDays(S.weekStart, 6));
+  S.meals = await store.mealPlan(from, to);
+}
+async function renderMenu() {
+  $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Weekmenu</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("menu")}`;
+  bindTabBar();
+  try { await loadWeek(); } catch (e) { toast(e.message); }
+  drawMenu();
+}
+function drawMenu() {
+  const ws = S.weekStart, we = addDays(ws, 6);
+  const thisWeek = isoDate(startOfWeek(new Date())) === isoDate(ws);
+  const today = isoDate(new Date());
+  const total = S.meals.length;
+  $("#app").innerHTML = `
+    <header class="top">
+      <div class="brand"><h1>Weekmenu</h1>${thisWeek ? "" : `<button class="linkbtn" id="to-today">Deze week</button>`}</div>
+      <div class="weeknav">
+        <button class="iconbtn" id="prev-week" aria-label="Vorige week">${ICON.back}</button>
+        <div class="weeklabel"><b>Week ${weekNumber(ws)}</b><span class="muted">${fmtDay(ws)} – ${fmtDay(we)}</span></div>
+        <button class="iconbtn flip" id="next-week" aria-label="Volgende week">${ICON.back}</button>
+      </div>
+    </header>
+    <main class="days">
+      ${DAY_NAMES.map((dn, i) => {
+        const d = addDays(ws, i), iso = isoDate(d);
+        const meals = S.meals.filter((m) => m.plan_date === iso);
+        return `<section class="day${iso === today ? " today" : ""}">
+          <div class="day-head"><h2>${dn}</h2><span class="muted">${fmtDay(d)}${iso === today ? " · vandaag" : ""}</span></div>
+          ${meals.map((m) => { const r = getRecipe(m.recipe_id); return `
+            <div class="meal" data-meal="${m.id}">
+              <button class="meal-open" data-open="${m.recipe_id}">${miniThumb(r)}<span class="meal-title">${esc(r ? r.title : "Verwijderd recept")}</span></button>
+              <div class="servings small" aria-label="Personen"><button data-dec="${m.id}" aria-label="Minder personen">−</button><output>${m.servings}p</output><button data-inc="${m.id}" aria-label="Meer personen">+</button></div>
+              <button class="x" data-rm="${m.id}" aria-label="Haal van weekmenu">×</button>
+            </div>`; }).join("")}
+          <button class="add-meal" data-add="${iso}">+ Gerecht</button>
+        </section>`;
+      }).join("")}
+      <div class="menu-foot">
+        <button class="btn primary block" id="make-list" ${total ? "" : "disabled"}>Boodschappenlijst maken${total ? ` (${total} ${total === 1 ? "gerecht" : "gerechten"})` : ""}</button>
+        <p class="muted" style="margin:0;font-size:14px">Je weekmenu is van jou alleen. Anderen in het receptenboek zien het niet.</p>
+      </div>
+    </main>
+    ${tabBarHTML("menu")}`;
+  bindTabBar();
+  const shift = async (n) => { S.weekStart = addDays(S.weekStart, n); await loadWeek(); drawMenu(); };
+  $("#prev-week").onclick = () => shift(-7);
+  $("#next-week").onclick = () => shift(7);
+  const tt = $("#to-today"); if (tt) tt.onclick = async () => { S.weekStart = startOfWeek(new Date()); await loadWeek(); drawMenu(); };
+  $(".days").onclick = async (e) => {
+    const t = e.target.closest("button"); if (!t) return;
+    try {
+      if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
+      if (t.dataset.open) return getRecipe(t.dataset.open) && go("detail", t.dataset.open);
+      const id = t.dataset.inc || t.dataset.dec || t.dataset.rm;
+      const m = S.meals.find((x) => x.id === id); if (!m) return;
+      if (t.dataset.rm) { await store.removeMeal(id); S.meals = S.meals.filter((x) => x.id !== id); }
+      else { const v = Math.min(20, Math.max(1, m.servings + (t.dataset.inc ? 1 : -1))); if (v === m.servings) return; m.servings = v; await store.updateMeal(id, { servings: v }); }
+      drawMenu();
+    } catch (err) { toast(err.message); }
+  };
+  $("#make-list").onclick = () => makeShoppingList();
+}
+function pickRecipeSheet(date) {
+  const d = new Date(date + "T12:00:00");
+  const sorted = S.recipes.slice().sort((a, b) => (S.favs.has(b.id) - S.favs.has(a.id)) || a.title.localeCompare(b.title, "nl"));
+  const s = sheet(`
+    <div class="sheet-head"><h2>${DAY_NAMES[(d.getDay() + 6) % 7]} ${fmtDay(d)}</h2></div>
+    <label class="search">${ICON.search}<input id="pick-q" type="search" placeholder="Zoek een recept" autocomplete="off"></label>
+    <div class="opts" id="pick-list"></div>`);
+  const draw = () => {
+    const q = norm($("#pick-q", s.el).value);
+    const list = sorted.filter((r) => !q || norm(r.title + " " + (r.subtitle || "")).includes(q));
+    $("#pick-list", s.el).innerHTML = list.length ? list.map((r) => `<button class="pick" data-id="${r.id}">${miniThumb(r)}<span><b>${esc(r.title)}</b><small class="muted">${r.prep_time_minutes ? r.prep_time_minutes + " min · " : ""}${r.servings}p</small></span>${S.favs.has(r.id) ? `<span class="pick-star">${ICON.star}</span>` : ""}</button>`).join("")
+      : `<p class="muted">Geen recepten gevonden.</p>`;
+  };
+  draw();
+  $("#pick-q", s.el).oninput = draw;
+  $("#pick-list", s.el).onclick = async (e) => {
+    const b = e.target.closest(".pick"); if (!b) return;
+    const r = getRecipe(b.dataset.id);
+    try {
+      const m = await store.addMeal(S.household.id, date, r.id, r.servings || 2);
+      s.close();
+      if (S.view === "menu") { S.meals.push(m); drawMenu(); }
+      toast(`${r.title} staat op ${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()}`);
+    } catch (err) { toast(err.message); }
+  };
+}
+function addToMenuSheet(r) {
+  const start = new Date();
+  const days = Array.from({ length: 14 }, (_, i) => addDays(start, i));
+  let servings = r.servings || 2;
+  let chosen = isoDate(days[0]);
+  const s = sheet(`
+    <div class="sheet-head"><h2>Op je weekmenu</h2></div>
+    <p class="muted" style="margin:-6px 0 0">${esc(r.title)}</p>
+    <div class="daygrid" id="daygrid">${days.map((d, i) => `<button data-day="${isoDate(d)}" aria-pressed="${i === 0}"><small>${i === 0 ? "Vandaag" : i === 1 ? "Morgen" : DAY_NAMES[(d.getDay() + 6) % 7].slice(0, 2)}</small><b>${d.getDate()}</b></button>`).join("")}</div>
+    <div class="section-head"><span style="font-weight:600">Personen</span>
+      <div class="servings"><button id="m-minus" aria-label="Minder personen">−</button><output id="m-pp">${servings} pers.</output><button id="m-plus" aria-label="Meer personen">+</button></div></div>
+    <button class="btn primary block" id="m-add">Zet op weekmenu</button>`);
+  $("#daygrid", s.el).onclick = (e) => {
+    const b = e.target.closest("[data-day]"); if (!b) return;
+    chosen = b.dataset.day;
+    for (const x of $("#daygrid", s.el).children) x.setAttribute("aria-pressed", x === b);
+  };
+  const upd = () => { $("#m-pp", s.el).textContent = `${servings} pers.`; };
+  $("#m-minus", s.el).onclick = () => { if (servings > 1) { servings--; upd(); } };
+  $("#m-plus", s.el).onclick = () => { if (servings < 20) { servings++; upd(); } };
+  $("#m-add", s.el).onclick = async () => {
+    try {
+      await store.addMeal(S.household.id, chosen, r.id, servings);
+      s.close();
+      const d = new Date(chosen + "T12:00:00");
+      toast(`Op je weekmenu voor ${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()} ${d.getDate()}`);
+    } catch (err) { toast(err.message); }
+  };
+}
+
+/* ================= Boodschappen ================= */
+const UNIT_NORM = { gram: "g", gr: "g", stuks: "stuk", "stuk(s)": "stuk", eetlepel: "el", theelepel: "tl", "zakje(s)": "zakje", zakjes: "zakje" };
+function aggregate(meals) {
+  const map = new Map();
+  for (const m of meals) {
+    const r = getRecipe(m.recipe_id); if (!r) continue;
+    const f = (m.servings || r.servings || 2) / (r.servings || 2);
+    for (const i of r.recipe_ingredients) {
+      const unitRaw = (i.unit || "").trim().toLowerCase();
+      const unit = UNIT_NORM[unitRaw] || unitRaw;
+      const key = norm(i.name).replace(/\s+/g, " ").trim() + "|" + unit;
+      const cur = map.get(key);
+      const amt = i.amount == null ? null : i.amount * f;
+      if (!cur) map.set(key, { name: i.name, unit: unit || null, amount: amt });
+      else if (cur.amount != null && amt != null) cur.amount += amt;
+      else if (cur.amount == null && amt != null) cur.amount = amt;
+    }
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "nl"));
+}
+async function makeShoppingList(weekStart = S.weekStart) {
+  try {
+    const meals = await store.mealPlan(isoDate(weekStart), isoDate(addDays(weekStart, 6)));
+    if (!meals.length) { toast("Er staat nog niets op het weekmenu van die week"); return; }
+    const items = aggregate(meals);
+    const current = await store.shopping();
+    await store.removeShopping(current.filter((x) => !x.is_manual).map((x) => x.id));
+    await store.addShopping(S.household.id, items.map((i, k) => ({ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: false, position: k + 1 })));
+    toast(`Lijst gemaakt: ${items.length} producten uit ${meals.length} ${meals.length === 1 ? "gerecht" : "gerechten"}`);
+    go("shop");
+  } catch (err) { toast(err.message); }
+}
+async function renderShop() {
+  $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Boodschappen</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("shop")}`;
+  bindTabBar();
+  try { S.shop = await store.shopping(); } catch (e) { toast(e.message); S.shop = []; }
+  drawShop();
+}
+function drawShop() {
+  const open = S.shop.filter((i) => !i.is_checked).sort((a, b) => (b.is_manual - a.is_manual) || (a.position - b.position) || a.name.localeCompare(b.name, "nl"));
+  const done = S.shop.filter((i) => i.is_checked);
+  const row = (i) => `<label class="shop-item${i.is_checked ? " done" : ""}"><input type="checkbox" data-id="${i.id}" ${i.is_checked ? "checked" : ""}>
+      <span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || "")}</span></label>`;
+  $("#app").innerHTML = `
+    <header class="top">
+      <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<span class="muted">${open.length} te halen</span>` : ""}</div>
+      <form class="search" id="shop-add"><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
+    </header>
+    <main class="stack" style="gap:18px">
+      ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op je weekmenu en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
+      ${open.length ? `<div class="shop-list">${open.map(row).join("")}</div>` : ""}
+      ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${done.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${done.map(row).join("")}</div></div>` : ""}
+      <div class="stack" style="gap:10px">
+        <button class="btn block" id="from-menu">Lijst maken van weekmenu</button>
+        <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je weekmenu. Wat je zelf hebt toegevoegd blijft staan.</p>
+      </div>
+    </main>
+    ${tabBarHTML("shop")}`;
+  bindTabBar();
+  $("#shop-add").onsubmit = async (e) => {
+    e.preventDefault();
+    const v = $("#shop-new").value.trim(); if (!v) return;
+    const a = v.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]{1,6})?\s+(.+)$/);
+    const item = a ? { name: a[3], amount: parseFloat(a[1].replace(",", ".")), unit: a[2] || null } : { name: v, amount: null, unit: null };
+    try { const [row] = await store.addShopping(S.household.id, [{ ...item, is_manual: true, position: 0 }]); S.shop.push(row); drawShop(); $("#shop-new").focus(); }
+    catch (err) { toast(err.message); }
+  };
+  $("main").addEventListener("change", async (e) => {
+    const cb = e.target.closest("input[type=checkbox][data-id]"); if (!cb) return;
+    const it = S.shop.find((x) => x.id === cb.dataset.id);
+    it.is_checked = cb.checked;
+    drawShop();
+    try { await store.updateShopping(it.id, { is_checked: it.is_checked }); } catch (err) { toast(err.message); }
+  });
+  const cd = $("#clear-done"); if (cd) cd.onclick = async () => {
+    try { await store.removeShopping(done.map((x) => x.id)); S.shop = S.shop.filter((x) => !x.is_checked); drawShop(); }
+    catch (err) { toast(err.message); }
+  };
+  $("#from-menu").onclick = () => {
+    const ws = startOfWeek(new Date());
+    const s = sheet(`<div class="sheet-head"><h2>Lijst maken van</h2></div>
+      <button class="btn block" data-w="0">Deze week · week ${weekNumber(ws)}</button>
+      <button class="btn block" data-w="7">Volgende week · week ${weekNumber(addDays(ws, 7))}</button>
+      <p class="muted" style="margin:0;font-size:14px">Een eerder gemaakte lijst uit het weekmenu wordt vervangen.</p>`);
+    s.el.addEventListener("click", async (e) => { const b = e.target.closest("[data-w]"); if (!b) return; s.close(); await makeShoppingList(addDays(ws, +b.dataset.w)); });
+  };
+}
+
+/* ================= Leden en uitnodigingen (beheerder) ================= */
+function appUrl() { return location.hostname.endsWith("github.io") ? location.origin + location.pathname : "de app"; }
+function inviteText(inv) {
+  return `Je bent uitgenodigd voor ${APP_NAME}! Open ${appUrl()}, kies "Account maken" en vul deze code in: ${inv.code}. De code is 7 dagen geldig en werkt één keer.`;
+}
+function showInvite(inv) {
+  const s = sheet(`<div class="sheet-head"><h2>Uitnodiging${inv.name ? " voor " + esc(inv.name) : ""}</h2></div>
+    <div class="code" style="text-align:center">${esc(inv.code)}</div>
+    <p class="muted" style="margin:0">${esc(ROLE_LABEL[inv.role])} · geldig tot ${fmtDate(inv.expires_at)} · werkt één keer</p>
+    <p class="invite-text" id="inv-text">${esc(inviteText(inv))}</p>
+    <button class="btn primary block" id="inv-copy">Bericht kopiëren</button>
+    <button class="btn block" id="inv-close">Klaar</button>`);
+  $("#inv-copy", s.el).onclick = () => navigator.clipboard.writeText(inviteText(inv)).then(() => toast("Gekopieerd, plak het in WhatsApp of iMessage"), () => {
+    const r = document.createRange(); r.selectNodeContents($("#inv-text", s.el)); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selecteer en kopieer de tekst");
+  });
+  $("#inv-close", s.el).onclick = s.close;
+}
+async function renderMembers() {
+  $("#app").innerHTML = `<div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Leden en uitnodigingen</span><span style="width:40px"></span></div><div class="spinner"></div>`;
+  $("#back").onclick = () => go("settings");
+  let invites = [], members = [];
+  try { [invites, members] = await Promise.all([store.invites(), store.members()]); } catch (e) { toast(e.message); }
+  S.roles = Object.fromEntries(members.map((m) => [m.user_id, m.role]));
+  const roleSelect = (id, val, extra = "") => `<select class="input role-select" ${extra} data-role-for="${esc(id)}">${["admin", "editor", "viewer"].map((r) => `<option value="${r}" ${val === r ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("")}</select>`;
+  $("#app").innerHTML = `
+    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Leden en uitnodigingen</span><span style="width:40px"></span></div>
+    <div class="stack" id="mv">
+      <form class="panel" id="inv-form">
+        <h2 style="font-size:20px">Iemand uitnodigen</h2>
+        <label class="field"><span>Naam (voor jezelf)</span><input class="input" id="inv-name" placeholder="Bijv. Mama" required></label>
+        <label class="field"><span>Rol</span>${roleSelect("new", "editor", 'id="inv-role"')}</label>
+        <p class="muted" style="margin:0;font-size:14px" id="inv-help">${ROLE_HELP.editor}</p>
+        <button class="btn primary">Uitnodiging maken</button>
+      </form>
+      ${invites.length ? `<div class="panel"><p class="label" style="margin:0">Openstaande uitnodigingen</p>
+        <ul class="members">${invites.map((i) => `<li><span class="code small">${esc(i.code)}</span><span>${esc(i.name || "Zonder naam")}<small class="muted" style="display:block">${ROLE_LABEL[i.role]} · tot ${fmtDate(i.expires_at)}</small></span>
+          <span class="n"><button class="linkbtn" data-show="${i.id}">Delen</button> · <button class="linkbtn danger-text" data-revoke="${i.id}">Intrekken</button></span></li>`).join("")}</ul></div>` : ""}
+      <div class="panel"><p class="label" style="margin:0">Leden</p>
+        <ul class="members">${members.sort((a, b) => nameOf(a.user_id).localeCompare(nameOf(b.user_id), "nl")).map((m) => `<li class="member-row">${avatarHTML(m.user_id, 36)}
+          <span class="member-name">${esc(nameOf(m.user_id))}${m.user_id === S.user.id ? ' <span class="muted">(jij)</span>' : ""}</span>
+          ${roleSelect(m.user_id, m.role)}
+          ${m.user_id === S.user.id ? `<span style="width:32px"></span>` : `<button class="x" data-remove="${esc(m.user_id)}" aria-label="Verwijder ${esc(nameOf(m.user_id))}">×</button>`}</li>`).join("")}</ul>
+        <p class="muted" style="margin:0;font-size:14px">${Object.entries(ROLE_HELP).map(([k, v]) => `<b>${ROLE_LABEL[k]}</b>: ${v.toLowerCase()}.`).join(" ")}</p></div>
+    </div>`;
+  $("#back").onclick = () => go("settings");
+  $("#inv-role").onchange = (e) => { $("#inv-help").textContent = ROLE_HELP[e.target.value]; };
+  $("#inv-form").onsubmit = async (e) => {
+    e.preventDefault();
+    try { const inv = await store.createInvite(S.household.id, $("#inv-name").value.trim(), $("#inv-role").value); await renderMembers(); showInvite(inv); }
+    catch (err) { toast(err.message); }
+  };
+  $("#mv").onclick = async (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.show) showInvite(invites.find((i) => i.id === b.dataset.show));
+    if (b.dataset.revoke) { try { await store.revokeInvite(b.dataset.revoke); toast("Uitnodiging ingetrokken"); renderMembers(); } catch (err) { toast(err.message); } }
+    if (b.dataset.remove) {
+      const id = b.dataset.remove;
+      if (!(await confirmSheet(`${nameOf(id)} uit het receptenboek halen? Recepten van deze persoon blijven staan.`, "Verwijderen"))) return;
+      try { await store.removeMember(id); toast(`${nameOf(id)} is verwijderd`); renderMembers(); } catch (err) { toast(err.message); }
+    }
+  };
+  $("#mv").onchange = async (e) => {
+    const sel = e.target.closest("[data-role-for]"); if (!sel || sel.id === "inv-role") return;
+    const id = sel.dataset.roleFor;
+    try {
+      await store.setRole(id, sel.value);
+      toast(`${nameOf(id)} is nu ${ROLE_LABEL[sel.value].toLowerCase()}`);
+      if (id === S.user.id) { S.role = sel.value; if (!isAdmin()) return go("settings"); }
+    } catch (err) { toast(/minstens/.test(err.message) ? "Er moet minstens één beheerder blijven." : err.message); renderMembers(); }
+  };
+}
+
+/* ================= Instellingen ================= */
+function renderSettings() {
+  const myName = S.names[S.user.id] || "";
+  $("#app").innerHTML = `
+    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Instellingen</span><span style="width:40px"></span></div>
+    <div class="stack">
+      <div class="panel">
+        <p class="label" style="margin:0">Jouw profiel</p>
+        <div class="profile-row">${avatarHTML(S.user.id, 72)}
+          <div class="stack" style="gap:8px;flex:1;min-width:0">
+            <label class="btn" for="s-avatar">${S.avatars?.[S.user.id]?.url ? "Andere foto" : "Kies profielfoto"}</label>
+            <input id="s-avatar" type="file" accept="image/*" hidden>
+            ${S.avatars?.[S.user.id]?.url ? `<button class="btn danger" id="rm-avatar">Foto weghalen</button>` : ""}
+          </div></div>
+        <form id="name-form" class="stack" style="gap:10px"><label class="field"><span>Jouw naam bij recepten</span><input class="input" id="s-name" value="${esc(myName)}" required></label>
+          <button class="btn">Naam opslaan</button></form>
+      </div>
+      <div class="panel"><p class="label" style="margin:0">Weergave</p>
+        <div class="tabs three" role="radiogroup" aria-label="Weergave" id="theme">
+          ${[["auto", "Automatisch"], ["light", "Licht"], ["dark", "Donker"]].map(([v, l]) => `<button role="radio" data-theme-opt="${v}" aria-selected="${getTheme() === v}" aria-checked="${getTheme() === v}">${l}</button>`).join("")}
+        </div>
+        <p class="muted" style="margin:0;font-size:14px">Automatisch volgt de instelling van je telefoon. Je keuze wordt op dit toestel onthouden.</p></div>
+      <div class="panel"><p class="label" style="margin:0">In ${esc(S.household.name || APP_NAME)}</p>
+        <ul class="members">${Object.keys(S.names).filter((id) => S.roles[id]).sort((a, b) => (a === S.user.id ? -1 : b === S.user.id ? 1 : nameOf(a).localeCompare(nameOf(b), "nl"))).map((id) => `<li>${avatarHTML(id, 36)}<span>${esc(nameOf(id))}${id === S.user.id ? ' <span class="muted">(jij)</span>' : ""}<small class="muted" style="display:block">${ROLE_LABEL[S.roles[id]] || ""}</small></span><span class="n">${((n) => n === 1 ? "1 recept" : n + " recepten")(S.recipes.filter((r) => ownerOf(r) === id).length)}</span></li>`).join("")}</ul>
+        ${isAdmin() ? `<button class="btn" id="to-members">Leden en uitnodigingen beheren</button>` : `<p class="muted" style="margin:0;font-size:14px">Jij bent ${esc((ROLE_LABEL[S.role] || "").toLowerCase())}: ${esc((ROLE_HELP[S.role] || "").toLowerCase())}.</p>`}</div>
+      <button class="btn" id="logout">Uitloggen</button>
+    </div>`;
+  $("#theme").onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    setTheme(b.dataset.themeOpt);
+    for (const x of $("#theme").children) { const on = x === b; x.setAttribute("aria-selected", on); x.setAttribute("aria-checked", on); }
+  };
+  $("#s-avatar").onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const blob = await squareAvatar(file);
+      const res = await store.setAvatar(S.user.id, blob, S.avatars?.[S.user.id]?.path);
+      S.avatars = S.avatars || {}; S.avatars[S.user.id] = res;
+      toast("Profielfoto opgeslagen"); renderSettings();
+    } catch (err) { toast(err.message); }
+  };
+  const rmA = $("#rm-avatar");
+  if (rmA) rmA.onclick = async () => {
+    try { await store.setAvatar(S.user.id, null, S.avatars?.[S.user.id]?.path); S.avatars[S.user.id] = { path: null, url: null }; toast("Profielfoto weggehaald"); renderSettings(); }
+    catch (err) { toast(err.message); }
+  };
+  $("#back").onclick = () => go("list");
+  if ($("#to-members")) $("#to-members").onclick = () => go("members");
+  $("#name-form").onsubmit = async (e) => {
+    e.preventDefault();
+    try { const n = $("#s-name").value.trim(); await store.updateName(S.user.id, n); S.names[S.user.id] = n; toast("Naam opgeslagen"); renderSettings(); }
+    catch (err) { toast(err.message); }
+  };
+  $("#logout").onclick = async () => { await store.signOut(); if (!store.demo) { S.user = null; renderAuth(); } };
+}
+
+if (store.onAuth) store.onAuth((s) => { if (!s && S.user && !store.demo) { S.user = null; renderAuth(); } });
+boot().catch(renderError);
+</script>
+
+</body>
+</html>
