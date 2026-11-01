@@ -133,7 +133,6 @@ button { cursor: pointer; }
 .tab { border: 0; background: none; display: grid; justify-items: center; gap: 2px; padding: 4px 0; color: var(--muted); font-size: 12px; font-weight: 600; }
 .tab svg { width: 24px; height: 24px; }
 .tab[aria-current="page"] { color: var(--herb); }
-.fab { bottom: calc(env(safe-area-inset-bottom, 0px) + 82px); }
 
 /* Weekmenu */
 .weeknav { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 8px; }
@@ -220,7 +219,7 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 .fab {
   position: fixed; z-index: 6;
   right: calc(max(16px, env(safe-area-inset-right, 0px)) + 4px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
   height: 56px; padding: 0 22px 0 18px; border-radius: 999px; border: 0;
   background: var(--herb); color: var(--herb-ink); font-weight: 700; font-size: 16px;
   display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .18);
@@ -306,7 +305,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 90px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px;
   max-width: calc(100% - 32px);
 }
