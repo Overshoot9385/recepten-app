@@ -187,6 +187,8 @@ button { cursor: pointer; }
 .shop-name { flex: 1; min-width: 0; }
 .shop-amt { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 15px; }
 .shop-item.done .shop-name { text-decoration: line-through; color: var(--muted); }
+.shop-item.editing { cursor: default; }
+.rm-item { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 0; background: var(--danger); color: #fff; font-size: 18px; font-weight: 700; line-height: 1; display: grid; place-items: center; padding: 0 0 2px; }
 #shop-add { padding-right: 6px; }
 #shop-add input { border: 0; background: transparent; flex: 1; min-width: 0; height: 100%; outline: none; font-size: 16px; }
 
@@ -828,17 +830,18 @@ function planPartners() { return ((S.plan && S.plan.members) || []).filter((id) 
 function planWithText() { const p = planPartners().map(nameOf); return p.length ? "Samen met " + (p.length > 1 ? p.slice(0, -1).join(", ") + " en " + p[p.length - 1] : p[0]) : ""; }
 function planRequestBanner() {
   const inc = (S.plan && S.plan.incoming) || [];
-  return inc.map((id) => `<div class="plan-banner">${avatarHTML(id, 34)}<span><b>${esc(nameOf(id))}</b> wil samen het weekmenu en de boodschappenlijst maken.</span>
-    <span class="plan-banner-actions"><button class="btn primary" data-accept="${esc(id)}">Samen plannen</button><button class="btn" data-decline="${esc(id)}">Nee, bedankt</button></span></div>`).join("");
+  return inc.map((id) => `<div class="plan-banner">${avatarHTML(id, 34)}<span><b>${esc(nameOf(id))}</b> wil een huishouden met je vormen: samen het weekmenu, de boodschappenlijst en favorieten.</span>
+    <span class="plan-banner-actions"><button class="btn primary" data-accept="${esc(id)}">Ja, samen</button><button class="btn" data-decline="${esc(id)}">Nee, bedankt</button></span></div>`).join("");
 }
 async function handlePlanBanner(e, after) {
   const b = e.target.closest("[data-accept],[data-decline]"); if (!b) return false;
   try {
     if (b.dataset.accept) {
-      if (planPartners().length && !(await confirmSheet(`Je plant nu samen met ${planPartners().map(nameOf).join(", ")}. Overstappen naar ${nameOf(b.dataset.accept)}?`, "Overstappen"))) return true;
-      await store.acceptPlan(b.dataset.accept); toast(`Je plant nu samen met ${nameOf(b.dataset.accept)}`);
+      if (planPartners().length && !(await confirmSheet(`Je deelt nu een huishouden met ${planPartners().map(nameOf).join(", ")}. Overstappen naar het huishouden van ${nameOf(b.dataset.accept)}?`, "Overstappen"))) return true;
+      await store.acceptPlan(b.dataset.accept); toast(`Je deelt nu een huishouden met ${nameOf(b.dataset.accept)}`);
     } else { await store.declinePlan(b.dataset.decline, S.user.id); toast("Verzoek geweigerd"); }
     S.plan = await store.planInfo(S.user.id);
+    S.favs = new Set(await store.favorites());
     after();
   } catch (err) { toast(err.message); }
   return true;
@@ -1440,7 +1443,7 @@ function drawMenu() {
       }).join("")}
       <div class="menu-foot">
         <button class="btn primary block" id="make-list" ${total ? "" : "disabled"}>Boodschappenlijst maken${total ? ` (${total} ${total === 1 ? "gerecht" : "gerechten"})` : ""}</button>
-        <p class="muted" style="margin:0;font-size:14px">${planPartners().length ? `Dit weekmenu en de boodschappenlijst deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je weekmenu is van jou alleen. Samen plannen stel je in bij Instellingen."}</p>
+        <p class="muted" style="margin:0;font-size:14px">${planPartners().length ? `Dit weekmenu, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je weekmenu is van jou alleen. Een huishouden vormen doe je bij Instellingen."}</p>
       </div>
     </main>
     ${tabBarHTML("menu")}`;
@@ -1592,17 +1595,23 @@ async function renderShop() {
 function drawShop() {
   const open = S.shop.filter((i) => !i.is_checked).sort((a, b) => (b.is_manual - a.is_manual) || (a.position - b.position) || a.name.localeCompare(b.name, "nl"));
   const done = S.shop.filter((i) => i.is_checked);
-  const row = (i) => `<label class="shop-item${i.is_checked ? " done" : ""}"><input type="checkbox" data-id="${i.id}" ${i.is_checked ? "checked" : ""}>
-      <span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || "")}</span></label>`;
+  const amtOf = (i) => (i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || ""));
+  const row = (i) => S.shopEdit
+    ? `<div class="shop-item editing${i.is_checked ? " done" : ""}"><button class="rm-item" data-del="${i.id}" aria-label="Haal ${esc(i.name)} van de lijst">−</button>
+      <span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amtOf(i)}</span></div>`
+    : `<label class="shop-item${i.is_checked ? " done" : ""}"><input type="checkbox" data-id="${i.id}" ${i.is_checked ? "checked" : ""}>
+      <span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amtOf(i)}</span></label>`;
   $("#app").innerHTML = `
     <header class="top">
-      <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<span class="muted">${open.length} te halen</span>` : ""}</div>
-      <form class="search" id="shop-add"><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
+      <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<button class="linkbtn" id="shop-edit">${S.shopEdit ? "Klaar" : "Wijzig"}</button>` : ""}</div>
+      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op <b>−</b> om iets weg te halen dat je al in huis hebt.</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${open.length} te halen</p>` : "")}
+      <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
     </header>
     <main class="stack" style="gap:18px">
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op je weekmenu en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
       ${open.length ? `<div class="shop-list">${open.map(row).join("")}</div>` : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${done.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${done.map(row).join("")}</div></div>` : ""}
+      ${S.shopEdit && S.shop.length ? `<button class="btn danger block" id="clear-all">Hele lijst leegmaken</button>` : ""}
       ${(S.shopPantry || []).length ? `<div class="stack" style="gap:6px">
         <div class="section-head"><p class="label" style="margin:0">Uit de voorraadkast · week ${weekNumber(S.shopPantryWeek)}</p></div>
         <p class="muted" style="margin:0;font-size:14px">Nodig voor je weekmenu, maar meestal in huis. Iets op? Tik op +.</p>
@@ -1624,6 +1633,21 @@ function drawShop() {
     const a = v.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]{1,6})?\s+(.+)$/);
     const item = a ? { name: a[3], amount: parseFloat(a[1].replace(",", ".")), unit: a[2] || null } : { name: v, amount: null, unit: null };
     try { const [row] = await store.addShopping(S.household.id, [{ ...item, is_manual: true, position: 0 }]); S.shop.push(row); drawShop(); $("#shop-new").focus(); }
+    catch (err) { toast(err.message); }
+  };
+  const se = $("#shop-edit"); if (se) se.onclick = () => { S.shopEdit = !S.shopEdit; drawShop(); };
+  $("main").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-del]"); if (!b) return;
+    const it = S.shop.find((x) => x.id === b.dataset.del);
+    S.shop = S.shop.filter((x) => x.id !== it.id);
+    if (!S.shop.length) S.shopEdit = false;
+    drawShop();
+    try { await store.removeShopping([it.id]); toast(`${it.name} van de lijst gehaald`); }
+    catch (err) { S.shop.push(it); drawShop(); toast(err.message); }
+  });
+  const ca = $("#clear-all"); if (ca) ca.onclick = async () => {
+    if (!(await confirmSheet("De hele boodschappenlijst leegmaken?", "Leegmaken"))) return;
+    try { await store.removeShopping(S.shop.map((x) => x.id)); S.shop = []; S.shopEdit = false; drawShop(); toast("Lijst leeggemaakt"); }
     catch (err) { toast(err.message); }
   };
   $("main").addEventListener("change", async (e) => {
@@ -1748,15 +1772,15 @@ function renderSettings() {
           ${[["auto", "Automatisch"], ["light", "Licht"], ["dark", "Donker"]].map(([v, l]) => `<button role="radio" data-theme-opt="${v}" aria-selected="${getTheme() === v}" aria-checked="${getTheme() === v}">${l}</button>`).join("")}
         </div>
         <p class="muted" style="margin:0;font-size:14px">Automatisch volgt de instelling van je telefoon. Je keuze wordt op dit toestel onthouden.</p></div>
-      <div class="panel" id="plan-panel"><p class="label" style="margin:0">Samen plannen</p>
+      <div class="panel" id="plan-panel"><p class="label" style="margin:0">Jouw huishouden</p>
         ${planRequestBanner()}
         ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 30)).join("")}<span>${esc(planWithText())}</span></div>
-          <p class="muted" style="margin:0;font-size:14px">Jullie delen het weekmenu en de boodschappenlijst. Recepten en favorieten blijven zoals ze zijn.</p>
-          <button class="btn" id="plan-leave">Stoppen met samen plannen</button>`
-        : `<p class="muted" style="margin:0;font-size:14px">Maak samen met iemand uit het receptenboek één weekmenu en één boodschappenlijst. Die persoon moet het eerst accepteren.</p>`}
+          <p class="muted" style="margin:0;font-size:14px">Jullie delen het weekmenu, de boodschappenlijst en favorieten, zolang jullie samen een huishouden zijn. Recepten zijn voor het hele receptenboek.</p>
+          <button class="btn" id="plan-leave">Huishouden verlaten</button>`
+        : `<p class="muted" style="margin:0;font-size:14px">Woon je samen? Vorm een huishouden met iemand uit het receptenboek. Jullie delen dan voor altijd één weekmenu, boodschappenlijst en favorieten. Die persoon moet het eerst accepteren.</p>`}
         <ul class="members">${Object.keys(S.names).filter((id) => id !== S.user.id && S.roles[id] && !planPartners().includes(id) && !((S.plan && S.plan.incoming) || []).includes(id)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "nl")).map((id) => {
           const pending = ((S.plan && S.plan.outgoing) || []).includes(id);
-          return `<li>${avatarHTML(id, 32)}<span>${esc(nameOf(id))}</span><span class="n">${pending ? `<span class="muted">Gevraagd</span> · <button class="linkbtn danger-text" data-cancel="${esc(id)}">Intrekken</button>` : `<button class="linkbtn" data-ask="${esc(id)}">Vraag om samen te plannen</button>`}</span></li>`;
+          return `<li>${avatarHTML(id, 32)}<span>${esc(nameOf(id))}</span><span class="n">${pending ? `<span class="muted">Gevraagd</span> · <button class="linkbtn danger-text" data-cancel="${esc(id)}">Intrekken</button>` : `<button class="linkbtn" data-ask="${esc(id)}">Vraag voor huishouden</button>`}</span></li>`;
         }).join("")}</ul></div>
       <div class="panel"><p class="label" style="margin:0">In ${esc(S.household.name || APP_NAME)}</p>
         <ul class="members">${Object.keys(S.names).filter((id) => S.roles[id]).sort((a, b) => (a === S.user.id ? -1 : b === S.user.id ? 1 : nameOf(a).localeCompare(nameOf(b), "nl"))).map((id) => `<li>${avatarHTML(id, 36)}<span>${esc(nameOf(id))}${id === S.user.id ? ' <span class="muted">(jij)</span>' : ""}<small class="muted" style="display:block">${ROLE_LABEL[S.roles[id]] || ""}</small></span><span class="n">${((n) => n === 1 ? "1 recept" : n + " recepten")(S.recipes.filter((r) => ownerOf(r) === id).length)}</span></li>`).join("")}</ul>
@@ -1788,13 +1812,13 @@ function renderSettings() {
     if (await handlePlanBanner(e, renderSettings)) return;
     const b = e.target.closest("button"); if (!b) return;
     try {
-      if (b.dataset.ask) { await store.requestPlan(b.dataset.ask); toast(`Gevraagd aan ${nameOf(b.dataset.ask)}. Zodra die accepteert, plannen jullie samen.`); }
+      if (b.dataset.ask) { await store.requestPlan(b.dataset.ask); toast(`Gevraagd aan ${nameOf(b.dataset.ask)}. Zodra die accepteert, delen jullie een huishouden.`); }
       else if (b.dataset.cancel) { await store.declinePlan(S.user.id, b.dataset.cancel); toast("Verzoek ingetrokken"); }
       else if (b.id === "plan-leave") {
-        if (!(await confirmSheet("Stoppen met samen plannen? Je neemt je eigen gerechten en boodschappen mee.", "Stoppen"))) return;
-        await store.leavePlan(); toast("Je plant nu weer alleen");
+        if (!(await confirmSheet("Het huishouden verlaten? Je neemt je eigen gerechten, boodschappen en favorieten mee.", "Stoppen"))) return;
+        await store.leavePlan(); toast("Je hebt het huishouden verlaten");
       } else return;
-      S.plan = await store.planInfo(S.user.id); renderSettings();
+      S.plan = await store.planInfo(S.user.id); S.favs = new Set(await store.favorites()); renderSettings();
     } catch (err) { toast(err.message); }
   };
   $("#name-form").onsubmit = async (e) => {
