@@ -157,8 +157,9 @@ button { cursor: pointer; }
 .plan-banner-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
 .plan-banner-actions .btn { flex: 1 1 auto; min-height: 40px; }
 .added-by { display: grid; }
-.actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-.actions-row .btn { font-size: 15px; line-height: 1.2; padding: 8px 10px; white-space: normal; text-align: left; justify-content: flex-start; }
+/* Naast elkaar als er ruimte is (vanaf ~2 x 250px), anders onder elkaar */
+.actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.actions-row .btn { flex: 1 1 250px; min-width: 0; min-height: 48px; padding: 10px 14px; line-height: 1.25; white-space: normal; text-align: left; justify-content: flex-start; }
 .meal-open { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; text-align: left; min-width: 0; }
 .meal-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--sunk); display: grid; place-items: center; flex: none; color: var(--herb); }
@@ -180,8 +181,20 @@ button { cursor: pointer; }
 .daygrid button[aria-pressed="true"] small { color: inherit; }
 
 /* Boodschappen */
-.shop-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0 14px; }
-.shop-item { display: flex; align-items: center; gap: 12px; min-height: 50px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.shop-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0 16px; }
+.shop-item, .row-item { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; column-gap: 14px; min-height: 52px; padding: 6px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.row-item { grid-template-columns: minmax(0, 1fr) auto 32px; cursor: default; }
+.shop-item:last-child, .row-item:last-child { border-bottom: 0; }
+.shop-name { overflow-wrap: anywhere; line-height: 1.3; }
+.shop-amt { text-align: right; }
+.pantry-check { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.pantry-check > svg { width: 24px; height: 24px; color: var(--saffron); flex: none; }
+.pantry-check span:not(.chev) { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.pantry-check small { font-size: 14px; }
+.pantry-check .chev { font-size: 24px; color: var(--muted); line-height: 1; }
+.hello { display: grid; gap: 2px; min-width: 0; }
+.greet { margin: 0; font-size: 16px; font-weight: 600; color: var(--muted); }
+.iconbtn:disabled { opacity: .35; }
 .shop-item:last-child { border-bottom: 0; }
 .shop-item input { width: 22px; height: 22px; margin: 0; accent-color: var(--herb); flex: none; }
 .shop-name { flex: 1; min-width: 0; }
@@ -304,7 +317,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .ing-row .jar { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: grid; place-items: center; padding: 0; font-size: 0; }
 .ing-row .jar svg { width: 18px; height: 18px; }
 .ing-row .jar[aria-pressed="true"] { background: var(--saffron); border-color: var(--saffron); color: #2A1C02; }
-.ing.pantry li { grid-template-columns: 1fr auto 36px; align-items: center; padding: 6px 0; }
+.ing.addable li { grid-template-columns: minmax(0, 1fr) auto 32px; align-items: center; column-gap: 14px; padding: 8px 0; }
 .muted-amt { color: var(--muted); font-weight: 600; }
 .addbtn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--herb); background: none; color: var(--herb); font-size: 20px; line-height: 1; display: grid; place-items: center; padding: 0; justify-self: end; }
 .addbtn[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); font-size: 15px; }
@@ -848,6 +861,11 @@ async function handlePlanBanner(e, after) {
 }
 function canEdit() { return S.role === "admin" || S.role === "editor"; }
 function isAdmin() { return S.role === "admin"; }
+function greeting(d = new Date()) {
+  const h = d.getHours();
+  return h >= 5 && h < 12 ? "Goedemorgen" : h >= 12 && h < 18 ? "Goedemiddag" : h >= 18 ? "Goedenavond" : "Goedenacht";
+}
+function firstName(n) { return String(n || "").trim().split(/\s+/)[0] || ""; }
 function nameOf(id) { return S.names[id] || "onbekend"; }
 function ownerOf(r) { return r.owner_id || r.created_by; }
 const AVATAR_HUES = [152, 32, 200, 340, 265, 90, 12];
@@ -1104,7 +1122,7 @@ function renderList() {
   $("#app").innerHTML = `
     <header class="top">
       ${store.demo ? `<div class="demo-banner">Voorbeeldweergave met voorbeeldrecepten. Wat je hier wijzigt, wordt niet opgeslagen.</div>` : ""}
-      <div class="brand"><h1>${esc(S.household?.name || APP_NAME)}</h1>
+      <div class="brand"><div class="hello"><p class="greet">${esc(greeting())}, ${esc(firstName(nameOf(S.user.id)))} 👋</p><h1>Wat koken we?</h1></div>
         <button class="iconbtn" id="to-settings" aria-label="Instellingen">${ICON.gear}</button></div>
       <label class="search">${ICON.search}<input id="q" type="search" placeholder="Zoek op gerecht of ingrediënt" value="${esc(S.query)}" autocomplete="off"></label>
       <div class="filterbar" id="filters" role="group" aria-label="Filters">${filterBarHTML()}</div>
@@ -1166,25 +1184,26 @@ function renderDetail() {
       ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
       <div class="actions-row">
         <button class="btn primary" id="to-menu">${ICON.cal}<span>Op mijn weekmenu</span></button>
-        <button class="btn" id="to-menu-list">${ICON.bag}<span>Op mijn weekmenu + boodschappenlijst</span></button>
+        <button class="btn" id="to-menu-list">${ICON.bag}<span>Weekmenu + boodschappenlijst</span></button>
       </div>
     </div>
     <section class="section">
       <div class="section-head"><h2>Ingrediënten</h2>
         <div class="servings" aria-label="Aantal personen"><button id="minus" aria-label="Minder personen">−</button><output id="pp">${n} pers.</output><button id="plus" aria-label="Meer personen">+</button></div></div>
-      <ul class="ing">${r.recipe_ingredients.filter((i) => !i.is_pantry).map((i) => {
+      <ul class="ing addable" id="ings-main">${r.recipe_ingredients.map((i, idx) => ({ i, idx })).filter(({ i }) => !i.is_pantry).map(({ i, idx }) => {
         const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
-        return `<li><span>${esc(i.name)}</span><span class="amt${f !== 1 && i.amount != null ? " scaled" : ""}">${amt}</span></li>`;
+        const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
+        return `<li><span>${esc(i.name)}</span><span class="amt${f !== 1 && i.amount != null ? " scaled" : ""}">${amt}</span><button class="addbtn" data-ing="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
       }).join("")}</ul>
       ${f !== 1 ? `<p class="muted" style="margin:0;font-size:14px">Omgerekend van ${base} naar ${n} personen.</p>` : ""}
     </section>
     ${r.recipe_ingredients.some((i) => i.is_pantry) ? `<section class="section">
       <div class="section-head"><h2>Uit de voorraadkast</h2></div>
-      <p class="muted" style="margin:-6px 0 0;font-size:14px">Heb je meestal in huis. Iets op? Tik op + om het op je boodschappenlijst te zetten.</p>
-      <ul class="ing pantry" id="pantry">${r.recipe_ingredients.map((i, idx) => ({ i, idx })).filter(({ i }) => i.is_pantry).map(({ i, idx }) => {
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">Heb je meestal in huis. Iets op? Tik op + om het op je lijst te zetten.</p>
+      <ul class="ing addable pantry" id="pantry">${r.recipe_ingredients.map((i, idx) => ({ i, idx })).filter(({ i }) => i.is_pantry).map(({ i, idx }) => {
         const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
         const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
-        return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-pantry="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
+        return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-ing="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
       }).join("")}</ul></section>` : ""}
     ${(r.steps || []).length ? `<section class="section"><h2>Bereiding</h2><ol class="steps">${r.steps.map((s) => `<li><div>${s.title ? `<b>${esc(s.title)}</b>` : ""}${esc(s.text)}</div></li>`).join("")}</ol></section>` : ""}
     ${(r.tips || []).length ? `<section class="section"><h2>Kooktips</h2>${r.tips.map((t) => `<div class="tip">${t.title ? `<b>${esc(t.title)}</b>` : ""}${esc(t.text)}</div>`).join("")}</section>` : ""}
@@ -1197,10 +1216,9 @@ function renderDetail() {
   $("#back").onclick = () => go(S.from || "list");
   $("#to-menu").onclick = () => addToMenuSheet(r, false);
   $("#to-menu-list").onclick = () => addToMenuSheet(r, true);
-  const pantry = $("#pantry");
-  if (pantry) pantry.onclick = async (e) => {
-    const b = e.target.closest("[data-pantry]"); if (!b || b.disabled) return;
-    const i = r.recipe_ingredients[+b.dataset.pantry];
+  const addIng = async (e) => {
+    const b = e.target.closest("[data-ing]"); if (!b || b.disabled) return;
+    const i = r.recipe_ingredients[+b.dataset.ing];
     b.disabled = true;
     try {
       const [row] = await store.addShopping(S.household.id, [{ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * f * 1000) / 1000, unit: i.unit || null, is_manual: true, position: 0 }]);
@@ -1209,6 +1227,8 @@ function renderDetail() {
       toast(`${i.name} staat op je boodschappenlijst`);
     } catch (err) { b.disabled = false; toast(err.message); }
   };
+  $("#ings-main").onclick = addIng;
+  if ($("#pantry")) $("#pantry").onclick = addIng;
   $("#minus").onclick = () => { if (n > 1) { S.scale = n - 1; renderDetail(); } };
   $("#plus").onclick = () => { if (n < 20) { S.scale = n + 1; renderDetail(); } };
   $("#fav").onclick = async () => {
@@ -1399,6 +1419,8 @@ function sheet(html) {
 function miniThumb(r) {
   return r && r.photo_url ? `<span class="mini"><img src="${esc(r.photo_url)}" alt=""></span>` : `<span class="mini"><b>${esc(((r && r.title) || "?")[0])}</b></span>`;
 }
+// Je kunt een week terugkijken; oudere weken worden elke nacht opgeruimd
+function minWeek() { return addDays(startOfWeek(new Date()), -7); }
 async function loadWeek() {
   const from = isoDate(S.weekStart), to = isoDate(addDays(S.weekStart, 6));
   S.meals = await store.mealPlan(from, to);
@@ -1420,7 +1442,7 @@ function drawMenu() {
       ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 26)).join("")}<span>${esc(planWithText())}</span></div>` : ""}
       <div id="plan-banners">${planRequestBanner()}</div>
       <div class="weeknav">
-        <button class="iconbtn" id="prev-week" aria-label="Vorige week">${ICON.back}</button>
+        <button class="iconbtn" id="prev-week" aria-label="Vorige week" ${addDays(ws, -7) < minWeek() ? "disabled" : ""}>${ICON.back}</button>
         <div class="weeklabel"><b>Week ${weekNumber(ws)}</b><span class="muted">${fmtDay(ws)} – ${fmtDay(we)}</span></div>
         <button class="iconbtn flip" id="next-week" aria-label="Volgende week">${ICON.back}</button>
       </div>
@@ -1448,7 +1470,11 @@ function drawMenu() {
     </main>
     ${tabBarHTML("menu")}`;
   bindTabBar();
-  const shift = async (n) => { S.weekStart = addDays(S.weekStart, n); await loadWeek(); drawMenu(); };
+  const shift = async (n) => {
+    const next = addDays(S.weekStart, n);
+    if (next < minWeek()) return;
+    S.weekStart = next; await loadWeek(); drawMenu();
+  };
   $("#prev-week").onclick = () => shift(-7);
   $("#next-week").onclick = () => shift(7);
   const tt = $("#to-today"); if (tt) tt.onclick = async () => { S.weekStart = startOfWeek(new Date()); await loadWeek(); drawMenu(); };
@@ -1572,6 +1598,12 @@ async function makeShoppingList(weekStart = S.weekStart) {
     try { localStorage.setItem(LIST_WEEK_KEY, isoDate(weekStart)); } catch (_) { /* niet erg */ }
     const current = await store.shopping();
     await store.removeShopping(current.filter((x) => !x.is_manual).map((x) => x.id));
+    // Wat je zelf al op de lijst zette (bijv. met +) niet nog een keer toevoegen
+    const k = (n) => norm(n).replace(/\s+/g, " ").trim();
+    const manual = new Set(current.filter((x) => x.is_manual && !x.is_checked).map((x) => k(x.name)));
+    const skipped = items.filter((i) => manual.has(k(i.name))).length;
+    items.splice(0, items.length, ...items.filter((i) => !manual.has(k(i.name))));
+    if (skipped) setTimeout(() => toast(`${skipped} ${skipped === 1 ? "product stond" : "producten stonden"} er al op en ${skipped === 1 ? "is" : "zijn"} niet dubbel toegevoegd`), 2700);
     await store.addShopping(S.household.id, items.map((i, k) => ({ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: false, position: k + 1 })));
     toast(`Lijst gemaakt: ${items.length} producten uit ${meals.length} ${meals.length === 1 ? "gerecht" : "gerechten"}`);
     go("shop");
@@ -1612,14 +1644,7 @@ function drawShop() {
       ${open.length ? `<div class="shop-list">${open.map(row).join("")}</div>` : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${done.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${done.map(row).join("")}</div></div>` : ""}
       ${S.shopEdit && S.shop.length ? `<button class="btn danger block" id="clear-all">Hele lijst leegmaken</button>` : ""}
-      ${(S.shopPantry || []).length ? `<div class="stack" style="gap:6px">
-        <div class="section-head"><p class="label" style="margin:0">Uit de voorraadkast · week ${weekNumber(S.shopPantryWeek)}</p></div>
-        <p class="muted" style="margin:0;font-size:14px">Nodig voor je weekmenu, maar meestal in huis. Iets op? Tik op +.</p>
-        <ul class="ing pantry shop-list" id="shop-pantry">${S.shopPantry.map((i, k) => {
-          const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
-          const amt = i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || "");
-          return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op de lijst">${onList ? "✓" : "+"}</button></li>`;
-        }).join("")}</ul></div>` : ""}
+      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast voor week ${weekNumber(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
         <button class="btn block" id="from-menu">Lijst maken van weekmenu</button>
         <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je weekmenu. Dingen uit de voorraadkast komen er niet automatisch op. Wat je zelf hebt toegevoegd blijft staan.</p>
@@ -1661,12 +1686,26 @@ function drawShop() {
     try { await store.removeShopping(done.map((x) => x.id)); S.shop = S.shop.filter((x) => !x.is_checked); drawShop(); }
     catch (err) { toast(err.message); }
   };
-  const sp = $("#shop-pantry");
-  if (sp) sp.onclick = async (e) => {
-    const b = e.target.closest("[data-sp]"); if (!b || b.disabled) return;
-    const i = S.shopPantry[+b.dataset.sp]; b.disabled = true;
-    try { const [row] = await store.addShopping(S.household.id, [{ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: true, position: 0 }]); S.shop.push(row); drawShop(); }
-    catch (err) { b.disabled = false; toast(err.message); }
+  const pc = $("#pantry-check");
+  if (pc) pc.onclick = () => {
+    const rows = () => S.shopPantry.map((i, k) => {
+      const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
+      const amt = i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || "");
+      return `<div class="row-item"><span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amt}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op de lijst">${onList ? "✓" : "+"}</button></div>`;
+    }).join("");
+    const sh = sheet(`<div class="sheet-head"><h2>Voorraad checken</h2></div>
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">Dit heb je nodig voor je weekmenu van week ${weekNumber(S.shopPantryWeek)}, maar meestal heb je het in huis. Iets op? Tik op +.</p>
+      <div class="opts shop-list" id="sp-list">${rows()}</div>
+      <button class="btn primary block" id="sp-done">Klaar</button>`);
+    $("#sp-done", sh.el).onclick = () => { sh.close(); drawShop(); };
+    $("#sp-list", sh.el).onclick = async (e) => {
+      const b = e.target.closest("[data-sp]"); if (!b || b.disabled) return;
+      const i = S.shopPantry[+b.dataset.sp]; b.disabled = true;
+      try {
+        const [row] = await store.addShopping(S.household.id, [{ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: true, position: 0 }]);
+        S.shop.push(row); b.textContent = "✓"; b.setAttribute("aria-pressed", "true");
+      } catch (err) { b.disabled = false; toast(err.message); }
+    };
   };
   $("#from-menu").onclick = () => {
     const ws = startOfWeek(new Date());
