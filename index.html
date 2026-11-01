@@ -940,8 +940,8 @@ function renderHousehold(msg = "") {
 
 /* ================= Overzicht ================= */
 function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
-const TIME_OPTS = [["all", "Elke duur"], ["20", "Tot 20 minuten"], ["30", "Tot 30 minuten"], ["45", "Tot 45 minuten"], ["long", "Langer dan 45 minuten"]];
-const TIME_SHORT = { "20": "≤ 20 min", "30": "≤ 30 min", "45": "≤ 45 min", long: "> 45 min" };
+const TIME_OPTS = [["all", "Elke duur"], ["15", "Tot 15 minuten"], ["20", "Tot 20 minuten"], ["30", "Tot 30 minuten"], ["45", "Tot 45 minuten"], ["60", "Tot 1 uur"], ["long", "Langer dan 1 uur"]];
+const TIME_SHORT = { "15": "≤ 15 min", "20": "≤ 20 min", "30": "≤ 30 min", "45": "≤ 45 min", "60": "≤ 1 uur", long: "> 1 uur" };
 function matches(r, f) {
   if (f.favOnly && !S.favs.has(r.id)) return false;
   if (f.owner === "me" && ownerOf(r) !== S.user.id) return false;
@@ -951,7 +951,7 @@ function matches(r, f) {
   if (f.time !== "all") {
     const t = r.prep_time_minutes;
     if (!t) return false;
-    if (f.time === "long" ? t <= 45 : t > +f.time) return false;
+    if (f.time === "long" ? t <= 60 : t > +f.time) return false;
   }
   const terms = norm(f.query).split(/\s+/).filter(Boolean);
   if (!terms.length) return true;
