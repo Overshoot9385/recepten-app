@@ -289,7 +289,14 @@ textarea.input { resize: vertical; line-height: 1.45; }
 
 /* Bewerken */
 .ing-edit { display: grid; gap: 8px; }
-.ing-row { display: grid; grid-template-columns: 1fr 76px 76px 38px; gap: 6px; align-items: center; }
+.ing-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 64px 64px 28px; gap: 6px; align-items: center; }
+.ing-row .jar { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: grid; place-items: center; padding: 0; font-size: 0; }
+.ing-row .jar svg { width: 18px; height: 18px; }
+.ing-row .jar[aria-pressed="true"] { background: var(--saffron); border-color: var(--saffron); color: #2A1C02; }
+.ing.pantry li { grid-template-columns: 1fr auto 36px; align-items: center; padding: 6px 0; }
+.muted-amt { color: var(--muted); font-weight: 600; }
+.addbtn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--herb); background: none; color: var(--herb); font-size: 20px; line-height: 1; display: grid; place-items: center; padding: 0; justify-self: end; }
+.addbtn[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); font-size: 15px; }
 .ing-row .input { min-height: 42px; padding: 8px 10px; }
 .ing-row button { height: 38px; border: 0; background: none; color: var(--muted); font-size: 20px; }
 .step-edit { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
@@ -347,6 +354,7 @@ const ICON = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   search: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  jar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8v3H8z"/><path d="M7 6h10a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1z"/><path d="M6 11h12"/></svg>',
   star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
   starOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
@@ -415,6 +423,8 @@ const TAG_RULES = [
   ["pasta", /orzo|pasta|spaghetti|penne|tagliatelle|fusilli|lasagne|gnocchi|macaroni/i],
   ["rijst", /rijst|risotto/i], ["noedels", /noedel|mie\b/i], ["curry", /curry/i], ["soep", /soep/i],
 ];
+const PANTRY_RE = /(^|[^a-zà-ü])(peper|zout|olijfolie|zonnebloemolie|olie|roomboter|boter|margarine|azijn|balsamico|suiker|bloem|water|mosterd|honing|sojasaus|ketjap|ketchup|mayonaise|bakpoeder|maizena|bouillonblokje|paprikapoeder|kerriepoeder|komijn|oregano|tijm|kaneel|nootmuskaat|chilivlokken|knoflookpoeder)/i;
+function isPantry(name) { const n = String(name || "").toLowerCase(); return PANTRY_RE.test(n) && !/(^|\s)(groente|kippen|runder)?bouillon$/.test(n); }
 function suggestTags(r) {
   const tags = [...(r.tags || [])];
   const all = [r.title, r.subtitle, ...(r.ingredients || []).map((i) => i.name)].join(" ");
@@ -459,7 +469,8 @@ function parseRecipeText(src) {
         if (m) { name = m[1]; qty = m[2]; } else { name = line; qty = ""; }
       }
       const a = parseAmount(qty);
-      out.ingredients.push({ name: name.replace(/^[*•\-–]\s*/, ""), amount: a.amount, unit: a.unit, original_text: a.original });
+      const nm = name.replace(/^[*•\-–]\s*/, "");
+      out.ingredients.push({ name: nm, amount: a.amount, unit: a.unit, original_text: a.original, is_pantry: isPantry(nm) });
       continue;
     }
     if (section === "steps") { out.steps.push(splitTitled(line)); continue; }
@@ -576,7 +587,7 @@ function liveStore() {
     },
     async recipes() {
       const { data, error } = await sb.from("recipes")
-        .select("*, recipe_ingredients(id,position,name,amount,unit,original_text)")
+        .select("*, recipe_ingredients(id,position,name,amount,unit,original_text,is_pantry)")
         .order("title"); fail(error);
       for (const r of data) r.recipe_ingredients.sort((a, b) => a.position - b.position);
       const map = await signed(BUCKET, data.map((r) => r.photo_path).filter(Boolean));
@@ -596,7 +607,7 @@ function liveStore() {
       }
       { const { error } = await sb.from("recipe_ingredients").delete().eq("recipe_id", id); fail(error); }
       if (ingredients.length) {
-        const rows = ingredients.map((i, n) => ({ recipe_id: id, position: n, name: i.name, amount: i.amount, unit: i.unit, original_text: i.original_text || null }));
+        const rows = ingredients.map((i, n) => ({ recipe_id: id, position: n, name: i.name, amount: i.amount, unit: i.unit, original_text: i.original_text || null, is_pantry: !!i.is_pantry }));
         const { error } = await sb.from("recipe_ingredients").insert(rows); fail(error);
       }
       if (photoBlob || removePhoto) {
@@ -699,7 +710,7 @@ function demoStore() {
     created_by: me.id, updated_by: me.id, created_at: "2026-10-30T18:00:00Z", updated_at: "2026-10-30T18:00:00Z", ...extra,
     owner_id: (extra && (extra.owner_id || extra.created_by)) || p.owner_id || me.id,
   });
-  const ing = (rows) => rows.map(([name, amount, unit]) => ({ name, amount, unit, original_text: `${amount} ${unit}` }));
+  const ing = (rows) => rows.map(([name, amount, unit]) => ({ name, amount, unit, original_text: `${amount} ${unit}`, is_pantry: isPantry(name) }));
   const orzo = parseRecipeText(SAMPLE_TEXT);
   orzo.prep_time_minutes = 25;
   const recs = [
@@ -840,7 +851,8 @@ async function loadAll() {
     const m = await store.membership(S.user.id);
     if (!m) return renderHousehold();
     S.household = m.household; S.role = m.role;
-    const [profiles, recipes, favs, members] = await Promise.all([store.profiles(), store.recipes(), store.favorites(), store.members()]);
+    const [profiles, recipes, favs, members, shop] = await Promise.all([store.profiles(), store.recipes(), store.favorites(), store.members(), store.shopping()]);
+    S.shop = shop;
     S.names = Object.fromEntries(profiles.map((p) => [p.id, p.display_name]));
     S.avatars = Object.fromEntries(profiles.map((p) => [p.id, { path: p.avatar_path || null, url: p.avatar_url || null }]));
     S.roles = Object.fromEntries(members.map((x) => [x.user_id, x.role]));
@@ -1106,12 +1118,20 @@ function renderDetail() {
     <section class="section">
       <div class="section-head"><h2>Ingrediënten</h2>
         <div class="servings" aria-label="Aantal personen"><button id="minus" aria-label="Minder personen">−</button><output id="pp">${n} pers.</output><button id="plus" aria-label="Meer personen">+</button></div></div>
-      <ul class="ing">${r.recipe_ingredients.map((i) => {
-        const amt = i.amount == null ? (i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
+      <ul class="ing">${r.recipe_ingredients.filter((i) => !i.is_pantry).map((i) => {
+        const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
         return `<li><span>${esc(i.name)}</span><span class="amt${f !== 1 && i.amount != null ? " scaled" : ""}">${amt}</span></li>`;
       }).join("")}</ul>
       ${f !== 1 ? `<p class="muted" style="margin:0;font-size:14px">Omgerekend van ${base} naar ${n} personen.</p>` : ""}
     </section>
+    ${r.recipe_ingredients.some((i) => i.is_pantry) ? `<section class="section">
+      <div class="section-head"><h2>Uit de voorraadkast</h2></div>
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">Heb je meestal in huis. Iets op? Tik op + om het op je boodschappenlijst te zetten.</p>
+      <ul class="ing pantry" id="pantry">${r.recipe_ingredients.map((i, idx) => ({ i, idx })).filter(({ i }) => i.is_pantry).map(({ i, idx }) => {
+        const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
+        const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
+        return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-pantry="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
+      }).join("")}</ul></section>` : ""}
     ${(r.steps || []).length ? `<section class="section"><h2>Bereiding</h2><ol class="steps">${r.steps.map((s) => `<li><div>${s.title ? `<b>${esc(s.title)}</b>` : ""}${esc(s.text)}</div></li>`).join("")}</ol></section>` : ""}
     ${(r.tips || []).length ? `<section class="section"><h2>Kooktips</h2>${r.tips.map((t) => `<div class="tip">${t.title ? `<b>${esc(t.title)}</b>` : ""}${esc(t.text)}</div>`).join("")}</section>` : ""}
     <div class="byline">
@@ -1122,6 +1142,18 @@ function renderDetail() {
     <div style="height:24px"></div>`;
   $("#back").onclick = () => go(S.from || "list");
   $("#to-menu").onclick = () => addToMenuSheet(r);
+  const pantry = $("#pantry");
+  if (pantry) pantry.onclick = async (e) => {
+    const b = e.target.closest("[data-pantry]"); if (!b || b.disabled) return;
+    const i = r.recipe_ingredients[+b.dataset.pantry];
+    b.disabled = true;
+    try {
+      const [row] = await store.addShopping(S.household.id, [{ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * f * 1000) / 1000, unit: i.unit || null, is_manual: true, position: 0 }]);
+      S.shop.push(row);
+      b.textContent = "✓"; b.setAttribute("aria-pressed", "true");
+      toast(`${i.name} staat op je boodschappenlijst`);
+    } catch (err) { b.disabled = false; toast(err.message); }
+  };
   $("#minus").onclick = () => { if (n > 1) { S.scale = n - 1; renderDetail(); } };
   $("#plus").onclick = () => { if (n < 20) { S.scale = n + 1; renderDetail(); } };
   $("#fav").onclick = async () => {
@@ -1162,6 +1194,7 @@ function renderPaste() {
       try {
         const r = await store.importUrl((onlyUrl[1] || onlyUrl[0]).trim());
         const d = { id: null, photo_path: null, photo_url: null, owner_id: S.user.id, warnings: [], ...r, tags: suggestTags(r) };
+        d.ingredients = (d.ingredients || []).map((i) => ({ ...i, is_pantry: isPantry(i.name) }));
         delete d.image; delete d.image_url; delete d.description;
         if (r.image) {
           try { d.newPhoto = await shrinkPhoto(dataUrlToBlob(r.image)); d.newPhotoUrl = URL.createObjectURL(d.newPhoto); }
@@ -1188,7 +1221,7 @@ function emptyDraft() {
 }
 function draftFrom(r) {
   return { id: r.id, owner_id: ownerOf(r), title: r.title, subtitle: r.subtitle || "", servings: r.servings, prep_time_minutes: r.prep_time_minutes, tags: [...(r.tags || [])],
-    ingredients: r.recipe_ingredients.map((i) => ({ name: i.name, amount: i.amount, unit: i.unit || "", original_text: i.original_text || "" })),
+    ingredients: r.recipe_ingredients.map((i) => ({ name: i.name, amount: i.amount, unit: i.unit || "", original_text: i.original_text || "", is_pantry: !!i.is_pantry })),
     steps: (r.steps || []).map((s) => ({ ...s })), tips: (r.tips || []).map((s) => ({ ...s })), source_url: r.source_url || "",
     photo_path: r.photo_path, photo_url: r.photo_url, warnings: [] };
 }
@@ -1196,7 +1229,8 @@ function draftFrom(r) {
 /* ================= Bewerken ================= */
 function renderEdit() {
   const d = S.draft;
-  const ingRow = (i, k) => `<div class="ing-row" data-k="${k}">
+  const ingRow = (i, k) => `<div class="ing-row${i.is_pantry ? " is-pantry" : ""}" data-k="${k}">
+      <button type="button" class="jar" data-jar="${k}" aria-pressed="${!!i.is_pantry}" aria-label="${i.is_pantry ? "Terug naar ingrediënten" : "Naar de voorraadkast"}">${ICON.jar}</button>
       <input class="input" id="ing-name-${k}" value="${esc(i.name)}" placeholder="Ingrediënt" aria-label="Ingrediënt">
       <input class="input" id="ing-amt-${k}" value="${i.amount == null ? "" : esc(fmtAmount(i.amount, ""))}" inputmode="decimal" placeholder="200" aria-label="Hoeveelheid">
       <input class="input" id="ing-unit-${k}" value="${esc(i.unit || "")}" placeholder="g" aria-label="Eenheid">
@@ -1230,8 +1264,11 @@ function renderEdit() {
         <span class="muted" style="font-size:13px;font-weight:400">De app verkleint de foto automatisch.</span></div>
 
       <div class="section" style="margin-top:12px"><h2>Ingrediënten</h2>
-        <div class="ing-edit" id="ings">${d.ingredients.map(ingRow).join("")}</div>
+        <div class="ing-edit" id="ings">${d.ingredients.map((i, k) => (i.is_pantry ? "" : ingRow(i, k))).join("")}</div>
         <button type="button" class="btn" id="add-ing">+ Ingrediënt</button></div>
+      <div class="section"><h2>Uit de voorraadkast</h2>
+        <p class="muted" style="margin:-6px 0 0;font-size:14px">Dingen die je meestal in huis hebt, zoals olie, peper en zout. Ze komen niet automatisch op je boodschappenlijst. Tik op het potje om een ingrediënt te verplaatsen.</p>
+        <div class="ing-edit">${d.ingredients.some((i) => i.is_pantry) ? d.ingredients.map((i, k) => (i.is_pantry ? ingRow(i, k) : "")).join("") : `<p class="muted" style="margin:0">Nog niets.</p>`}</div></div>
       <div class="section"><h2>Bereiding</h2>
         <div class="stack" id="steps">${d.steps.map((s, k) => stepRow(s, k, "step")).join("")}</div>
         <button type="button" class="btn" id="add-step">+ Stap</button></div>
@@ -1252,7 +1289,7 @@ function renderEdit() {
     d.ingredients = d.ingredients.map((_, k) => {
       const name = $(`#ing-name-${k}`).value.trim(), amtTxt = $(`#ing-amt-${k}`).value.trim(), unit = $(`#ing-unit-${k}`).value.trim();
       const a = parseAmount(amtTxt);
-      return { name, amount: a.amount, unit: unit || null, original_text: [amtTxt, unit].filter(Boolean).join(" ") };
+      return { name, amount: a.amount, unit: unit || null, original_text: [amtTxt, unit].filter(Boolean).join(" "), is_pantry: !!d.ingredients[k].is_pantry };
     });
     d.steps = d.steps.map((_, k) => ({ title: $(`#step-title-${k}`).value.trim(), text: $(`#step-text-${k}`).value.trim() }));
     d.tips = d.tips.map((_, k) => ({ title: $(`#tip-title-${k}`).value.trim(), text: $(`#tip-text-${k}`).value.trim() }));
@@ -1264,6 +1301,7 @@ function renderEdit() {
   $("#add-tip").onclick = () => { sync(); d.tips.push({ title: "", text: "" }); rerender(); };
   $("#edit-form").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.jar != null) { sync(); const it = d.ingredients[+b.dataset.jar]; it.is_pantry = !it.is_pantry; rerender(); return; }
     for (const kind of ["ing", "step", "tip"]) {
       const k = b.getAttribute(`data-rm-${kind}`);
       if (k != null) { sync(); ({ ing: d.ingredients, step: d.steps, tip: d.tips })[kind].splice(+k, 1); rerender(); }
@@ -1428,12 +1466,13 @@ function addToMenuSheet(r) {
 
 /* ================= Boodschappen ================= */
 const UNIT_NORM = { gram: "g", gr: "g", stuks: "stuk", "stuk(s)": "stuk", eetlepel: "el", theelepel: "tl", "zakje(s)": "zakje", zakjes: "zakje" };
-function aggregate(meals) {
+function aggregate(meals, pantry = false) {
   const map = new Map();
   for (const m of meals) {
     const r = getRecipe(m.recipe_id); if (!r) continue;
     const f = (m.servings || r.servings || 2) / (r.servings || 2);
     for (const i of r.recipe_ingredients) {
+      if (!!i.is_pantry !== pantry) continue;
       const unitRaw = (i.unit || "").trim().toLowerCase();
       const unit = UNIT_NORM[unitRaw] || unitRaw;
       const key = norm(i.name).replace(/\s+/g, " ").trim() + "|" + unit;
@@ -1451,6 +1490,7 @@ async function makeShoppingList(weekStart = S.weekStart) {
     const meals = await store.mealPlan(isoDate(weekStart), isoDate(addDays(weekStart, 6)));
     if (!meals.length) { toast("Er staat nog niets op het weekmenu van die week"); return; }
     const items = aggregate(meals);
+    try { localStorage.setItem(LIST_WEEK_KEY, isoDate(weekStart)); } catch (_) { /* niet erg */ }
     const current = await store.shopping();
     await store.removeShopping(current.filter((x) => !x.is_manual).map((x) => x.id));
     await store.addShopping(S.household.id, items.map((i, k) => ({ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: false, position: k + 1 })));
@@ -1458,10 +1498,19 @@ async function makeShoppingList(weekStart = S.weekStart) {
     go("shop");
   } catch (err) { toast(err.message); }
 }
+const LIST_WEEK_KEY = "receptenboek-lijstweek";
+function listWeek() {
+  try { const v = localStorage.getItem(LIST_WEEK_KEY); if (v) return new Date(v + "T12:00:00"); } catch (_) { /* standaard */ }
+  return startOfWeek(new Date());
+}
 async function renderShop() {
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Boodschappen</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("shop")}`;
   bindTabBar();
-  try { S.shop = await store.shopping(); } catch (e) { toast(e.message); S.shop = []; }
+  try {
+    const ws = listWeek();
+    const [shop, meals] = await Promise.all([store.shopping(), store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6)))]);
+    S.shop = shop; S.shopPantry = aggregate(meals, true); S.shopPantryWeek = ws;
+  } catch (e) { toast(e.message); S.shop = S.shop || []; S.shopPantry = []; }
   drawShop();
 }
 function drawShop() {
@@ -1478,9 +1527,17 @@ function drawShop() {
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op je weekmenu en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
       ${open.length ? `<div class="shop-list">${open.map(row).join("")}</div>` : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${done.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${done.map(row).join("")}</div></div>` : ""}
+      ${(S.shopPantry || []).length ? `<div class="stack" style="gap:6px">
+        <div class="section-head"><p class="label" style="margin:0">Uit de voorraadkast · week ${weekNumber(S.shopPantryWeek)}</p></div>
+        <p class="muted" style="margin:0;font-size:14px">Nodig voor je weekmenu, maar meestal in huis. Iets op? Tik op +.</p>
+        <ul class="ing pantry shop-list" id="shop-pantry">${S.shopPantry.map((i, k) => {
+          const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
+          const amt = i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || "");
+          return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op de lijst">${onList ? "✓" : "+"}</button></li>`;
+        }).join("")}</ul></div>` : ""}
       <div class="stack" style="gap:10px">
         <button class="btn block" id="from-menu">Lijst maken van weekmenu</button>
-        <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je weekmenu. Wat je zelf hebt toegevoegd blijft staan.</p>
+        <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je weekmenu. Dingen uit de voorraadkast komen er niet automatisch op. Wat je zelf hebt toegevoegd blijft staan.</p>
       </div>
     </main>
     ${tabBarHTML("shop")}`;
@@ -1503,6 +1560,13 @@ function drawShop() {
   const cd = $("#clear-done"); if (cd) cd.onclick = async () => {
     try { await store.removeShopping(done.map((x) => x.id)); S.shop = S.shop.filter((x) => !x.is_checked); drawShop(); }
     catch (err) { toast(err.message); }
+  };
+  const sp = $("#shop-pantry");
+  if (sp) sp.onclick = async (e) => {
+    const b = e.target.closest("[data-sp]"); if (!b || b.disabled) return;
+    const i = S.shopPantry[+b.dataset.sp]; b.disabled = true;
+    try { const [row] = await store.addShopping(S.household.id, [{ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: true, position: 0 }]); S.shop.push(row); drawShop(); }
+    catch (err) { b.disabled = false; toast(err.message); }
   };
   $("#from-menu").onclick = () => {
     const ws = startOfWeek(new Date());
