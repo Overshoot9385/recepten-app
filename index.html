@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -53,7 +53,10 @@ body {
   background: var(--bg); color: var(--ink);
   font-family: var(--font-body); font-size: 16px; line-height: 1.5;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
 }
+button, a, label, input, select, textarea { touch-action: manipulation; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 .wrap {
   max-width: 680px; margin: 0 auto;
@@ -63,6 +66,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 }
 h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; text-wrap: balance; margin: 0; }
 button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, select { font-size: max(16px, 1em); }
 button { cursor: pointer; }
 :focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; }
 .muted { color: var(--muted); }
@@ -181,7 +185,7 @@ button { cursor: pointer; }
 .invite-text { background: var(--sunk); border-radius: 12px; padding: 12px 14px; margin: 0; font-size: 15px; user-select: text; -webkit-user-select: text; }
 .code.small { font-size: 15px; letter-spacing: .08em; flex: none; }
 .member-row .member-name { flex: 1; min-width: 0; }
-select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6px 8px; font-size: 14px; }
+select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6px 8px; font-size: 16px; }
 .member-row .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .danger-text { color: var(--danger) !important; }
 .results { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 4px; min-height: 28px; }
