@@ -780,7 +780,7 @@ function demoStore() {
 const store = LIVE && window.supabase ? liveStore() : demoStore();
 const S = {
   view: "list", user: null, role: null, household: null, recipes: [], names: {}, avatars: {}, roles: {}, favs: new Set(),
-  query: "", tags: [], time: "all", favOnly: false, owner: "all", current: null, scale: null, draft: null,
+  query: "", tags: [], time: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
   weekStart: startOfWeek(new Date()), meals: [], shop: [],
 };
 const ROLE_LABEL = { admin: "Beheerder", editor: "Bewerker", viewer: "Lezer" };
@@ -940,18 +940,26 @@ function renderHousehold(msg = "") {
 
 /* ================= Overzicht ================= */
 function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
-const TIME_OPTS = [["all", "Elke duur"], ["15", "Tot 15 minuten"], ["20", "Tot 20 minuten"], ["30", "Tot 30 minuten"], ["45", "Tot 45 minuten"], ["60", "Tot 1 uur"], ["long", "Langer dan 1 uur"]];
-const TIME_SHORT = { "15": "≤ 15 min", "20": "≤ 20 min", "30": "≤ 30 min", "45": "≤ 45 min", "60": "≤ 1 uur", long: "> 1 uur" };
+// Tijdsblokken: [code, label, uitleg, ondergrens (exclusief), bovengrens (inclusief)]
+const TIME_BLOCKS = [
+  ["snel", "Snel", "tot 20 minuten", 0, 20],
+  ["20-30", "20–30 minuten", "", 20, 30],
+  ["30-45", "30–45 minuten", "", 30, 45],
+  ["45-60", "45–60 minuten", "", 45, 60],
+  ["lang", "Langer dan 1 uur", "", 60, Infinity],
+];
+const TIME_SHORT = { snel: "Snel", "20-30": "20–30 min", "30-45": "30–45 min", "45-60": "45–60 min", lang: "> 1 uur" };
+function inTimeBlock(t, code) { const b = TIME_BLOCKS.find((x) => x[0] === code); return b && t > b[3] && t <= b[4]; }
 function matches(r, f) {
   if (f.favOnly && !S.favs.has(r.id)) return false;
   if (f.owner === "me" && ownerOf(r) !== S.user.id) return false;
   if (f.owner === "others" && ownerOf(r) === S.user.id) return false;
   if (!["all", "me", "others"].includes(f.owner) && ownerOf(r) !== f.owner) return false;
   if (f.tags.length && !f.tags.every((t) => (r.tags || []).includes(t))) return false;
-  if (f.time !== "all") {
+  if (f.time.length) {
     const t = r.prep_time_minutes;
     if (!t) return false;
-    if (f.time === "long" ? t <= 60 : t > +f.time) return false;
+    if (!f.time.some((code) => inTimeBlock(t, code))) return false;
   }
   const terms = norm(f.query).split(/\s+/).filter(Boolean);
   if (!terms.length) return true;
@@ -959,7 +967,7 @@ function matches(r, f) {
   return terms.every((t) => hay.includes(t));
 }
 function filtered(f = S) { return S.recipes.filter((r) => matches(r, f)); }
-function filtersActive() { return S.owner !== "all" || S.tags.length > 0 || S.time !== "all" || S.favOnly; }
+function filtersActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.favOnly; }
 function people() {
   return Object.entries(S.names).filter(([id]) => id !== S.user.id).sort((a, b) => a[1].localeCompare(b[1], "nl"));
 }
@@ -967,15 +975,16 @@ function filterBarHTML() {
   const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
   const person = S.owner === "all" ? "Persoon" : S.owner === "me" ? "Van mij" : S.owner === "others" ? "Van anderen" : nameOf(S.owner);
   const tags = !S.tags.length ? "Tags" : S.tags[0] + (S.tags.length > 1 ? ` +${S.tags.length - 1}` : "");
-  const time = S.time === "all" ? "Tijd" : TIME_SHORT[S.time];
+  const tsel = TIME_BLOCKS.map((b) => b[0]).filter((c) => S.time.includes(c));
+  const time = !tsel.length ? "Tijd" : TIME_SHORT[tsel[0]] + (tsel.length > 1 ? ` +${tsel.length - 1}` : "");
   return `
     <button class="fbtn" data-sheet="person" aria-pressed="${S.owner !== "all"}" aria-haspopup="dialog">${esc(person)}${chev}</button>
     <button class="fbtn" data-sheet="tags" aria-pressed="${S.tags.length > 0}" aria-haspopup="dialog">${esc(tags)}${chev}</button>
-    <button class="fbtn" data-sheet="time" aria-pressed="${S.time !== "all"}" aria-haspopup="dialog">${esc(time)}${chev}</button>
+    <button class="fbtn" data-sheet="time" aria-pressed="${S.time.length > 0}" aria-haspopup="dialog">${esc(time)}${chev}</button>
     <button class="fbtn star" data-fav aria-pressed="${S.favOnly}" aria-label="Alleen favorieten">${S.favOnly ? ICON.star : ICON.starOff}</button>`;
 }
 function openFilterSheet(kind) {
-  const f = { query: S.query, owner: S.owner, tags: [...S.tags], time: S.time, favOnly: S.favOnly };
+  const f = { query: S.query, owner: S.owner, tags: [...S.tags], time: [...S.time], favOnly: S.favOnly };
   const count = (patch) => filtered({ ...f, ...patch }).length;
   const titles = { person: "Recept van", tags: "Tags", time: "Bereidingstijd" };
   const bg = document.createElement("div");
@@ -991,7 +1000,8 @@ function openFilterSheet(kind) {
       if (!all.length) return `<p class="muted">Er zijn nog geen tags. Voeg ze toe bij het bewerken van een recept.</p>`;
       return all.map((t) => `<label class="opt"><input type="checkbox" value="${esc(t)}" ${f.tags.includes(t) ? "checked" : ""}><span>${esc(t)}</span><span class="n">${S.recipes.filter((r) => (r.tags || []).includes(t)).length}</span></label>`).join("");
     }
-    return TIME_OPTS.map(([v, label]) => `<label class="opt"><input type="radio" name="opt" value="${v}" ${f.time === v ? "checked" : ""}><span>${label}</span><span class="n">${count({ time: v })}</span></label>`).join("")
+    return `<p class="muted" style="margin:-4px 0 4px;font-size:14px">Je kunt meerdere blokken kiezen.</p>`
+      + TIME_BLOCKS.map(([v, label, sub]) => `<label class="opt"><input type="checkbox" value="${v}" ${f.time.includes(v) ? "checked" : ""}><span>${label}${sub ? ` <span class="muted">· ${sub}</span>` : ""}</span><span class="n">${count({ time: [v] })}</span></label>`).join("")
       + `<p class="muted" style="font-size:13px;margin:10px 0 0">Recepten zonder bereidingstijd vallen weg zodra je een duur kiest.</p>`;
   };
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -1007,12 +1017,12 @@ function openFilterSheet(kind) {
   $("#sheet-opts", bg).addEventListener("change", (e) => {
     const inp = e.target;
     if (kind === "person") f.owner = inp.value;
-    else if (kind === "time") f.time = inp.value;
+    else if (kind === "time") f.time = [...$("#sheet-opts", bg).querySelectorAll("input:checked")].map((i) => i.value);
     else f.tags = [...$("#sheet-opts", bg).querySelectorAll("input:checked")].map((i) => i.value);
     refreshCount();
   });
   $("#sheet-clear", bg).onclick = () => {
-    if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = "all"; else f.tags = [];
+    if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = []; else f.tags = [];
     $("#sheet-opts", bg).innerHTML = optionsHTML(); refreshCount();
   };
   apply.onclick = () => { Object.assign(S, { owner: f.owner, tags: f.tags, time: f.time }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
@@ -1057,7 +1067,7 @@ function drawList() {
     el.innerHTML = `<div class="empty"><h2>Nog geen recepten</h2><p class="muted" style="margin:0">${canEdit() ? "Tik op <b>Recept</b> en plak een link of de tekst uit Notes." : "Zodra iemand een recept toevoegt, zie je het hier."}</p></div>`;
     return;
   }
-  if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && S.time === "all" && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
+  if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && !S.time.length && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
   const clearBtn = filtersActive() ? `<button class="linkbtn" id="clear-filters">Filters wissen</button>` : "";
   if (!list.length) { el.innerHTML = `<div class="empty"><h2>Niets gevonden</h2><p class="muted" style="margin:0">Probeer een ander woord, of zet de filters uit.</p>${clearBtn}</div>`; }
   else el.innerHTML = `<div class="results"><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p>${clearBtn}</div><div class="grid">${list.map((r) => `
@@ -1068,7 +1078,7 @@ function drawList() {
     </button>`).join("")}</div>`;
   el.onclick = (e) => {
     if (e.target.closest("#clear-filters")) {
-      Object.assign(S, { owner: "all", tags: [], time: "all", favOnly: false });
+      Object.assign(S, { owner: "all", tags: [], time: [], favOnly: false });
       $("#filters").innerHTML = filterBarHTML(); drawList(); return;
     }
     const c = e.target.closest(".card"); if (c) go("detail", c.dataset.id);
