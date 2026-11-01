@@ -305,6 +305,15 @@ textarea.input { resize: vertical; line-height: 1.45; }
   display: grid; place-items: center; font-weight: 700; font-size: 15px;
 }
 .steps b { display: block; margin-bottom: 2px; }
+.steps.check li { grid-template-columns: 34px 1fr; cursor: pointer; }
+.steps.check li::before { content: none; }
+.step-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--herb); background: var(--surface); color: var(--herb); font-weight: 700; font-size: 15px; display: grid; place-items: center; padding: 0; }
+.steps.check li.done { opacity: .55; }
+.steps.check li.done .step-check { background: var(--herb); color: var(--herb-ink); }
+.steps.check li.done div { text-decoration: line-through; text-decoration-color: var(--muted); }
+.ai-note { border: 1px dashed var(--saffron); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 4px; }
+.ai-note ul { margin: 0; padding-left: 18px; }
+.ai-note .linkbtn { justify-self: start; }
 .tip { background: var(--sunk); border-radius: var(--r); padding: 14px 16px; }
 .tip b { display: block; }
 .byline { font-size: 14px; color: var(--muted); display: grid; gap: 2px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -622,7 +631,7 @@ function liveStore() {
     },
     async saveRecipe(householdId, rec, ingredients, photoBlob, removePhoto) {
       const fields = {
-        title: rec.title, subtitle: rec.subtitle || null, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes || null, owner_id: rec.owner_id || null,
+        title: rec.title, subtitle: rec.subtitle || null, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes || null, prep_time_estimated: !!(rec.prep_time_minutes && rec.prep_time_estimated), owner_id: rec.owner_id || null,
         steps: rec.steps, tips: rec.tips, tags: rec.tags, source_url: rec.source_url || null, notes: rec.notes || null,
       };
       let id = rec.id;
@@ -656,6 +665,7 @@ function liveStore() {
       }
       return data.recipe;
     },
+    async clearImportNotes(id) { const { error } = await sb.from("recipes").update({ import_notes: [] }).eq("id", id); fail(error); },
     async deleteRecipe(rec) {
       const { error } = await sb.from("recipes").delete().eq("id", rec.id); fail(error);
       if (rec.photo_path) await sb.storage.from(BUCKET).remove([rec.photo_path]);
@@ -755,7 +765,7 @@ function demoStore() {
     mk({ title: "Oma's hachee", subtitle: "met rode kool en gekookte aardappelen", servings: 4, prep_time_minutes: 180, tags: ["vlees", "stoofpot"], source_url: "",
       ingredients: ing([["Runderlappen", 800, "g"], ["Uien", 4, "stuk"], ["Laurierblaadjes", 3, "stuk"], ["Kruidnagels", 4, "stuk"], ["Azijn", 2, "el"], ["Bouillon", 500, "ml"]]),
       steps: [{ title: "Aanbraden", text: "Braad het vlees in porties bruin en schep het uit de pan." }, { title: "Stoven", text: "Fruit de uien, voeg vlees, kruiden, azijn en bouillon toe en laat 3 uur zachtjes stoven." }],
-      tips: [{ title: "Van oma", text: "Nog lekkerder als je hem een dag van tevoren maakt." }] }, { owner_id: mama.id }),
+      tips: [{ title: "Van oma", text: "Nog lekkerder als je hem een dag van tevoren maakt." }] }, { owner_id: mama.id, prep_time_estimated: true, import_notes: ["Bereidingstijd geschat op 3 uur (vooral stoven).", "Hoeveelheid bouillon aangenomen: 500 ml."] }),
     mk({ title: "Shakshuka met feta", subtitle: "met paprika, komijn en vers brood", servings: 2, prep_time_minutes: 30, tags: ["vegetarisch", "eieren"], source_url: "",
       ingredients: ing([["Eieren", 4, "stuk"], ["Gepelde tomaten", 400, "g"], ["Rode paprika", 1, "stuk"], ["Ui", 1, "stuk"], ["Komijnzaad", 1, "tl"], ["Feta", 75, "g"], ["Desembrood", 2, "sneetjes"]]),
       steps: [{ title: "Saus", text: "Fruit ui en paprika 5 minuten, voeg komijn en tomaten toe en laat 10 minuten pruttelen." }, { title: "Eieren", text: "Maak kuiltjes, breek de eieren erin en laat afgedekt 6 tot 8 minuten garen." }, { title: "Serveren", text: "Verkruimel de feta erover en serveer met geroosterd brood." }],
@@ -812,6 +822,7 @@ function demoStore() {
       return { ...p, tags: ["grieks"], prep_time_minutes: 15, image: null };
     },
     async deleteRecipe(rec) { recs.splice(recs.findIndex((x) => x.id === rec.id), 1); },
+    async clearImportNotes(id) { recs.find((x) => x.id === id).import_notes = []; },
     async favorites() { return [...favs]; },
     async setFavorite(id, on) { if (on) favs.add(id); else favs.delete(id); },
     async planInfo() { return { members: [...plan.members], incoming: [...plan.incoming], outgoing: [...plan.outgoing] }; },
@@ -866,6 +877,11 @@ function greeting(d = new Date()) {
   return h >= 5 && h < 12 ? "Goedemorgen" : h >= 12 && h < 18 ? "Goedemiddag" : h >= 18 ? "Goedenavond" : "Goedenacht";
 }
 function firstName(n) { return String(n || "").trim().split(/\s+/)[0] || ""; }
+function timeText(r, long = false) {
+  if (!r.prep_time_minutes) return "";
+  const m = r.prep_time_minutes, t = m >= 90 && m % 15 === 0 ? `${Math.floor(m / 60)} uur${m % 60 ? " " + (m % 60) + " min" : ""}` : `${m} ${long ? "minuten" : "min"}`;
+  return r.prep_time_estimated ? `± ${t}${long ? " (geschat)" : ""}` : t;
+}
 function nameOf(id) { return S.names[id] || "onbekend"; }
 function ownerOf(r) { return r.owner_id || r.created_by; }
 const AVATAR_HUES = [152, 32, 200, 340, 265, 90, 12];
@@ -1155,7 +1171,7 @@ function drawList() {
     <button class="card" data-id="${r.id}">
       ${thumbHTML(r, "thumb")}
       <h3>${esc(r.title)}</h3>
-      <div class="meta">${r.prep_time_minutes ? `<span>${r.prep_time_minutes} min</span>` : ""}<span>${r.servings}p</span><span>${r.recipe_ingredients.length} ingrediënten</span></div>
+      <div class="meta">${r.prep_time_minutes ? `<span>${timeText(r)}</span>` : ""}<span>${r.servings}p</span><span>${r.recipe_ingredients.length} ingrediënten</span></div>
     </button>`).join("")}</div>`;
   el.onclick = (e) => {
     if (e.target.closest("#clear-filters")) {
@@ -1167,6 +1183,20 @@ function drawList() {
 }
 
 /* ================= Recept bekijken ================= */
+// Afgevinkte stappen: tijdelijk, per recept, blijven bewaard zolang de app open is
+const STEPS_KEY = "receptenboek-stappen";
+let STEPS = {};
+try { STEPS = JSON.parse(sessionStorage.getItem(STEPS_KEY) || "{}"); } catch (_) { STEPS = {}; }
+const stepSets = {};
+function stepsDone(id) { if (!stepSets[id]) stepSets[id] = new Set(STEPS[id] || []); return stepSets[id]; }
+function saveStepsDone() {
+  for (const [id, set] of Object.entries(stepSets)) STEPS[id] = [...set];
+  try { sessionStorage.setItem(STEPS_KEY, JSON.stringify(STEPS)); } catch (_) { /* alleen in geheugen */ }
+}
+function stepOrder(r) {
+  const idx = r.steps.map((_, i) => i), done = stepsDone(r.id);
+  return [...idx.filter((i) => !done.has(i)), ...idx.filter((i) => done.has(i))];
+}
 function renderDetail() {
   const r = getRecipe(S.current);
   if (!r) return go("list");
@@ -1180,7 +1210,7 @@ function renderDetail() {
     <div class="title-block">
       <h1>${esc(r.title)}</h1>
       ${r.subtitle ? `<p class="sub" style="margin:0">${esc(r.subtitle)}</p>` : ""}
-      <div class="meta">${r.prep_time_minutes ? `<span>${r.prep_time_minutes} minuten</span>` : ""}${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--herb)">Bron bekijken</a>` : ""}</div>
+      <div class="meta">${r.prep_time_minutes ? `<span${r.prep_time_estimated ? ' title="Bereidingstijd is geschat"' : ""}>${timeText(r, true)}</span>` : ""}${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--herb)">Bron bekijken</a>` : ""}</div>
       ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
       <div class="actions-row">
         <button class="btn primary" id="to-menu">${ICON.cal}<span>Op mijn weekmenu</span></button>
@@ -1205,8 +1235,14 @@ function renderDetail() {
         const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
         return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-ing="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
       }).join("")}</ul></section>` : ""}
-    ${(r.steps || []).length ? `<section class="section"><h2>Bereiding</h2><ol class="steps">${r.steps.map((s) => `<li><div>${s.title ? `<b>${esc(s.title)}</b>` : ""}${esc(s.text)}</div></li>`).join("")}</ol></section>` : ""}
+    ${(r.steps || []).length ? `<section class="section">
+      <div class="section-head"><h2>Bereiding</h2>${stepsDone(r.id).size ? `<button class="linkbtn" id="steps-reset">Opnieuw beginnen</button>` : `<span class="muted" style="font-size:14px">Tik een stap af als je klaar bent</span>`}</div>
+      <ol class="steps check" id="steps">${stepOrder(r).map((i) => { const s = r.steps[i], done = stepsDone(r.id).has(i); return `<li class="${done ? "done" : ""}" data-step="${i}" style="--n:'${i + 1}'"><button class="step-check" aria-pressed="${done}" aria-label="${done ? "Stap " + (i + 1) + " nog niet klaar" : "Stap " + (i + 1) + " klaar"}">${done ? "✓" : i + 1}</button><div>${s.title ? `<b>${esc(s.title)}</b>` : ""}${esc(s.text)}</div></li>`; }).join("")}</ol></section>` : ""}
     ${(r.tips || []).length ? `<section class="section"><h2>Kooktips</h2>${r.tips.map((t) => `<div class="tip">${t.title ? `<b>${esc(t.title)}</b>` : ""}${esc(t.text)}</div>`).join("")}</section>` : ""}
+    ${(r.import_notes || []).length ? `<section class="section"><div class="ai-note"><b>Aangevuld bij het importeren</b>
+      <p class="muted" style="margin:0 0 6px;font-size:14px">Deze punten stonden niet (zo) in het originele recept. Het zijn aannames of schattingen; controleer ze bij het koken.</p>
+      <ul>${r.import_notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+      ${canEdit() ? `<button class="linkbtn" id="ai-ok">Klopt, melding weghalen</button>` : ""}</div></section>` : ""}
     <div class="byline">
       <div class="byline-owner">${avatarHTML(ownerOf(r), 40)}<div><span class="label" style="display:block">Recept van</span><b style="color:var(--ink);font-size:16px">${esc(nameOf(ownerOf(r)))}</b></div></div>
       <span>Toegevoegd door ${esc(nameOf(r.created_by))} op ${fmtDate(r.created_at)}</span>
@@ -1214,6 +1250,17 @@ function renderDetail() {
     ${canEdit() ? `<div class="actions"><button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>` : ""}
     <div style="height:24px"></div>`;
   $("#back").onclick = () => go(S.from || "list");
+  const st = $("#steps");
+  if (st) st.onclick = (e) => {
+    const li = e.target.closest("[data-step]"); if (!li) return;
+    const i = +li.dataset.step, set = stepsDone(r.id);
+    if (set.has(i)) set.delete(i); else set.add(i);
+    saveStepsDone(); const y = window.scrollY; renderDetail(); window.scrollTo(0, y);
+  };
+  const sr = $("#steps-reset"); if (sr) sr.onclick = () => { stepsDone(r.id).clear(); saveStepsDone(); renderDetail(); };
+  const ai = $("#ai-ok"); if (ai) ai.onclick = async () => {
+    try { await store.clearImportNotes(r.id); r.import_notes = []; renderDetail(); toast("Melding weggehaald"); } catch (err) { toast(err.message); }
+  };
   $("#to-menu").onclick = () => addToMenuSheet(r, false);
   $("#to-menu-list").onclick = () => addToMenuSheet(r, true);
   const addIng = async (e) => {
@@ -1295,7 +1342,7 @@ function emptyDraft() {
   return { id: null, owner_id: S.user.id, title: "", subtitle: "", servings: 2, prep_time_minutes: null, ingredients: [{ name: "", amount: null, unit: "", original_text: "" }], steps: [{ title: "", text: "" }], tips: [], tags: [], source_url: "", photo_path: null, photo_url: null, warnings: [] };
 }
 function draftFrom(r) {
-  return { id: r.id, owner_id: ownerOf(r), title: r.title, subtitle: r.subtitle || "", servings: r.servings, prep_time_minutes: r.prep_time_minutes, tags: [...(r.tags || [])],
+  return { id: r.id, owner_id: ownerOf(r), title: r.title, subtitle: r.subtitle || "", servings: r.servings, prep_time_minutes: r.prep_time_minutes, prep_time_estimated: !!r.prep_time_estimated, tags: [...(r.tags || [])],
     ingredients: r.recipe_ingredients.map((i) => ({ name: i.name, amount: i.amount, unit: i.unit || "", original_text: i.original_text || "", is_pantry: !!i.is_pantry })),
     steps: (r.steps || []).map((s) => ({ ...s })), tips: (r.tips || []).map((s) => ({ ...s })), source_url: r.source_url || "",
     photo_path: r.photo_path, photo_url: r.photo_url, warnings: [] };
@@ -1328,7 +1375,7 @@ function renderEdit() {
           </select></span></label>
       <div class="row">
         <label class="field"><span>Personen</span><input class="input" id="e-serv" type="number" min="1" max="20" value="${d.servings}"></label>
-        <label class="field"><span>Bereidingstijd (min)</span><input class="input" id="e-time" type="number" min="1" value="${d.prep_time_minutes || ""}"></label>
+        <label class="field"><span>Bereidingstijd (min)${d.prep_time_estimated ? ' <span class="muted" style="font-weight:400">· geschat</span>' : ""}</span><input class="input" id="e-time" type="number" min="1" value="${d.prep_time_minutes || ""}"></label>
       </div>
       <label class="field"><span>Tags, gescheiden door komma's</span><input class="input" id="e-tags" value="${esc((d.tags || []).join(", "))}" placeholder="kip, pasta, snel"></label>
       <div class="field"><span>Foto</span>
@@ -1358,7 +1405,9 @@ function renderEdit() {
     d.title = $("#e-title").value.trim(); d.subtitle = $("#e-sub").value.trim();
     d.owner_id = $("#e-owner").value;
     d.servings = Math.max(1, parseInt($("#e-serv").value, 10) || 2);
-    d.prep_time_minutes = parseInt($("#e-time").value, 10) || null;
+    const newTime = parseInt($("#e-time").value, 10) || null;
+    if (newTime !== d.prep_time_minutes) d.prep_time_estimated = false;
+    d.prep_time_minutes = newTime;
     d.tags = $("#e-tags").value.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
     d.source_url = $("#e-url").value.trim();
     d.ingredients = d.ingredients.map((_, k) => {
