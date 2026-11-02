@@ -214,6 +214,16 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 .danger-text { color: var(--danger) !important; }
 .results { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 4px; min-height: 28px; }
 .linkbtn { border: 0; background: none; color: var(--herb); font-weight: 600; font-size: 15px; padding: 4px 0; }
+.results-actions { display: flex; align-items: center; gap: 14px; }
+.surprise {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px 0 10px;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  font-size: 14px; font-weight: 600; white-space: nowrap; color: inherit;
+}
+.surprise .die { font-size: 18px; line-height: 1; display: inline-block; }
+.surprise.rolling .die { animation: roll .45s ease-in-out; }
+@keyframes roll { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(200deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .surprise.rolling .die { animation: none; } }
 .sheet { animation: rise .22s ease-out; max-height: 85vh; }
 @keyframes rise { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
@@ -1167,7 +1177,7 @@ function drawList() {
   if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && !S.time.length && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
   const clearBtn = filtersActive() ? `<button class="linkbtn" id="clear-filters">Filters wissen</button>` : "";
   if (!list.length) { el.innerHTML = `<div class="empty"><h2>Niets gevonden</h2><p class="muted" style="margin:0">Probeer een ander woord, of zet de filters uit.</p>${clearBtn}</div>`; }
-  else el.innerHTML = `<div class="results"><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p>${clearBtn}</div><div class="grid">${list.map((r) => `
+  else el.innerHTML = `<div class="results"><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p><div class="results-actions">${clearBtn}${list.length > 1 ? `<button class="surprise" id="surprise" title="Kies een willekeurig recept${filtersActive() || S.query ? " binnen je filters" : ""}"><span class="die" aria-hidden="true">🎲</span>Verras me</button>` : ""}</div></div><div class="grid">${list.map((r) => `
     <button class="card" data-id="${r.id}">
       ${thumbHTML(r, "thumb")}
       <h3>${esc(r.title)}</h3>
@@ -1178,8 +1188,27 @@ function drawList() {
       Object.assign(S, { owner: "all", tags: [], time: [], favOnly: false });
       $("#filters").innerHTML = filterBarHTML(); drawList(); return;
     }
-    const c = e.target.closest(".card"); if (c) go("detail", c.dataset.id);
+    const s = e.target.closest("#surprise");
+    if (s) {
+      // Willekeurig recept binnen de huidige zoekopdracht en filters; niet twee keer achter elkaar hetzelfde
+      const pool = list.length > 1 ? list.filter((r) => r.id !== S.lastSurprise) : list;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      S.lastSurprise = pick.id; S.surprisePool = list.map((r) => r.id);
+      s.classList.add("rolling"); s.disabled = true;
+      const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setTimeout(() => go("detail", pick.id), reduce ? 0 : 450);
+      return;
+    }
+    const c = e.target.closest(".card"); if (c) { S.surprisePool = null; go("detail", c.dataset.id); }
   };
+}
+// Nog een keer gooien vanaf een verrassingsrecept (zelfde zoekopdracht en filters)
+function rerollSurprise() {
+  const pool = (S.surprisePool || []).filter((id) => id !== S.lastSurprise && getRecipe(id));
+  if (!pool.length) return;
+  const id = pool[Math.floor(Math.random() * pool.length)];
+  S.lastSurprise = id;
+  go("detail", id);
 }
 
 /* ================= Recept bekijken ================= */
@@ -1205,6 +1234,7 @@ function renderDetail() {
   const f = n / base;
   $("#app").innerHTML = `
     <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button>
+      ${S.surprisePool && S.lastSurprise === r.id && S.surprisePool.length > 1 ? `<button class="surprise" id="reroll"><span class="die" aria-hidden="true">🎲</span>Nog een keer</button>` : ""}
       <button class="iconbtn" id="fav" aria-label="${S.favs.has(r.id) ? "Geen favoriet meer" : "Maak favoriet"}" aria-pressed="${S.favs.has(r.id)}" style="color:var(--saffron)">${S.favs.has(r.id) ? ICON.star : ICON.starOff}</button></div>
     ${thumbHTML(r, "hero")}
     <div class="title-block">
@@ -1278,6 +1308,11 @@ function renderDetail() {
   if ($("#pantry")) $("#pantry").onclick = addIng;
   $("#minus").onclick = () => { if (n > 1) { S.scale = n - 1; renderDetail(); } };
   $("#plus").onclick = () => { if (n < 20) { S.scale = n + 1; renderDetail(); } };
+  if ($("#reroll")) $("#reroll").onclick = (e) => {
+    const b = e.currentTarget; b.classList.add("rolling"); b.disabled = true;
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(rerollSurprise, reduce ? 0 : 450);
+  };
   $("#fav").onclick = async () => {
     const on = !S.favs.has(r.id);
     try { await store.setFavorite(r.id, on); if (on) S.favs.add(r.id); else S.favs.delete(r.id); renderDetail(); }
