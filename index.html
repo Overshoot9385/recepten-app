@@ -244,6 +244,9 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 .opts { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
 .opt { display: flex; align-items: center; gap: 14px; min-height: 50px; border-bottom: 1px solid var(--line); font-size: 16px; cursor: pointer; }
 .opt:last-of-type { border-bottom: 0; }
+.opt[hidden] { display: none; }
+.sheet-search { height: 42px; background: var(--sunk); border-color: transparent; }
+.sheet-search + .opts { min-height: min(30vh, 260px); }
 .opt input { width: 21px; height: 21px; margin: 0; accent-color: var(--herb); flex: none; }
 .opt .n { margin-left: auto; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
 .opt-group { margin: 16px 0 2px; }
@@ -1152,10 +1155,32 @@ function openFilterSheet(kind) {
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
       <div class="grabber" aria-hidden="true"></div>
       <div class="sheet-head"><h2 id="sheet-title">${titles[kind]}</h2><button class="linkbtn" id="sheet-clear">Wissen</button></div>
-      ${kind === "tags" ? `<p class="muted" style="margin:-4px 0 0;font-size:14px">Je ziet recepten met álle gekozen tags.</p>` : ""}
+      ${kind === "tags" ? `<p class="muted" style="margin:-4px 0 0;font-size:14px">Je ziet recepten met álle gekozen tags.</p>
+        <label class="search sheet-search">${ICON.search}<input id="sheet-q" type="search" placeholder="Zoek een tag" autocomplete="off" autocapitalize="off" enterkeyhint="done" aria-label="Zoek een tag"></label>` : ""}
       <div class="opts" id="sheet-opts">${optionsHTML()}</div>
       <button class="btn primary block" id="sheet-apply"></button></div>`;
   const apply = $("#sheet-apply", bg);
+  // Tags doorzoeken: verbergt niet-passende tags, gekozen tags blijven altijd zichtbaar
+  const qInput = $("#sheet-q", bg);
+  const filterOpts = () => {
+    if (!qInput) return;
+    const q = norm(qInput.value.trim());
+    let shown = 0;
+    $("#sheet-opts", bg).querySelectorAll(".opt").forEach((l) => {
+      const inp = l.querySelector("input");
+      const ok = !q || inp.checked || norm(inp.value).includes(q);
+      l.hidden = !ok; if (ok) shown++;
+    });
+    let none = $("#sheet-none", bg);
+    if (!shown && q) {
+      if (!none) { none = document.createElement("p"); none.id = "sheet-none"; none.className = "muted"; none.style.margin = "8px 0"; $("#sheet-opts", bg).appendChild(none); }
+      none.textContent = `Geen tag gevonden voor "${qInput.value.trim()}".`;
+    } else if (none) none.remove();
+  };
+  if (qInput) {
+    qInput.addEventListener("input", filterOpts);
+    qInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); qInput.blur(); } });
+  }
   const refreshCount = () => { const n = filtered(f).length; apply.textContent = n === 1 ? "Toon 1 recept" : `Toon ${n} recepten`; };
   const close = () => { document.removeEventListener("keydown", onKey); bg.remove(); };
   const onKey = (e) => { if (e.key === "Escape") close(); };
@@ -1169,7 +1194,7 @@ function openFilterSheet(kind) {
   });
   $("#sheet-clear", bg).onclick = () => {
     if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = []; else if (kind === "source") f.src = []; else f.tags = [];
-    $("#sheet-opts", bg).innerHTML = optionsHTML(); refreshCount();
+    $("#sheet-opts", bg).innerHTML = optionsHTML(); if (qInput) qInput.value = ""; refreshCount();
   };
   apply.onclick = () => { Object.assign(S, { owner: f.owner, tags: f.tags, time: f.time, src: f.src }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
   bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
