@@ -98,6 +98,17 @@ button { cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
 .filterbar { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
 .filterbar::-webkit-scrollbar { display: none; }
+@media (max-width: 460px) {
+  .filterbar { gap: 6px; }
+  .filterbar .fbtn { font-size: 13.5px; }
+  .filterbar .fbtn:not(.star) { padding: 0 8px 0 10px; gap: 3px; }
+  .filterbar .fbtn:not(.star) svg { width: 12px; height: 12px; }
+  .filterbar .fbtn.star { width: 36px; }
+}
+@media (max-width: 380px) {
+  .filterbar { gap: 4px; }
+  .filterbar .fbtn:not(.star) { padding: 0 6px 0 9px; }
+}
 .fbtn {
   flex: none; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px 0 14px;
   border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
@@ -855,7 +866,7 @@ function demoStore() {
 const store = LIVE && window.supabase ? liveStore() : demoStore();
 const S = {
   view: "list", user: null, role: null, household: null, recipes: [], names: {}, avatars: {}, roles: {}, favs: new Set(),
-  query: "", tags: [], time: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
+  query: "", tags: [], time: [], src: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
   weekStart: startOfWeek(new Date()), meals: [], shop: [],
 };
 const ROLE_LABEL = { admin: "Beheerder", editor: "Bewerker", viewer: "Lezer" };
@@ -1057,7 +1068,28 @@ const TIME_BLOCKS = [
 ];
 const TIME_SHORT = { snel: "Snel", "20-30": "20–30 min", "30-45": "30–45 min", "45-60": "45–60 min", lang: "> 1 uur" };
 function inTimeBlock(t, code) { const b = TIME_BLOCKS.find((x) => x[0] === code); return b && t > b[3] && t <= b[4]; }
+// Bron van een recept, afgeleid uit de link (geen link = eigen recept)
+const SOURCE_NAMES = { "hellofresh": "HelloFresh", "instagram": "Instagram", "facebook": "Facebook", "fb": "Facebook", "ah": "Allerhande",
+  "jumbo": "Jumbo", "lekkerensimpel": "Lekker en Simpel", "uitpaulineskeuken": "Uit Paulines Keuken", "leukerecepten": "Leuke Recepten",
+  "24kitchen": "24Kitchen", "smulweb": "Smulweb", "youtube": "YouTube", "youtu": "YouTube", "tiktok": "TikTok", "pinterest": "Pinterest" };
+const OWN_SOURCE = "Eigen recept";
+function sourceOf(r) {
+  if (!r.source_url) return OWN_SOURCE;
+  let host = "";
+  try { host = new URL(r.source_url).hostname.toLowerCase().replace(/^(www|m|nl)\./, ""); } catch (_) { return "Overig"; }
+  const parts = host.split(".");
+  const key = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+  if (SOURCE_NAMES[key]) return SOURCE_NAMES[key];
+  if (host.includes("allerhande")) return "Allerhande";
+  return key ? key[0].toUpperCase() + key.slice(1) : "Overig";
+}
+function sourceList() {
+  const n = {};
+  S.recipes.forEach((r) => { const k = sourceOf(r); n[k] = (n[k] || 0) + 1; });
+  return Object.entries(n).sort((a, b) => (a[0] === OWN_SOURCE) - (b[0] === OWN_SOURCE) || b[1] - a[1] || a[0].localeCompare(b[0], "nl"));
+}
 function matches(r, f) {
+  if (f.src && f.src.length && !f.src.includes(sourceOf(r))) return false;
   if (f.favOnly && !S.favs.has(r.id)) return false;
   if (f.owner === "me" && ownerOf(r) !== S.user.id) return false;
   if (f.owner === "others" && ownerOf(r) === S.user.id) return false;
@@ -1074,7 +1106,7 @@ function matches(r, f) {
   return terms.every((t) => hay.includes(t));
 }
 function filtered(f = S) { return S.recipes.filter((r) => matches(r, f)); }
-function filtersActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.favOnly; }
+function filtersActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || S.favOnly; }
 function people() {
   return Object.entries(S.names).filter(([id]) => id !== S.user.id).sort((a, b) => a[1].localeCompare(b[1], "nl"));
 }
@@ -1084,16 +1116,18 @@ function filterBarHTML() {
   const tags = !S.tags.length ? "Tags" : S.tags[0] + (S.tags.length > 1 ? ` +${S.tags.length - 1}` : "");
   const tsel = TIME_BLOCKS.map((b) => b[0]).filter((c) => S.time.includes(c));
   const time = !tsel.length ? "Tijd" : TIME_SHORT[tsel[0]] + (tsel.length > 1 ? ` +${tsel.length - 1}` : "");
+  const src = !S.src.length ? "Bron" : S.src[0] + (S.src.length > 1 ? ` +${S.src.length - 1}` : "");
   return `
     <button class="fbtn" data-sheet="person" aria-pressed="${S.owner !== "all"}" aria-haspopup="dialog">${esc(person)}${chev}</button>
     <button class="fbtn" data-sheet="tags" aria-pressed="${S.tags.length > 0}" aria-haspopup="dialog">${esc(tags)}${chev}</button>
     <button class="fbtn" data-sheet="time" aria-pressed="${S.time.length > 0}" aria-haspopup="dialog">${esc(time)}${chev}</button>
+    <button class="fbtn" data-sheet="source" aria-pressed="${S.src.length > 0}" aria-haspopup="dialog">${esc(src)}${chev}</button>
     <button class="fbtn star" data-fav aria-pressed="${S.favOnly}" aria-label="Alleen favorieten">${S.favOnly ? ICON.star : ICON.starOff}</button>`;
 }
 function openFilterSheet(kind) {
-  const f = { query: S.query, owner: S.owner, tags: [...S.tags], time: [...S.time], favOnly: S.favOnly };
+  const f = { query: S.query, owner: S.owner, tags: [...S.tags], time: [...S.time], src: [...S.src], favOnly: S.favOnly };
   const count = (patch) => filtered({ ...f, ...patch }).length;
-  const titles = { person: "Recept van", tags: "Tags", time: "Bereidingstijd" };
+  const titles = { person: "Recept van", tags: "Tags", time: "Bereidingstijd", source: "Bron" };
   const bg = document.createElement("div");
   bg.className = "sheet-bg";
   const optionsHTML = () => {
@@ -1101,6 +1135,10 @@ function openFilterSheet(kind) {
       const opts = [["all", "Iedereen"], ["me", "Van mij"], ["others", "Van anderen"], ...people()];
       return opts.map(([v, label], i) => `${i === 3 ? `<p class="label opt-group">Personen</p>` : ""}
         <label class="opt"><input type="radio" name="opt" value="${esc(v)}" ${f.owner === v ? "checked" : ""}>${i >= 3 ? avatarHTML(v, 30) : ""}<span>${esc(label)}</span><span class="n">${count({ owner: v })}</span></label>`).join("");
+    }
+    if (kind === "source") {
+      return `<p class="muted" style="margin:-4px 0 4px;font-size:14px">Je kunt meerdere bronnen kiezen.</p>`
+        + sourceList().map(([v]) => `<label class="opt"><input type="checkbox" value="${esc(v)}" ${f.src.includes(v) ? "checked" : ""}><span>${esc(v)}</span><span class="n">${count({ src: [v] })}</span></label>`).join("");
     }
     if (kind === "tags") {
       const all = [...new Set(S.recipes.flatMap((r) => r.tags || []))].sort((a, b) => a.localeCompare(b, "nl"));
@@ -1125,14 +1163,15 @@ function openFilterSheet(kind) {
     const inp = e.target;
     if (kind === "person") f.owner = inp.value;
     else if (kind === "time") f.time = [...$("#sheet-opts", bg).querySelectorAll("input:checked")].map((i) => i.value);
+    else if (kind === "source") f.src = [...$("#sheet-opts", bg).querySelectorAll("input:checked")].map((i) => i.value);
     else f.tags = [...$("#sheet-opts", bg).querySelectorAll("input:checked")].map((i) => i.value);
     refreshCount();
   });
   $("#sheet-clear", bg).onclick = () => {
-    if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = []; else f.tags = [];
+    if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = []; else if (kind === "source") f.src = []; else f.tags = [];
     $("#sheet-opts", bg).innerHTML = optionsHTML(); refreshCount();
   };
-  apply.onclick = () => { Object.assign(S, { owner: f.owner, tags: f.tags, time: f.time }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
+  apply.onclick = () => { Object.assign(S, { owner: f.owner, tags: f.tags, time: f.time, src: f.src }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
   bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
   document.addEventListener("keydown", onKey);
   refreshCount();
@@ -1174,7 +1213,7 @@ function drawList() {
     el.innerHTML = `<div class="empty"><h2>Nog geen recepten</h2><p class="muted" style="margin:0">${canEdit() ? "Tik op <b>Recept</b> en plak een link of de tekst uit Notes." : "Zodra iemand een recept toevoegt, zie je het hier."}</p></div>`;
     return;
   }
-  if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && !S.time.length && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
+  if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && !S.time.length && !S.src.length && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
   const clearBtn = filtersActive() ? `<button class="linkbtn" id="clear-filters">Filters wissen</button>` : "";
   if (!list.length) { el.innerHTML = `<div class="empty"><h2>Niets gevonden</h2><p class="muted" style="margin:0">Probeer een ander woord, of zet de filters uit.</p>${clearBtn}</div>`; }
   else el.innerHTML = `<div class="results"><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p><div class="results-actions">${clearBtn}${list.length > 1 ? `<button class="surprise" id="surprise" title="Kies een willekeurig recept${filtersActive() || S.query ? " binnen je filters" : ""}"><span class="die" aria-hidden="true">🎲</span>Verras me</button>` : ""}</div></div><div class="grid">${list.map((r) => `
@@ -1185,7 +1224,7 @@ function drawList() {
     </button>`).join("")}</div>`;
   el.onclick = (e) => {
     if (e.target.closest("#clear-filters")) {
-      Object.assign(S, { owner: "all", tags: [], time: [], favOnly: false });
+      Object.assign(S, { owner: "all", tags: [], time: [], src: [], favOnly: false });
       $("#filters").innerHTML = filterBarHTML(); drawList(); return;
     }
     const s = e.target.closest("#surprise");
