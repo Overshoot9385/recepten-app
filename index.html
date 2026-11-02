@@ -867,9 +867,13 @@ function demoStore() {
 
 /* ================= App-status ================= */
 const store = LIVE && window.supabase ? liveStore() : demoStore();
+// Tags: "all" = recept moet álle gekozen tags hebben, "any" = minstens één (keuze onthouden op dit apparaat)
+const TAGMODE_KEY = "receptenboek-tagmodus";
+function loadTagMode() { try { return localStorage.getItem(TAGMODE_KEY) === "any" ? "any" : "all"; } catch (_) { return "all"; } }
+function saveTagMode(m) { try { localStorage.setItem(TAGMODE_KEY, m); } catch (_) { /* alleen voor deze sessie */ } }
 const S = {
   view: "list", user: null, role: null, household: null, recipes: [], names: {}, avatars: {}, roles: {}, favs: new Set(),
-  query: "", tags: [], time: [], src: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
+  query: "", tags: [], tagMode: loadTagMode(), time: [], src: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
   weekStart: startOfWeek(new Date()), meals: [], shop: [],
 };
 const ROLE_LABEL = { admin: "Beheerder", editor: "Bewerker", viewer: "Lezer" };
@@ -1097,7 +1101,7 @@ function matches(r, f) {
   if (f.owner === "me" && ownerOf(r) !== S.user.id) return false;
   if (f.owner === "others" && ownerOf(r) === S.user.id) return false;
   if (!["all", "me", "others"].includes(f.owner) && ownerOf(r) !== f.owner) return false;
-  if (f.tags.length && !f.tags.every((t) => (r.tags || []).includes(t))) return false;
+  if (f.tags.length && !f.tags[f.tagMode === "any" ? "some" : "every"]((t) => (r.tags || []).includes(t))) return false;
   if (f.time.length) {
     const t = r.prep_time_minutes;
     if (!t) return false;
@@ -1116,7 +1120,7 @@ function people() {
 function filterBarHTML() {
   const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
   const person = S.owner === "all" ? "Persoon" : S.owner === "me" ? "Van mij" : S.owner === "others" ? "Van anderen" : nameOf(S.owner);
-  const tags = !S.tags.length ? "Tags" : S.tags[0] + (S.tags.length > 1 ? ` +${S.tags.length - 1}` : "");
+  const tags = !S.tags.length ? "Tags" : S.tags[0] + (S.tags.length > 1 ? (S.tagMode === "any" ? ` of +${S.tags.length - 1}` : ` +${S.tags.length - 1}`) : "");
   const tsel = TIME_BLOCKS.map((b) => b[0]).filter((c) => S.time.includes(c));
   const time = !tsel.length ? "Tijd" : TIME_SHORT[tsel[0]] + (tsel.length > 1 ? ` +${tsel.length - 1}` : "");
   const src = !S.src.length ? "Bron" : S.src[0] + (S.src.length > 1 ? ` +${S.src.length - 1}` : "");
@@ -1128,7 +1132,7 @@ function filterBarHTML() {
     <button class="fbtn star" data-fav aria-pressed="${S.favOnly}" aria-label="Alleen favorieten">${S.favOnly ? ICON.star : ICON.starOff}</button>`;
 }
 function openFilterSheet(kind) {
-  const f = { query: S.query, owner: S.owner, tags: [...S.tags], time: [...S.time], src: [...S.src], favOnly: S.favOnly };
+  const f = { query: S.query, owner: S.owner, tags: [...S.tags], tagMode: S.tagMode, time: [...S.time], src: [...S.src], favOnly: S.favOnly };
   const count = (patch) => filtered({ ...f, ...patch }).length;
   const titles = { person: "Recept van", tags: "Tags", time: "Bereidingstijd", source: "Bron" };
   const bg = document.createElement("div");
@@ -1155,7 +1159,10 @@ function openFilterSheet(kind) {
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
       <div class="grabber" aria-hidden="true"></div>
       <div class="sheet-head"><h2 id="sheet-title">${titles[kind]}</h2><button class="linkbtn" id="sheet-clear">Wissen</button></div>
-      ${kind === "tags" ? `<p class="muted" style="margin:-4px 0 0;font-size:14px">Je ziet recepten met álle gekozen tags.</p>
+      ${kind === "tags" ? `<div class="tabs" role="radiogroup" aria-label="Hoe tags combineren" id="tag-mode">
+          <button type="button" role="radio" data-mode="all" aria-selected="${f.tagMode !== "any"}" aria-checked="${f.tagMode !== "any"}">Alle tags</button>
+          <button type="button" role="radio" data-mode="any" aria-selected="${f.tagMode === "any"}" aria-checked="${f.tagMode === "any"}">Eén van de tags</button></div>
+        <p class="muted" id="tag-mode-hint" style="margin:-4px 0 0;font-size:14px"></p>
         <label class="search sheet-search">${ICON.search}<input id="sheet-q" type="search" placeholder="Zoek een tag" autocomplete="off" autocapitalize="off" enterkeyhint="done" aria-label="Zoek een tag"></label>` : ""}
       <div class="opts" id="sheet-opts">${optionsHTML()}</div>
       <button class="btn primary block" id="sheet-apply"></button></div>`;
@@ -1177,6 +1184,19 @@ function openFilterSheet(kind) {
       none.textContent = `Geen tag gevonden voor "${qInput.value.trim()}".`;
     } else if (none) none.remove();
   };
+  // Schakelaar alle / één van de tags
+  const modeBox = $("#tag-mode", bg);
+  const showMode = () => {
+    if (!modeBox) return;
+    modeBox.querySelectorAll("button").forEach((b) => { const on = b.dataset.mode === f.tagMode; b.setAttribute("aria-selected", on); b.setAttribute("aria-checked", on); });
+    $("#tag-mode-hint", bg).textContent = f.tagMode === "any"
+      ? "Je ziet recepten met minstens één van de gekozen tags, bijvoorbeeld kip óf vis."
+      : "Je ziet alleen recepten met álle gekozen tags, bijvoorbeeld kip én pasta.";
+  };
+  if (modeBox) {
+    showMode();
+    modeBox.onclick = (e) => { const b = e.target.closest("button[data-mode]"); if (!b) return; f.tagMode = b.dataset.mode; showMode(); refreshCount(); };
+  }
   if (qInput) {
     qInput.addEventListener("input", filterOpts);
     qInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); qInput.blur(); } });
@@ -1196,7 +1216,7 @@ function openFilterSheet(kind) {
     if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = []; else if (kind === "source") f.src = []; else f.tags = [];
     $("#sheet-opts", bg).innerHTML = optionsHTML(); if (qInput) qInput.value = ""; refreshCount();
   };
-  apply.onclick = () => { Object.assign(S, { owner: f.owner, tags: f.tags, time: f.time, src: f.src }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
+  apply.onclick = () => { if (f.tagMode !== S.tagMode) saveTagMode(f.tagMode); Object.assign(S, { owner: f.owner, tags: f.tags, tagMode: f.tagMode, time: f.time, src: f.src }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
   bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
   document.addEventListener("keydown", onKey);
   refreshCount();
