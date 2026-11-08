@@ -1,7 +1,7 @@
 // Edge Function: haalt een receptpagina op en geeft het recept terug in het formaat van de app.
 // Alleen voor ingelogde gebruikers van de recepten-app.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
-import { parseRecipeHtml } from "./recipe.js";
+import { parseRecipeHtml, parseFallbackText } from "./recipe.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -97,7 +97,27 @@ Deno.serve(async (req) => {
     return json({ error: msg === "too_large" ? "Deze pagina is te groot om in te lezen." : msg.startsWith("De pagina") ? msg : "De website reageerde niet. Controleer de link of probeer het later nog eens." }, 502);
   }
   const recipe = parseRecipeHtml(html, url.toString());
-  if (!recipe) return json({ error: "Op deze pagina staat geen recept dat de app kan lezen. Kopieer de tekst van het recept en plak die in plaats van de link." }, 422);
+  const social = /(^|\.)(instagram\.com|facebook\.com|tiktok\.com|threads\.net)$/i.test(url.hostname);
+  if (!recipe) {
+    // Optie A: geen receptblok, dan de beschrijving van de pagina gebruiken (bij Instagram het onderschrift)
+    const fb = parseFallbackText(html);
+    const usable = fb && fb.text.length >= 80 && fb.text.split("\n").filter((l) => l.trim()).length >= 4;
+    if (!usable) {
+      return json({ error: social
+        ? "Instagram liet de app deze post niet lezen. Maak een screenshot van het onderschrift, houd de tekst ingedrukt, kies Kopieer en plak hem hier."
+        : "Op deze pagina staat geen recept dat de app kan lezen. Kopieer de tekst van het recept en plak die in plaats van de link." }, 422);
+    }
+    let image: string | null = null;
+    const imgUrl = fb.image_url ? safeUrl(new URL(fb.image_url, url).toString()) : null;
+    if (imgUrl) {
+      try {
+        const res = await safeFetch(imgUrl, "image/jpeg,image/webp,image/png,image/*");
+        const type = (res.headers.get("content-type") || "").split(";")[0];
+        if (res.ok && type.startsWith("image/")) image = `data:${type};base64,${toBase64(await readLimited(res, MAX_IMAGE))}`;
+      } catch { /* zonder foto verder */ }
+    }
+    return json({ text: fb.text, image, source_url: url.toString() });
+  }
 
   // 4. Foto meesturen (de app verkleint hem daarna)
   let image: string | null = null;

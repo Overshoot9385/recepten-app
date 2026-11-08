@@ -1,6 +1,6 @@
 {
   "name": "Tom's Receptenboek",
-  "short_name": "Recepten",
+  "short_name": "Tom's Recepten",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

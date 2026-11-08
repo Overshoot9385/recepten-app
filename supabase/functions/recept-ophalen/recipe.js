@@ -88,6 +88,26 @@ function imageUrl(img) {
   return img.url || img.contentUrl || null;
 }
 
+// Geen receptblok op de pagina: pak de beschrijving (bij Instagram het onderschrift van de post)
+function meta(html, key) {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) || []) {
+    const k = tag.match(/(?:property|name)\s*=\s*["']([^"']+)["']/i);
+    if (!k || k[1].toLowerCase() !== key) continue;
+    const c = tag.match(/content\s*=\s*"([^"]*)"/i) || tag.match(/content\s*=\s*'([^']*)'/i);
+    if (c) return decodeEntities(c[1]);
+  }
+  return "";
+}
+export function parseFallbackText(html) {
+  let text = meta(html, "og:description") || meta(html, "description") || meta(html, "twitter:description");
+  if (!text) return null;
+  // Instagram: '123 likes, 4 comments - naam on 1 November 2026: "onderschrift".'
+  const ig = text.match(/^[^"“]{0,200}?:\s*["“]([\s\S]+?)["”]\.?\s*$/);
+  if (ig) text = ig[1];
+  text = text.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
+  return { text, image_url: meta(html, "og:image") || null };
+}
+
 export function parseRecipeHtml(html, pageUrl) {
   const blocks = [...html.matchAll(/<script[^>]*type=["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   let recipe = null;
