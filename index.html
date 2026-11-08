@@ -89,6 +89,10 @@ button { cursor: pointer; }
   border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; height: 46px;
 }
 .search input { border: 0; background: transparent; flex: 1; min-width: 0; height: 100%; outline: none; font-size: 16px; }
+.search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.search .clear { flex: none; width: 26px; height: 26px; margin-right: -6px; border: 0; border-radius: 50%; background: var(--sunk); color: var(--muted); display: grid; place-items: center; padding: 0; }
+.search .clear svg { width: 12px; height: 12px; }
+.search .clear[hidden] { display: none; }
 .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
@@ -512,6 +516,7 @@ const LIVE = host.endsWith("github.io") || host === "localhost" || host === "127
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ICON = {
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
   dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
   plusSq: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>',
@@ -529,6 +534,17 @@ const ICON = {
   starOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
+// Kruisje in een zoekveld: verschijnt zodra er tekst staat, wist de tekst met één tik
+function addClear(input, onClear) {
+  if (!input || input.parentElement.querySelector(".clear")) return;
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "clear"; b.setAttribute("aria-label", "Zoektekst wissen"); b.innerHTML = ICON.x;
+  input.after(b);
+  const sync = () => { b.hidden = !input.value; };
+  input.addEventListener("input", sync); sync();
+  b.addEventListener("pointerdown", (e) => e.preventDefault()); // toetsenbord blijft open
+  b.onclick = () => { input.value = ""; sync(); input.dispatchEvent(new Event("input", { bubbles: true })); input.focus(); if (onClear) onClear(); };
+}
 function toast(msg) {
   document.querySelectorAll(".toast").forEach((x) => x.remove());
   const t = document.createElement("div");
@@ -1291,6 +1307,10 @@ async function refreshData(opts = {}) {
     S.names = Object.fromEntries(profiles.map((p) => [p.id, p.display_name]));
     S.avatars = Object.fromEntries(profiles.map((p) => [p.id, { emoji: p.avatar_emoji || null }]));
     S.roles = Object.fromEntries(members.map((x) => [x.user_id, x.role]));
+    // Rol kan door de beheerder zijn aangepast: knoppen voor bewerken direct goed tonen
+    if (!S.roles[S.user.id]) { S.refreshing = false; await loadAll(); return true; }
+    let roleMsg = "";
+    if (S.roles[S.user.id] !== S.role) { S.role = S.roles[S.user.id]; roleMsg = `Je rechten zijn aangepast: je bent nu ${ROLE_LABEL[S.role].toLowerCase()}`; }
     S.recipes = recipes; S.favs = new Set(favs); S.shop = shop; S.plan = plan;
     if (S.view === "menu") await loadWeek();
     if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))), true); S.shopPantryWeek = ws; }
@@ -1299,7 +1319,7 @@ async function refreshData(opts = {}) {
     const y = window.scrollY;
     if (S.view === "menu") drawMenu(); else if (S.view === "shop") drawShop(); else if (S.view === "fridge") drawFridge(); else render();
     window.scrollTo(0, y);
-    if (!opts.quiet) toast("Bijgewerkt");
+    if (roleMsg) toast(roleMsg); else if (!opts.quiet) toast("Bijgewerkt");
     return true;
   } catch (e) { if (!opts.quiet) toast(e.message); return false; }
   finally { S.refreshing = false; }
@@ -1571,6 +1591,7 @@ function openFilterSheet(kind) {
   }
   if (qInput) {
     qInput.addEventListener("input", filterOpts);
+    addClear(qInput);
     qInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); qInput.blur(); } });
   }
   const refreshCount = () => { const n = filtered(f).length; apply.textContent = n === 1 ? "Toon 1 recept" : `Toon ${n} recepten`; };
@@ -1617,6 +1638,7 @@ function renderList() {
   drawList();
   ptrHintMaybe();
   $("#q").oninput = (e) => { S.query = e.target.value; drawList(); };
+  addClear($("#q"));
   $("#filters").onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-fav")) { S.favOnly = !S.favOnly; $("#filters").innerHTML = filterBarHTML(); drawList(); return; }
@@ -2181,6 +2203,7 @@ function pickRecipeSheet(date) {
   };
   draw();
   $("#pick-q", s.el).oninput = draw;
+  addClear($("#pick-q", s.el));
   $("#pick-list", s.el).onclick = async (e) => {
     const b = e.target.closest(".pick"); if (!b) return;
     const r = getRecipe(b.dataset.id);
