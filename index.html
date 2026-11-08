@@ -152,7 +152,7 @@ button { cursor: pointer; }
 /* Tabbalk onderin */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(var(--tabs, 3), 1fr);
   background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
   padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
@@ -495,6 +495,42 @@ textarea.input { resize: vertical; line-height: 1.45; }
 #howto-body, #hs-body { display: grid; gap: 14px; }
 .howto-ok { display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--herb) 12%, transparent); border-radius: 12px; padding: 12px 14px; font-size: 15px; }
 .howto-ok b { color: var(--herb); }
+
+/* Beheer: overzicht en activiteit */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
+.stat b { font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 13px; color: var(--muted); }
+.stat small { font-size: 12.5px; color: var(--herb); font-weight: 600; }
+.bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 34px; gap: 10px; align-items: center; font-size: 14px; }
+.bar-row .track { height: 10px; border-radius: 5px; background: var(--sunk); overflow: hidden; }
+.bar-row .track i { display: block; height: 100%; border-radius: 5px; background: var(--herb); }
+.bar-row .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.top-list { margin: 0; padding: 0; list-style: none; display: grid; }
+.top-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.top-list li:last-child { border-bottom: 0; }
+.top-list .n { margin-left: auto; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.act-filters { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.act-filters::-webkit-scrollbar { display: none; }
+.act-day { margin: 14px 0 4px; }
+.act { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: start; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; margin-bottom: 8px; }
+.act p { margin: 0; font-size: 15px; line-height: 1.35; }
+.act small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.act .t { font-size: 12.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.act.other { border-left: 3px solid var(--saffron); }
+.badge-act { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; padding: 1px 7px; margin-left: 4px; vertical-align: 1px; background: var(--sunk); color: var(--muted); }
+.badge-act.ins { background: color-mix(in srgb, var(--herb) 16%, transparent); color: var(--herb); }
+.badge-act.del { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.badge-act.res { background: color-mix(in srgb, var(--saffron) 20%, transparent); color: #8a5a00; }
+.diff { display: grid; gap: 10px; }
+.diff-sec { display: grid; gap: 4px; }
+.diff-sec > b { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.diff-line { font-size: 15px; line-height: 1.4; padding: 6px 10px; border-radius: 8px; background: var(--sunk); overflow-wrap: anywhere; }
+.diff-line.add { background: color-mix(in srgb, var(--herb) 13%, transparent); }
+.diff-line.rem { background: color-mix(in srgb, var(--danger) 11%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.diff-line .old { color: var(--muted); text-decoration: line-through; }
+.diff-line .arr { color: var(--muted); margin: 0 6px; }
 </style>
 
 </head>
@@ -516,6 +552,7 @@ const LIVE = host.endsWith("github.io") || host === "localhost" || host === "127
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ICON = {
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
   dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
@@ -995,6 +1032,9 @@ function liveStore() {
     async updateShopping(id, patch) { const { error } = await sb.from("shopping_items").update(patch).eq("id", id); fail(error); },
     async removeShopping(ids) { if (!ids.length) return; const { error } = await sb.from("shopping_items").delete().in("id", ids); fail(error); },
     async removeMeals(ids) { if (!ids.length) return; const { error } = await sb.from("meal_plan").delete().in("id", ids); fail(error); },
+    async activity() { const { data, error } = await sb.from("activity_log").select("*").order("at", { ascending: false }).limit(400); fail(error); return data; },
+    async usage(hid) { const { data, error } = await sb.rpc("admin_usage", { p_household: hid }); fail(error); return data; },
+    async restoreVersion(logId) { const { error } = await sb.rpc("restore_recipe_version", { p_log: logId }); fail(error); },
     async pantry(hid) { const { data, error } = await sb.from("households").select("pantry").eq("id", hid).single(); fail(error); return data.pantry; },
     async savePantry(hid, groups) { const { error, count } = await sb.from("households").update({ pantry: groups }, { count: "exact" }).eq("id", hid); fail(error); if (!count) throw new Error("Alleen de beheerder kan de voorraadkast aanpassen."); },
     async setPantryFlags(changes) {
@@ -1091,6 +1131,30 @@ function demoStore() {
     { id: uid(), plan_date: isoDate(addDays(new Date(), 1)), recipe_id: null, title: "Aardappels, slavink en sperziebonen", servings: 2, user_id: me.id },
   ];
   const plan = { members: [me.id, partner.id], incoming: [mama.id], outgoing: [] };
+
+  // Voorbeeld-logboek voor het beheerdashboard
+  const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
+  const snap = (r) => r && JSON.parse(JSON.stringify({ title: r.title, subtitle: r.subtitle, servings: r.servings, prep_time_minutes: r.prep_time_minutes, tags: r.tags, steps: r.steps, tips: r.tips, notes: r.notes, source_url: r.source_url, photo_path: r.photo_path, owner_id: r.owner_id, ingredients: r.recipe_ingredients.map((i) => ({ name: i.name, amount: i.amount, unit: i.unit, is_pantry: i.is_pantry })) }));
+  const hachee = recs.find((r) => r.title === "Oma's hachee");
+  const hacheeBefore = snap(hachee);
+  hacheeBefore.servings = 4;
+  const hacheeAfter = snap(hachee);
+  hacheeAfter.servings = 6;
+  hacheeAfter.ingredients = [...hacheeAfter.ingredients.map((i) => i.name === "Runderlappen" ? { ...i, amount: 1000 } : i), { name: "Rode wijn", amount: 200, unit: "ml", is_pantry: false }];
+  hacheeAfter.steps = hacheeAfter.steps.map((st, k) => k === 1 ? { ...st, text: st.text.replace("3 uur", "2,5 uur") + " Blus af met de rode wijn." } : st);
+  Object.assign(hachee, { servings: 6, steps: hacheeAfter.steps, updated_by: partner.id, updated_at: ago(2) });
+  hachee.recipe_ingredients = hacheeAfter.ingredients.map((i, k) => ({ ...i, id: "ih" + k, position: k, original_text: "" }));
+  const teri = recs.find((r) => r.title === "Kip teriyaki bowl");
+  const soup = { title: "Linzensoep met kokos", subtitle: "met rode curry en koriander", servings: 4, prep_time_minutes: 35, tags: ["soep", "vegetarisch"], steps: [{ title: "", text: "Fruit ui en curry, voeg linzen, kokosmelk en bouillon toe en laat 20 minuten zacht koken." }], tips: [], notes: null, source_url: "", photo_path: null, owner_id: me.id, ingredients: [{ name: "Rode linzen", amount: 250, unit: "g" }, { name: "Kokosmelk", amount: 400, unit: "ml" }, { name: "Rode currypasta", amount: 2, unit: "el" }, { name: "Ui", amount: 1, unit: null }] };
+  const log = [
+    { id: "a1", at: ago(2), actor_id: partner.id, kind: "recipe", action: "update", target_id: hachee.id, target_label: hachee.title, owner_id: mama.id, before: hacheeBefore, after: hacheeAfter },
+    { id: "a2", at: ago(26), actor_id: partner.id, kind: "recipe", action: "insert", target_id: teri.id, target_label: teri.title, owner_id: partner.id, before: null, after: snap(teri) },
+    { id: "a3", at: ago(30), actor_id: me.id, kind: "pantry", action: "update", target_id: null, target_label: "Voorraadkast", owner_id: null, before: { items: ["sojasaus", "sambal"] }, after: { items: ["sojasaus", "sambal", "kokosmelk", "sriracha"] } },
+    { id: "a4", at: ago(52), actor_id: mama.id, kind: "recipe", action: "delete", target_id: "r-soep", target_label: soup.title, owner_id: me.id, before: soup, after: null },
+    { id: "a5", at: ago(75), actor_id: me.id, kind: "member", action: "role", target_id: mama.id, target_label: mama.display_name, owner_id: null, before: { role: "editor" }, after: { role: "viewer" } },
+    { id: "a6", at: ago(80), actor_id: me.id, kind: "invite", action: "insert", target_id: "inv1", target_label: "Broer", owner_id: null, before: null, after: { role: "viewer" } },
+    { id: "a7", at: ago(170), actor_id: mama.id, kind: "member", action: "insert", target_id: mama.id, target_label: mama.display_name, owner_id: null, before: null, after: { role: "editor" } },
+  ];
   let shop = [];
   let ticks = 0;
   let pantryGroups = null;
@@ -1105,6 +1169,22 @@ function demoStore() {
     async savePantry(hid, groups) { pantryGroups = groups; },
     async setPantryFlags() { /* voorbeeld: alleen in het geheugen */ },
     async removeMeals(ids) { for (const id of ids) { const k = meals.findIndex((m) => m.id === id); if (k >= 0) meals.splice(k, 1); } },
+    async activity() { return log.slice().sort((a, b) => b.at.localeCompare(a.at)); },
+    async usage() {
+      return {
+        members: [{ user_id: me.id, last_active: ago(0.2) }, { user_id: partner.id, last_active: ago(2) }, { user_id: mama.id, last_active: ago(50) }],
+        recipes_total: recs.length, recipes_30d: 3, changes_30d: log.filter((l) => l.kind === "recipe").length, meals_week: meals.length,
+        top_planned: [{ title: "Bowl met orzo en kippendijreepjes", n: 4 }, { title: "Shakshuka met feta", n: 3 }, { title: "Zalm uit de oven", n: 2 }, { title: "Kip teriyaki bowl", n: 2 }, { title: "Pasta pesto met tomaatjes", n: 1 }],
+      };
+    },
+    async restoreVersion(logId) {
+      const e = log.find((l) => l.id === logId); const b = e.before;
+      let r = recs.find((x) => x.id === e.target_id);
+      if (!r) { r = mk({ ...b, ingredients: [] }); r.id = e.target_id; recs.push(r); }
+      Object.assign(r, { title: b.title, subtitle: b.subtitle, servings: b.servings, prep_time_minutes: b.prep_time_minutes, tags: b.tags, steps: b.steps, tips: b.tips, owner_id: b.owner_id, updated_by: me.id, updated_at: now() });
+      r.recipe_ingredients = b.ingredients.map((i, k) => ({ ...i, id: "rs" + k, position: k, original_text: "", is_pantry: isPantry(i.name) }));
+      log.push({ id: uid(), at: now(), actor_id: me.id, kind: "recipe", action: "restore", target_id: r.id, target_label: r.title, owner_id: r.owner_id, before: e.after, after: b });
+    },
     async session() { return { user: { id: me.id, email: "tom@voorbeeld.nl" } }; },
     onAuth() {},
     async signOut() { toast("In de voorbeeldweergave kun je niet uitloggen"); },
@@ -1317,7 +1397,8 @@ async function refreshData(opts = {}) {
     lastSync = Date.now();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
-    if (S.view === "menu") drawMenu(); else if (S.view === "shop") drawShop(); else if (S.view === "fridge") drawFridge(); else render();
+    if (S.view === "admin") { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); drawAdmin(); }
+    else if (S.view === "menu") drawMenu(); else if (S.view === "shop") drawShop(); else if (S.view === "fridge") drawFridge(); else render();
     window.scrollTo(0, y);
     if (roleMsg) toast(roleMsg); else if (!opts.quiet) toast("Bijgewerkt");
     return true;
@@ -1334,7 +1415,7 @@ document.addEventListener("visibilitychange", () => {
   document.body.appendChild(el);
   const MAX = 64, NEED = 56;
   let y0 = null, d = 0;
-  const ok = () => ["list", "menu", "shop", "detail", "fridge", "settings"].includes(S.view) && !document.querySelector(".sheet-bg") && !S.refreshing;
+  const ok = () => ["list", "menu", "shop", "detail", "fridge", "settings", "admin"].includes(S.view) && !document.querySelector(".sheet-bg") && !S.refreshing;
   document.addEventListener("touchstart", (e) => { y0 = window.scrollY <= 0 && e.touches.length === 1 && ok() ? e.touches[0].clientY : null; d = 0; }, { passive: true });
   document.addEventListener("touchmove", (e) => {
     if (y0 == null) return;
@@ -1359,8 +1440,8 @@ document.addEventListener("visibilitychange", () => {
   });
 })();
 function go(view, id) {
-  if (["list", "menu", "shop", "fridge"].includes(S.view) && view === "detail") S.from = S.view;
-  if (["list", "menu", "shop", "fridge"].includes(view)) S.from = view;
+  if (["list", "menu", "shop", "fridge", "admin"].includes(S.view) && view === "detail") S.from = S.view;
+  if (["list", "menu", "shop", "fridge", "admin"].includes(view)) S.from = view;
   S.view = view; S.current = id || null; S.scale = null;
   render(); window.scrollTo(0, 0);
 }
@@ -1372,15 +1453,17 @@ function render() {
   if (S.view === "members") return isAdmin() ? renderMembers() : go("settings");
   if (S.view === "menu") return renderMenu();
   if (S.view === "shop") return renderShop();
+  if (S.view === "admin") return isAdmin() ? renderAdmin() : go("list");
   if (S.view === "fridge") return renderFridge();
   renderList();
 }
 function tabBarHTML(active) {
   const tab = (id, label, icon) => `<button class="tab" data-tab="${id}" aria-current="${active === id ? "page" : "false"}">${icon}<span>${label}</span></button>`;
-  return `<nav class="tabbar" aria-label="Hoofdmenu">
+  return `<nav class="tabbar" aria-label="Hoofdmenu" style="--tabs:${isAdmin() ? 4 : 3}">
     ${tab("list", "Recepten", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>')}
     ${tab("menu", "Weekmenu", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>')}
     ${tab("shop", "Boodschappen", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16l-1.5 9.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M9 6V5a3 3 0 0 1 6 0v1"/></svg>')}
+    ${isAdmin() ? tab("admin", "Beheer", ICON.chart) : ""}
   </nav>`;
 }
 function bindTabBar() {
@@ -2675,6 +2758,188 @@ function bindHowto() {
       $("#hs-body", s.el).innerHTML = howtoHTML(kind);
     };
     $("#hs-close", s.el).onclick = s.close;
+  };
+}
+
+/* ================= Beheer (alleen beheerder): overzicht en activiteitenlogboek ================= */
+function relTime(iso) {
+  const d = new Date(iso), now = new Date(), mins = Math.round((now - d) / 60000);
+  if (mins < 1) return "zojuist";
+  if (mins < 60) return `${mins} min geleden`;
+  const t = d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  const days = Math.round((startDay(now) - startDay(d)) / 864e5);
+  if (days === 0) return `vandaag ${t}`;
+  if (days === 1) return `gisteren ${t}`;
+  if (days < 7) return `${d.toLocaleDateString("nl-NL", { weekday: "long" })} ${t}`;
+  return fmtDate(iso);
+}
+function startDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function dayLabel(iso) {
+  const d = new Date(iso), days = Math.round((startDay(new Date()) - startDay(d)) / 864e5);
+  return days === 0 ? "Vandaag" : days === 1 ? "Gisteren" : d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+}
+const ACT_VERB = { insert: "voegde toe", update: "wijzigde", delete: "verwijderde", restore: "zette een eerdere versie terug van", role: "veranderde de rol van" };
+function actSentence(e) {
+  const who = `<b>${esc(nameOf(e.actor_id))}</b>`, what = `<b>${esc(e.target_label || "")}</b>`;
+  if (e.kind === "recipe") return `${who} ${e.action === "insert" ? "voegde" : e.action === "update" ? "wijzigde" : e.action === "delete" ? "verwijderde" : "zette terug:"} ${what}${e.action === "insert" ? " toe" : ""}`;
+  if (e.kind === "member") {
+    if (e.action === "role") return `${who} maakte ${what} ${esc((ROLE_LABEL[e.after?.role] || "").toLowerCase())}`;
+    if (e.action === "insert") return `${what} is lid geworden als ${esc((ROLE_LABEL[e.after?.role] || "").toLowerCase())}`;
+    return `${who} haalde ${what} uit het receptenboek`;
+  }
+  if (e.kind === "invite") return e.action === "insert" ? `${who} nodigde ${what} uit` : `${who} trok de uitnodiging voor ${what} in`;
+  if (e.kind === "pantry") return `${who} paste de voorraadkast aan`;
+  return `${who} ${ACT_VERB[e.action] || e.action} ${what}`;
+}
+function actBadge(e) {
+  if (e.kind !== "recipe") return "";
+  const m = { insert: ["ins", "Nieuw"], update: ["", "Gewijzigd"], delete: ["del", "Verwijderd"], restore: ["res", "Teruggezet"] }[e.action] || ["", ""];
+  return `<span class="badge-act ${m[0]}">${m[1]}</span>`;
+}
+// Verschillen tussen twee versies van een recept, in gewone taal
+function recipeDiff(b, a) {
+  const out = [];
+  const line = (cls, html) => `<div class="diff-line ${cls}">${html}</div>`;
+  const chg = (o, n) => `<span class="old">${esc(o ?? "—")}</span><span class="arr">→</span>${esc(n ?? "—")}`;
+  const sec = (title, lines) => { if (lines.length) out.push(`<div class="diff-sec"><b>${title}</b>${lines.join("")}</div>`); };
+  if (!b || !a) {
+    const r = a || b, cls = a ? "add" : "rem";
+    sec("Recept", [line(cls, `${esc(r.title)}${r.subtitle ? " · " + esc(r.subtitle) : ""}`)]);
+    sec(`Ingrediënten (${(r.ingredients || []).length})`, (r.ingredients || []).map((i) => line(cls, `${i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + " " : ""}${esc(i.unit || "")} ${esc(i.name)}`)));
+    sec(`Bereiding (${(r.steps || []).length} stappen)`, (r.steps || []).map((s, k) => line(cls, `${k + 1}. ${esc(s.text)}`)));
+    return out.join("");
+  }
+  const basics = [];
+  if (b.title !== a.title) basics.push(line("", `Titel: ${chg(b.title, a.title)}`));
+  if ((b.subtitle || "") !== (a.subtitle || "")) basics.push(line("", `Ondertitel: ${chg(b.subtitle, a.subtitle)}`));
+  if (b.servings !== a.servings) basics.push(line("", `Personen: ${chg(b.servings, a.servings)}`));
+  if (b.prep_time_minutes !== a.prep_time_minutes) basics.push(line("", `Bereidingstijd: ${chg(b.prep_time_minutes ? b.prep_time_minutes + " min" : null, a.prep_time_minutes ? a.prep_time_minutes + " min" : null)}`));
+  if (b.owner_id !== a.owner_id) basics.push(line("", `Recept van: ${chg(nameOf(b.owner_id), nameOf(a.owner_id))}`));
+  if ((b.photo_path || "") !== (a.photo_path || "")) basics.push(line("", a.photo_path ? (b.photo_path ? "Foto vervangen" : "Foto toegevoegd") : "Foto weggehaald"));
+  if ((b.source_url || "") !== (a.source_url || "")) basics.push(line("", `Bron: ${chg(b.source_url, a.source_url)}`));
+  const tb = b.tags || [], ta = a.tags || [];
+  for (const t of ta) if (!tb.includes(t)) basics.push(line("add", `Tag: ${esc(t)}`));
+  for (const t of tb) if (!ta.includes(t)) basics.push(line("rem", `Tag: ${esc(t)}`));
+  sec("Algemeen", basics);
+  const key = (i) => norm(i.name).trim();
+  const qty = (i) => `${i.amount != null ? fmtAmount(i.amount, i.unit) : ""}${i.unit ? " " + i.unit : ""}`.trim();
+  const ib = new Map((b.ingredients || []).map((i) => [key(i), i])), ia = new Map((a.ingredients || []).map((i) => [key(i), i]));
+  const ings = [];
+  for (const [k, i] of ia) { const o = ib.get(k); if (!o) ings.push(line("add", `${esc(qty(i))} ${esc(i.name)}`)); else if (qty(o) !== qty(i)) ings.push(line("", `${esc(i.name)}: ${chg(qty(o) || "—", qty(i) || "—")}`)); }
+  for (const [k, i] of ib) if (!ia.has(k)) ings.push(line("rem", `${esc(qty(i))} ${esc(i.name)}`));
+  sec("Ingrediënten", ings);
+  const sb = b.steps || [], sa = a.steps || [], steps = [];
+  for (let k = 0; k < Math.max(sb.length, sa.length); k++) {
+    const o = sb[k], n = sa[k];
+    if (o && !n) steps.push(line("rem", `${k + 1}. ${esc(o.text)}`));
+    else if (!o && n) steps.push(line("add", `${k + 1}. ${esc(n.text)}`));
+    else if (o.text !== n.text || (o.title || "") !== (n.title || "")) steps.push(line("rem", `${k + 1}. ${esc(o.text)}`), line("add", `${k + 1}. ${esc(n.text)}`));
+  }
+  sec("Bereiding", steps);
+  const tipsB = (b.tips || []).map((t) => t.text).join("|"), tipsA = (a.tips || []).map((t) => t.text).join("|");
+  if (tipsB !== tipsA) sec("Kooktips", [line("", "Kooktips aangepast")]);
+  if ((b.notes || "") !== (a.notes || "")) sec("Notities", [line("", chg(b.notes, a.notes))]);
+  return out.join("") || `<p class="muted" style="margin:0">Geen inhoudelijke verschillen.</p>`;
+}
+function otherDiff(e) {
+  const line = (cls, t) => `<div class="diff-line ${cls}">${esc(t)}</div>`;
+  if (e.kind === "pantry") {
+    if (!e.before) return `<div class="diff-sec"><b>Voorraadkast</b>${line("", `Standaardlijst voor het eerst aangepast (nu ${(e.after?.items || []).length} dingen)`)}</div>`;
+    const b = e.before?.items || [], a = e.after?.items || [];
+    const lines = [...a.filter((x) => !b.includes(x)).map((x) => line("add", x)), ...b.filter((x) => !a.includes(x)).map((x) => line("rem", x))];
+    return `<div class="diff-sec"><b>Voorraadkast</b>${lines.join("") || line("", "Volgorde of groepen aangepast")}</div>`;
+  }
+  if (e.kind === "member" && e.action === "role") return `<div class="diff-sec"><b>Rol</b><div class="diff-line"><span class="old">${esc(ROLE_LABEL[e.before?.role] || "")}</span><span class="arr">→</span>${esc(ROLE_LABEL[e.after?.role] || "")}</div></div>`;
+  return "";
+}
+async function renderAdmin() {
+  S.adminTab = S.adminTab || "overzicht";
+  $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Beheer</h1></div>
+      <div class="tabs" role="tablist" id="adm-tabs"><button role="tab" data-t="overzicht" aria-selected="${S.adminTab === "overzicht"}">Overzicht</button><button role="tab" data-t="activiteit" aria-selected="${S.adminTab === "activiteit"}">Activiteit</button></div></header>
+    <main id="adm"><div class="spinner" aria-label="Laden"></div></main>${tabBarHTML("admin")}`;
+  bindTabBar();
+  $("#adm-tabs").onclick = (e) => { const b = e.target.closest("[data-t]"); if (!b) return; S.adminTab = b.dataset.t; for (const x of $("#adm-tabs").children) x.setAttribute("aria-selected", x === b); drawAdmin(); };
+  try { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); }
+  catch (e) { $("#adm").innerHTML = `<p class="notice error">${esc(e.message)}</p>`; return; }
+  drawAdmin();
+}
+function drawAdmin() {
+  const box = $("#adm"); if (!box) return;
+  if (S.adminTab === "overzicht") return drawUsage(box);
+  drawActivity(box);
+}
+function drawUsage(box) {
+  const u = S.usage || {};
+  const perOwner = {};
+  for (const r of S.recipes) perOwner[ownerOf(r)] = (perOwner[ownerOf(r)] || 0) + 1;
+  const ownerRows = Object.entries(perOwner).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...ownerRows.map((x) => x[1]));
+  const editsOnOthers = (S.activity || []).filter((e) => e.kind === "recipe" && e.owner_id && e.actor_id !== e.owner_id && Date.now() - new Date(e.at) < 30 * 864e5).length;
+  box.innerHTML = `<div class="stack" style="gap:16px">
+    <div class="stat-grid">
+      <div class="stat"><b>${u.recipes_total ?? S.recipes.length}</b><span>recepten</span>${u.recipes_30d ? `<small>+${u.recipes_30d} afgelopen 30 dagen</small>` : ""}</div>
+      <div class="stat"><b>${(u.members || []).length}</b><span>leden</span></div>
+      <div class="stat"><b>${u.changes_30d ?? 0}</b><span>receptwijzigingen</span><small>${editsOnOthers ? `${editsOnOthers} aan andermans recept` : "afgelopen 30 dagen"}</small></div>
+      <div class="stat"><b>${u.meals_week ?? 0}</b><span>gerechten op de weekmenu's</span><small>deze week, alle huishoudens</small></div>
+    </div>
+    <div class="panel"><p class="label" style="margin:0">Leden</p>
+      <ul class="top-list">${(u.members || []).sort((a, b) => (b.last_active || "").localeCompare(a.last_active || "")).map((m) => `<li>${avatarHTML(m.user_id, 30)}<span>${esc(nameOf(m.user_id))}<small class="muted" style="display:block;font-size:13px">${esc(ROLE_LABEL[S.roles[m.user_id]] || "")} · ${perOwner[m.user_id] || 0} recepten</small></span><span class="n">${m.last_active ? "actief " + relTime(m.last_active) : "nog niet actief"}</span></li>`).join("")}</ul></div>
+    <div class="panel"><p class="label" style="margin:0">Recepten per persoon</p>
+      <div class="bars">${ownerRows.map(([id, n]) => `<div class="bar-row">${avatarHTML(id, 26)}<span class="track"><i style="width:${Math.round((n / max) * 100)}%"></i></span><span class="v">${n}</span></div>`).join("")}</div></div>
+    ${(u.top_planned || []).length ? `<div class="panel"><p class="label" style="margin:0">Vaakst op het weekmenu gezet</p>
+      <ul class="top-list">${u.top_planned.map((t, k) => `<li><span class="muted" style="width:18px">${k + 1}</span><span>${esc(t.title)}</span><span class="n">${t.n}×</span></li>`).join("")}</ul></div>` : ""}
+    <p class="muted" style="margin:0;font-size:13px">Alleen jij als beheerder ziet dit. Wat iemand op zijn eigen weekmenu of boodschappenlijst zet, zie je bewust niet per persoon.</p>
+  </div>`;
+}
+function drawActivity(box) {
+  S.actKind = S.actKind || "all"; S.actWho = S.actWho || "all"; S.actOthers = !!S.actOthers;
+  const kinds = [["all", "Alles"], ["recipe", "Recepten"], ["member", "Leden"], ["pantry", "Voorraadkast"]];
+  const actors = [...new Set((S.activity || []).map((e) => e.actor_id))];
+  const list = (S.activity || []).filter((e) =>
+    (S.actKind === "all" || e.kind === S.actKind || (S.actKind === "member" && e.kind === "invite"))
+    && (S.actWho === "all" || e.actor_id === S.actWho)
+    && (!S.actOthers || (e.kind === "recipe" && e.owner_id && e.actor_id !== e.owner_id)));
+  let lastDay = "";
+  box.innerHTML = `<div class="stack" style="gap:10px">
+    <div class="act-filters">${kinds.map(([k, l]) => `<button class="chip" data-kind="${k}" aria-pressed="${S.actKind === k}">${l}</button>`).join("")}</div>
+    <div class="act-filters"><button class="chip" data-who="all" aria-pressed="${S.actWho === "all"}">Iedereen</button>${actors.map((id) => `<button class="chip" data-who="${esc(id)}" aria-pressed="${S.actWho === id}" style="display:inline-flex;align-items:center;gap:6px">${avatarHTML(id, 20)}${esc(firstName(nameOf(id)))}</button>`).join("")}</div>
+    <label class="check-line" style="font-size:14px"><input type="checkbox" id="act-others" ${S.actOthers ? "checked" : ""}> Alleen wijzigingen aan andermans recepten</label>
+    <div id="act-list">${list.length ? list.map((e) => {
+      const day = dayLabel(e.at), head = day !== lastDay ? `<p class="label act-day">${esc(day)}</p>` : ""; lastDay = day;
+      const other = e.kind === "recipe" && e.owner_id && e.actor_id !== e.owner_id;
+      return `${head}<button class="act${other ? " other" : ""}" data-act="${esc(e.id)}">${avatarHTML(e.actor_id, 34)}<span><p>${actSentence(e)}${actBadge(e)}</p>${other ? `<small>Recept van ${esc(nameOf(e.owner_id))}</small>` : ""}</span><span class="t">${new Date(e.at).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</span></button>`;
+    }).join("") : `<div class="empty" style="padding:28px 8px"><p class="muted" style="margin:0">Geen activiteit gevonden met deze filters.</p></div>`}</div>
+    <p class="muted" style="margin:4px 0 0;font-size:13px">Het logboek bewaart 3 maanden. Een oranje streep betekent: iemand wijzigde een recept van een ander.</p>
+  </div>`;
+  box.onclick = (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.dataset.kind) { S.actKind = b.dataset.kind; drawActivity(box); }
+    else if (b.dataset.who) { S.actWho = b.dataset.who; drawActivity(box); }
+    else if (b.dataset.act) actDetail(S.activity.find((x) => x.id === b.dataset.act));
+  };
+  $("#act-others").onchange = (ev) => { S.actOthers = ev.target.checked; drawActivity(box); };
+}
+function actDetail(e) {
+  const canRestore = e.kind === "recipe" && ["update", "delete", "restore"].includes(e.action) && e.before;
+  const exists = e.target_id && getRecipe(e.target_id);
+  const s = sheet(`<div class="sheet-head"><h2>${esc(e.target_label || "")}</h2></div>
+    <p class="muted" style="margin:-6px 0 0;font-size:14px">${actSentence(e).replace(/<\/?b>/g, "")} · ${esc(relTime(e.at))}${e.kind === "recipe" && e.owner_id ? ` · recept van ${esc(nameOf(e.owner_id))}` : ""}</p>
+    <div class="sheet-scroll"><div class="diff">${e.kind === "recipe" ? recipeDiff(e.before, e.after) : otherDiff(e)}</div></div>
+    ${canRestore ? `<button class="btn primary block" id="act-restore">${e.action === "delete" ? "Recept terugzetten" : "Zet de versie van vóór deze wijziging terug"}</button>` : ""}
+    ${e.kind === "recipe" && exists ? `<button class="btn block" id="act-open">Recept bekijken</button>` : ""}
+    <button class="btn block" id="act-close">Sluiten</button>`);
+  $("#act-close", s.el).onclick = s.close;
+  const op = $("#act-open", s.el); if (op) op.onclick = () => { s.close(); go("detail", e.target_id); };
+  const rs = $("#act-restore", s.el);
+  if (rs) rs.onclick = async () => {
+    if (!(await confirmSheet(e.action === "delete" ? `“${e.target_label}” terugzetten zoals het was?` : `“${e.target_label}” terugzetten naar de versie van vóór deze wijziging? Latere wijzigingen gaan dan ook verloren.`, "Terugzetten"))) return;
+    rs.disabled = true;
+    try {
+      await store.restoreVersion(e.id);
+      S.recipes = await store.recipes();
+      s.close(); toast(`“${e.target_label}” is teruggezet`);
+      S.activity = await store.activity(); drawAdmin();
+    } catch (err) { rs.disabled = false; toast(err.message); }
   };
 }
 
