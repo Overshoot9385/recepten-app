@@ -1,7 +1,7 @@
 // Edge Function: haalt een receptpagina op en geeft het recept terug in het formaat van de app.
 // Alleen voor ingelogde gebruikers van de recepten-app.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
-import { parseRecipeHtml, parseFallbackText } from "./recipe.js";
+import { parseRecipeHtml, parseFallbackText, parseInstagramEmbed, looksLikeRecipe } from "./recipe.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -83,29 +83,49 @@ Deno.serve(async (req) => {
   // 2. Link controleren
   let body: { url?: string };
   try { body = await req.json(); } catch { return json({ error: "Geen link ontvangen." }, 400); }
-  const url = safeUrl(String(body.url || "").trim());
+  let url = safeUrl(String(body.url || "").trim());
   if (!url) return json({ error: "Dit is geen geldige link. Kopieer de volledige link, beginnend met https://." }, 400);
 
+  // Instagram: volgparameters (?igsh=, ?srtk= …) weghalen en het adres netjes maken
+  const ig = /(^|\.)instagram\.com$/i.test(url.hostname) ? url.pathname.match(/^\/(?:[^/]+\/)?(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/) : null;
+  if (ig) url = new URL(`https://www.instagram.com/${ig[1] === "reels" ? "reel" : ig[1]}/${ig[2]}/`);
+  const social = /(^|\.)(instagram\.com|facebook\.com|tiktok\.com|threads\.net)$/i.test(url.hostname);
+
   // 3. Pagina ophalen en recept zoeken
-  let html: string;
+  const getHtml = async (u: URL) => {
+    const res = await safeFetch(u, "text/html,application/xhtml+xml");
+    return { status: res.status, html: res.ok ? new TextDecoder().decode(await readLimited(res, MAX_HTML)) : "" };
+  };
+  let html = "";
+  let status = 0;
   try {
-    const res = await safeFetch(url, "text/html,application/xhtml+xml");
-    if (!res.ok) return json({ error: `De website gaf een foutmelding (${res.status}). Probeer het later nog eens, of plak de tekst van het recept.` }, 502);
-    html = new TextDecoder().decode(await readLimited(res, MAX_HTML));
+    ({ status, html } = await getHtml(url));
+    if (!html && !ig) return json({ error: `De website gaf een foutmelding (${status}). Probeer het later nog eens, of plak de tekst van het recept.` }, 502);
   } catch (e) {
     const msg = (e as Error).message;
-    return json({ error: msg === "too_large" ? "Deze pagina is te groot om in te lezen." : msg.startsWith("De pagina") ? msg : "De website reageerde niet. Controleer de link of probeer het later nog eens." }, 502);
+    if (!ig) return json({ error: msg === "too_large" ? "Deze pagina is te groot om in te lezen." : msg.startsWith("De pagina") ? msg : "De website reageerde niet. Controleer de link of probeer het later nog eens." }, 502);
   }
-  const recipe = parseRecipeHtml(html, url.toString());
-  const social = /(^|\.)(instagram\.com|facebook\.com|tiktok\.com|threads\.net)$/i.test(url.hostname);
+  const recipe = html ? parseRecipeHtml(html, url.toString()) : null;
   if (!recipe) {
-    // Optie A: geen receptblok, dan de beschrijving van de pagina gebruiken (bij Instagram het onderschrift)
-    const fb = parseFallbackText(html);
-    const usable = fb && fb.text.length >= 80 && fb.text.split("\n").filter((l) => l.trim()).length >= 4;
-    if (!usable) {
-      return json({ error: social
-        ? "Instagram liet de app deze post niet lezen. Maak een screenshot van het onderschrift, houd de tekst ingedrukt, kies Kopieer en plak hem hier."
-        : "Op deze pagina staat geen recept dat de app kan lezen. Kopieer de tekst van het recept en plak die in plaats van de link." }, 422);
+    // Geen receptblok: de tekst van de post gebruiken (bij Instagram het onderschrift)
+    let fb = html ? parseFallbackText(html) : null;
+    if (ig) {
+      // Ook de embed-pagina van Instagram proberen: die bevat soms een vollediger onderschrift
+      try {
+        const e = await getHtml(new URL(`https://www.instagram.com/${ig[1] === "reels" ? "reel" : ig[1]}/${ig[2]}/embed/captioned/`));
+        const em = e.html ? (parseInstagramEmbed(e.html) || parseFallbackText(e.html)) : null;
+        if (em && (!fb || em.text.length > fb.text.length)) fb = { ...em, image_url: em.image_url || fb?.image_url || null };
+      } catch { /* geen embed */ }
+    }
+    if (!fb || !looksLikeRecipe(fb.text)) {
+      const noRecipeInCaption = fb && fb.text.length > 0 && /(link in (de )?bio|recept (staat )?in (de )?(reacties|comments|bio)|comment|reageer)/i.test(fb.text);
+      return json({ error: !social
+        ? "Op deze pagina staat geen recept dat de app kan lezen. Kopieer de tekst van het recept en plak die in plaats van de link."
+        : noRecipeInCaption
+          ? "Het recept staat niet in de tekst onder deze post (de maker verwijst naar de reacties of de link in bio). Kopieer het daar en plak het hier."
+          : fb
+            ? "Onder deze post staat geen volledig recept. Staat het in de reacties of op een website? Kopieer het daar en plak het hier."
+            : "Instagram liet de app deze post niet lezen. Maak een screenshot van het onderschrift, houd de tekst ingedrukt, kies Kopieer en plak hem hier." }, 422);
     }
     let image: string | null = null;
     const imgUrl = fb.image_url ? safeUrl(new URL(fb.image_url, url).toString()) : null;

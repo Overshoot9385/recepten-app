@@ -98,14 +98,48 @@ function meta(html, key) {
   }
   return "";
 }
+// Instagram zet voor het onderschrift: '123 likes, 4 comments - naam on 1 November 2026: "…"' (of in het Nederlands)
+function stripSocialPrefix(text) {
+  const m = String(text || "").match(/^[^"“]{0,240}?:\s*["“]([\s\S]+?)["”]\.?\s*$/);
+  return m ? m[1] : String(text || "");
+}
+const tidy = (t) => String(t || "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+// Onderschrift uit de JSON die Instagram in de pagina meestuurt (vaak vollediger dan de beschrijving)
+function jsonCaptions(html) {
+  const out = [];
+  const res = [/"caption"\s*:\s*\{[^{}]*?"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g, /"edge_media_to_caption"\s*:\s*\{\s*"edges"\s*:\s*\[\s*\{\s*"node"\s*:\s*\{\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g];
+  for (const re of res) for (const m of html.matchAll(re)) { try { out.push(JSON.parse(`"${m[1]}"`)); } catch { /* overslaan */ } }
+  return out;
+}
 export function parseFallbackText(html) {
-  let text = meta(html, "og:description") || meta(html, "description") || meta(html, "twitter:description");
-  if (!text) return null;
-  // Instagram: '123 likes, 4 comments - naam on 1 November 2026: "onderschrift".'
-  const ig = text.match(/^[^"“]{0,200}?:\s*["“]([\s\S]+?)["”]\.?\s*$/);
-  if (ig) text = ig[1];
-  text = text.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
-  return { text, image_url: meta(html, "og:image") || null };
+  const candidates = [
+    { from: "og", text: stripSocialPrefix(meta(html, "og:description")) },
+    { from: "meta", text: stripSocialPrefix(meta(html, "description")) },
+    { from: "twitter", text: stripSocialPrefix(meta(html, "twitter:description")) },
+    ...jsonCaptions(html).map((t) => ({ from: "json", text: t })),
+  ].map((c) => ({ ...c, text: tidy(c.text) })).filter((c) => c.text);
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.text.length - a.text.length); // de langste is meestal het volledige onderschrift
+  return { text: candidates[0].text, from: candidates[0].from, image_url: meta(html, "og:image") || null };
+}
+// Instagram 'embed'-pagina (bedoeld om posts op andere sites te tonen): het onderschrift staat in <div class="Caption">
+export function parseInstagramEmbed(html) {
+  const m = html.match(/<div[^>]*class="[^"]*\bCaption\b[^"]*"[^>]*>([\s\S]*?)<div[^>]*class="[^"]*\bCaptionComments\b/i)
+    || html.match(/<div[^>]*class="[^"]*\bCaption\b[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+  if (!m) return null;
+  let h = m[1].replace(/<a[^>]*class="[^"]*\bCaptionUsername\b[^"]*"[^>]*>[\s\S]*?<\/a>/i, "");
+  h = h.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+  const text = tidy(decodeEntities(h));
+  const img = (html.match(/<img[^>]*class="[^"]*\bEmbeddedMediaImage\b[^"]*"[^>]*src="([^"]+)"/i) || [])[1];
+  return text ? { text, from: "embed", image_url: img ? decodeEntities(img) : null } : null;
+}
+// Ziet de tekst eruit als een recept? (genoeg regels, en iets wat op ingrediënten lijkt)
+export function looksLikeRecipe(text) {
+  const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  if (text.length < 80 || lines.length < 4) return false;
+  const qty = lines.filter((l) => /(^|\s)(\d+([.,/]\d+)?|[½⅓⅔¼¾⅛])\s*(g|gr|gram|kg|ml|l|dl|cl|el|tl|eetlepels?|theelepels?|cups?|tbsp|tsp|stuks?|tenen|teen)?\b/i.test(l)).length;
+  const head = /(ingredi[eë]nt|wat heb je nodig|boodschappen|benodigdheden|bereiding|zo maak je|method|instructions)/i.test(text);
+  return qty >= 3 || head;
 }
 
 export function parseRecipeHtml(html, pageUrl) {
