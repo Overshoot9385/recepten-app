@@ -542,6 +542,16 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .net-bar[hidden] { display: none; }
 .net-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--saffron); flex: none; }
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--herb); display: inline-block; box-shadow: 0 0 0 3px color-mix(in srgb, var(--herb) 25%, transparent); }
+
+/* Bladeren tussen recepten */
+.pager { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; margin-right: 4px; }
+.pg-btn { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 20px; line-height: 1; padding: 0 0 2px; display: grid; place-items: center; }
+.pg-btn:disabled { opacity: .35; }
+@keyframes slideL { from { transform: translateX(28px); opacity: .4; } to { transform: none; opacity: 1; } }
+@keyframes slideR { from { transform: translateX(-28px); opacity: .4; } to { transform: none; opacity: 1; } }
+#app.slide-l { animation: slideL .2s ease-out; }
+#app.slide-r { animation: slideR .2s ease-out; }
+@media (prefers-reduced-motion: reduce) { #app.slide-l, #app.slide-r { animation: none; } }
 </style>
 
 </head>
@@ -1626,6 +1636,7 @@ document.addEventListener("visibilitychange", () => {
 function go(view, id) {
   if (["list", "menu", "shop", "fridge", "admin"].includes(S.view) && view === "detail") S.from = S.view;
   if (["list", "menu", "shop", "fridge", "admin"].includes(view)) S.from = view;
+  if (view !== "detail" && view !== "edit") { S.detailList = null; S.swipeHinted = S.swipeHinted || false; }
   S.view = view; S.current = id || null; S.scale = null;
   render(); window.scrollTo(0, 0);
 }
@@ -2006,10 +2017,11 @@ function drawList() {
       S.lastSurprise = pick.id; S.surprisePool = list.map((r) => r.id);
       s.classList.add("rolling"); s.disabled = true;
       const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      S.detailList = list.map((r) => r.id);
       setTimeout(() => go("detail", pick.id), reduce ? 0 : 450);
       return;
     }
-    const c = e.target.closest(".card"); if (c) { S.surprisePool = null; go("detail", c.dataset.id); }
+    const c = e.target.closest(".card"); if (c) { S.surprisePool = null; S.detailList = list.map((r) => r.id); go("detail", c.dataset.id); }
   };
 }
 // Nog een keer gooien vanaf een verrassingsrecept (zelfde zoekopdracht en filters)
@@ -2095,7 +2107,7 @@ function drawFridge() {
     if (b.dataset.rm != null) { S.fridge.splice(+b.dataset.rm, 1); drawFridge(); }
     else if (b.dataset.add) { S.fridge.push(b.dataset.add); drawFridge(); }
     else if (b.id === "fr-clear") { S.fridge = []; drawFridge(); }
-    else if (b.dataset.id) go("detail", b.dataset.id);
+    else if (b.dataset.id) { S.detailList = fridgeMatches().map((m) => m.r.id); go("detail", b.dataset.id); }
   };
 }
 
@@ -2122,6 +2134,7 @@ function renderDetail() {
   const f = n / base;
   $("#app").innerHTML = `
     <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button>
+      ${detailPos(r.id) ? `<span class="pager" aria-live="polite"><button class="pg-btn" id="pg-prev" aria-label="Vorig recept" ${detailPos(r.id).i === 0 ? "disabled" : ""}>‹</button><span>${detailPos(r.id).i + 1} van ${detailPos(r.id).n}</span><button class="pg-btn" id="pg-next" aria-label="Volgend recept" ${detailPos(r.id).i === detailPos(r.id).n - 1 ? "disabled" : ""}>›</button></span>` : ""}
       ${S.surprisePool && S.lastSurprise === r.id && S.surprisePool.length > 1 ? `<button class="surprise" id="reroll"><span class="die" aria-hidden="true">🎲</span>Nog een keer</button>` : ""}
       <button class="iconbtn" id="fav" aria-label="${S.favs.has(r.id) ? "Geen favoriet meer" : "Maak favoriet"}" aria-pressed="${S.favs.has(r.id)}" style="color:var(--saffron)">${S.favs.has(r.id) ? ICON.star : ICON.starOff}</button></div>
     ${thumbHTML(r, "hero")}
@@ -2168,6 +2181,7 @@ function renderDetail() {
     ${canEdit() ? `<div class="actions"><button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>` : ""}
     <div style="height:24px"></div>`;
   $("#back").onclick = () => go(S.from || "list");
+  bindRecipeSwipe(r.id);
   const st = $("#steps");
   if (st) st.onclick = (e) => {
     const li = e.target.closest("[data-step]"); if (!li) return;
@@ -2213,6 +2227,64 @@ function renderDetail() {
     try { await store.deleteRecipe(r); S.recipes = S.recipes.filter((x) => x.id !== r.id); go("list"); toast("Recept verwijderd"); }
     catch (e) { toast(e.message); }
   };
+}
+
+/* ================= Bladeren tussen recepten (vegen naar links/rechts) ================= */
+function detailPos(id) {
+  const l = (S.detailList || []).filter((x) => getRecipe(x));
+  const i = l.indexOf(id);
+  return l.length > 1 && i >= 0 ? { i, n: l.length, list: l } : null;
+}
+function stepRecipe(dir) {
+  const p = detailPos(S.current); if (!p) return false;
+  const j = p.i + dir;
+  if (j < 0 || j >= p.n) { toast(dir > 0 ? "Dit is het laatste recept in deze lijst" : "Dit is het eerste recept in deze lijst"); return false; }
+  S.slideDir = dir; S.scale = null; S.current = p.list[j];
+  renderDetail(); window.scrollTo(0, 0);
+  return true;
+}
+function bindRecipeSwipe(id) {
+  const app = $("#app");
+  if (S.slideDir) {
+    app.classList.remove("slide-l", "slide-r"); void app.offsetWidth;
+    app.classList.add(S.slideDir > 0 ? "slide-l" : "slide-r"); S.slideDir = 0;
+  }
+  const pv = $("#pg-prev"), nx = $("#pg-next");
+  if (pv) pv.onclick = () => stepRecipe(-1);
+  if (nx) nx.onclick = () => stepRecipe(1);
+  if (!detailPos(id)) return;
+  // Eenmalige uitleg
+  try { if (!localStorage.getItem("receptenboek-bladeren")) { localStorage.setItem("receptenboek-bladeren", "1"); setTimeout(() => toast("Tip: veeg naar links of rechts voor het volgende of vorige recept"), 600); } } catch (_) { /* niet erg */ }
+  if (app.dataset.swipe) return; // luisteraars maar één keer koppelen
+  app.dataset.swipe = "1";
+  let x0 = null, y0 = 0, dx = 0, horiz = null;
+  app.addEventListener("touchstart", (e) => {
+    if (S.view !== "detail" || !detailPos(S.current) || e.touches.length !== 1 || document.querySelector(".sheet-bg")) { x0 = null; return; }
+    const t = e.touches[0];
+    if (t.clientX < 24 || t.clientX > window.innerWidth - 24 || e.target.closest("input, textarea, select")) { x0 = null; return; } // randen: laat iOS-gebaren met rust
+    x0 = t.clientX; y0 = t.clientY; dx = 0; horiz = null;
+  }, { passive: true });
+  app.addEventListener("touchmove", (e) => {
+    if (x0 == null) return;
+    const t = e.touches[0]; dx = t.clientX - x0; const dy = t.clientY - y0;
+    if (horiz == null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) horiz = Math.abs(dx) > Math.abs(dy) * 1.4;
+    if (!horiz) return;
+    if (e.cancelable) e.preventDefault();
+    app.style.transition = "none"; app.style.transform = `translateX(${dx * 0.45}px)`; app.style.opacity = String(1 - Math.min(0.35, Math.abs(dx) / 900));
+  }, { passive: false });
+  const end = () => {
+    if (x0 == null) return;
+    const go1 = horiz && Math.abs(dx) > 70 ? (dx < 0 ? 1 : -1) : 0;
+    x0 = null;
+    app.style.transition = "transform .18s ease-out, opacity .18s"; app.style.transform = ""; app.style.opacity = "";
+    setTimeout(() => { app.style.transition = ""; }, 200);
+    if (go1) stepRecipe(go1);
+  };
+  app.addEventListener("touchend", end); app.addEventListener("touchcancel", end);
+  document.addEventListener("keydown", (e) => {
+    if (S.view !== "detail" || e.target.closest("input, textarea, select") || document.querySelector(".sheet-bg")) return;
+    if (e.key === "ArrowRight") stepRecipe(1); else if (e.key === "ArrowLeft") stepRecipe(-1);
+  });
 }
 
 /* ================= Plakken uit Notes ================= */
@@ -2487,7 +2559,7 @@ function drawMenu() {
     try {
       if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
       if (t.dataset.loose) return looseMealSheet(S.meals.find((x) => x.id === t.dataset.loose));
-      if (t.dataset.open) return getRecipe(t.dataset.open) && go("detail", t.dataset.open);
+      if (t.dataset.open) { S.detailList = [...new Set(S.meals.slice().sort((a, b) => a.plan_date.localeCompare(b.plan_date)).map((m) => m.recipe_id).filter((id) => id && getRecipe(id)))]; return getRecipe(t.dataset.open) && go("detail", t.dataset.open); }
       const id = t.dataset.inc || t.dataset.dec || t.dataset.rm;
       const m = S.meals.find((x) => x.id === id); if (!m) return;
       if (t.dataset.rm) { await store.removeMeal(id); S.meals = S.meals.filter((x) => x.id !== id); }
@@ -3264,12 +3336,12 @@ function drawActivity(box) {
   const actors = [...new Set((S.activity || []).map((e) => e.actor_id))];
   const list = (S.activity || []).filter((e) =>
     (S.actKind === "all" || e.kind === S.actKind || (S.actKind === "member" && e.kind === "invite"))
-    && (S.actWho === "all" || e.actor_id === S.actWho)
+    && (S.actWho === "all" || (S.actWho === "notme" ? e.actor_id !== S.user.id : e.actor_id === S.actWho))
     && (!S.actOthers || (e.kind === "recipe" && e.owner_id && e.actor_id !== e.owner_id)));
   let lastDay = "";
   box.innerHTML = `<div class="stack" style="gap:10px">
     <div class="act-filters">${kinds.map(([k, l]) => `<button class="chip" data-kind="${k}" aria-pressed="${S.actKind === k}">${l}</button>`).join("")}</div>
-    <div class="act-filters"><button class="chip" data-who="all" aria-pressed="${S.actWho === "all"}">Iedereen</button>${actors.map((id) => `<button class="chip" data-who="${esc(id)}" aria-pressed="${S.actWho === id}" style="display:inline-flex;align-items:center;gap:6px">${avatarHTML(id, 20)}${esc(firstName(nameOf(id)))}</button>`).join("")}</div>
+    <div class="act-filters"><button class="chip" data-who="all" aria-pressed="${S.actWho === "all"}">Iedereen</button><button class="chip" data-who="notme" aria-pressed="${S.actWho === "notme"}">Iedereen behalve ik</button>${actors.filter((id) => id !== S.user.id).concat(actors.includes(S.user.id) ? [S.user.id] : []).map((id) => `<button class="chip" data-who="${esc(id)}" aria-pressed="${S.actWho === id}" style="display:inline-flex;align-items:center;gap:6px">${avatarHTML(id, 20)}${esc(firstName(nameOf(id)))}</button>`).join("")}</div>
     <label class="check-line" style="font-size:14px"><input type="checkbox" id="act-others" ${S.actOthers ? "checked" : ""}> Alleen wijzigingen aan andermans recepten</label>
     <div id="act-list">${list.length ? list.map((e) => {
       const day = dayLabel(e.at), head = day !== lastDay ? `<p class="label act-day">${esc(day)}</p>` : ""; lastDay = day;
