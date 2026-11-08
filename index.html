@@ -447,7 +447,9 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .check-line { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .check-line input { width: 20px; height: 20px; accent-color: var(--herb); margin: 0; }
 .mini.plate { font-size: 20px; }
-.meal.loose-meal .meal-open { cursor: default; }
+.meal.loose-meal .meal-open { background: none; border: 0; border-radius: 10px; padding: 0; width: 100%; color: inherit; }
+.loose-text { display: grid; min-width: 0; text-align: left; }
+.meal-title.loose-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.3; }
 .meal-sub { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
 
 /* Wat kan ik maken? */
@@ -732,10 +734,26 @@ function buildPantryRe() {
   pantryRe = words.length ? new RegExp("(^|[^a-z])(" + words.join("|") + ")", "i") : /$^/;
 }
 function pantryCount() { return PANTRY_GROUPS.reduce((n, g) => n + g.items.length, 0); }
+// Engelse benamingen, gekoppeld aan het Nederlandse woord uit de voorraadkast
+const PANTRY_EN = {
+  "olive oil": "olijfolie", "extra virgin": "olijfolie", "vegetable oil": "zonnebloemolie", "sunflower oil": "zonnebloemolie", "sesame oil": "sesamolie", "oil": "olie",
+  "vinegar": "azijn", "balsamic": "balsamico", "rice vinegar": "rijstazijn", "soy sauce": "sojasaus", "fish sauce": "vissaus", "oyster sauce": "oestersaus",
+  "hoisin": "hoisinsaus", "worcestershire": "worcestershiresaus", "sweet chili": "sweet chilisaus", "mayo": "mayonaise", "mayonnaise": "mayonaise", "mustard": "mosterd",
+  "tomato paste": "tomatenpuree", "sesame seeds": "sesamzaad", "pine nuts": "pijnboompitten", "salt": "zout", "pepper": "peper", "black pepper": "peper",
+  "paprika": "paprikapoeder", "smoked paprika": "paprikapoeder", "curry powder": "kerrie", "cumin": "komijn", "coriander powder": "korianderpoeder", "ground coriander": "korianderpoeder",
+  "turmeric": "kurkuma", "ground ginger": "gemberpoeder", "oregano": "oregano", "thyme": "tijm", "rosemary": "rozemarijn", "italian seasoning": "italiaanse kruiden",
+  "bay leaf": "laurier", "bay leaves": "laurier", "cinnamon": "kaneel", "nutmeg": "nootmuskaat", "chili flakes": "chilivlokken", "red pepper flakes": "chilivlokken",
+  "cayenne": "cayennepeper", "garlic powder": "knoflookpoeder", "onion powder": "uienpoeder", "flour": "bloem", "sugar": "suiker", "brown sugar": "bruine suiker",
+  "honey": "honing", "baking powder": "bakpoeder", "baking soda": "baking soda", "cornstarch": "maizena", "corn starch": "maizena", "breadcrumbs": "paneermeel", "panko": "paneermeel",
+  "stock cube": "bouillonblokje", "bouillon cube": "bouillonblokje", "butter": "roomboter", "water": "water",
+};
 function isPantry(name) {
   const n = norm(name);
-  if (/(^|\s)(groente|kippen|runder)?bouillon$/.test(n) || /bloemkool|(rode|groene|verse) peper/.test(n)) return false;
-  return pantryRe.test(n);
+  if (/(^|\s)(groente|kippen|runder)?bouillon$/.test(n) || /bloemkool|(rode|groene|verse) peper|bell pepper|chili pepper|peppers\b|butternut|peanut butter/.test(n)) return false;
+  if (pantryRe.test(n)) return true;
+  // Engelse naam (bijv. "olive oil"): telt mee als het Nederlandse woord in jullie voorraadkast staat
+  const kast = new Set(PANTRY_GROUPS.flatMap((g) => g.items).map((w) => norm(w)));
+  return Object.entries(PANTRY_EN).some(([en, nl]) => kast.has(nl) && new RegExp("(^|[^a-z])" + en.replace(/ /g, "\\s+") + "($|[^a-z])").test(n));
 }
 buildPantryRe();
 function suggestTags(r) {
@@ -750,6 +768,32 @@ function splitTitled(line) {
   const t = line.replace(/^\s*(?:[*•\-–]|\d+[.)])\s*/, "").trim();
   const m = t.match(/^([^:]{2,45}):\s+(.+)$/);
   return m ? { title: m[1].trim(), text: m[2].trim() } : { title: "", text: t };
+}
+// Veelvoorkomende Engelse ingrediënten en eenheden naar het Nederlands (bij inlezen van Engelse recepten)
+const EN_NL = [
+  ["extra virgin olive oil", "extra vierge olijfolie"], ["olive oil", "olijfolie"], ["vegetable oil", "zonnebloemolie"], ["sunflower oil", "zonnebloemolie"], ["sesame oil", "sesamolie"],
+  ["soy sauce", "sojasaus"], ["fish sauce", "vissaus"], ["oyster sauce", "oestersaus"], ["tomato paste", "tomatenpuree"], ["balsamic vinegar", "balsamico-azijn"], ["rice vinegar", "rijstazijn"],
+  ["black pepper", "zwarte peper"], ["salt and pepper", "zout en peper"], ["salt & pepper", "zout en peper"], ["sea salt", "zeezout"], ["salt", "zout"],
+  ["garlic powder", "knoflookpoeder"], ["onion powder", "uienpoeder"], ["smoked paprika", "gerookt paprikapoeder"], ["paprika", "paprikapoeder"], ["ground cumin", "komijn"], ["cumin", "komijn"],
+  ["chili flakes", "chilivlokken"], ["red pepper flakes", "chilivlokken"], ["cinnamon", "kaneel"], ["nutmeg", "nootmuskaat"], ["turmeric", "kurkuma"], ["italian seasoning", "Italiaanse kruiden"],
+  ["dried oregano", "gedroogde oregano"], ["fresh basil", "verse basilicum"], ["basil", "basilicum"], ["parsley", "peterselie"], ["coriander", "koriander"], ["cilantro", "koriander"], ["dill", "dille"], ["chives", "bieslook"], ["mint", "munt"], ["thyme", "tijm"], ["rosemary", "rozemarijn"],
+  ["garlic cloves", "knoflook"], ["cloves garlic", "knoflook"], ["garlic", "knoflook"], ["red onion", "rode ui"], ["onions", "uien"], ["onion", "ui"], ["spring onions", "lente-ui"], ["green onions", "lente-ui"], ["scallions", "lente-ui"],
+  ["cherry tomatoes", "cherrytomaten"], ["tomatoes", "tomaten"], ["tomato", "tomaat"], ["baby spinach", "babyspinazie"], ["spinach", "spinazie"], ["zucchini", "courgette"], ["courgette", "courgette"], ["eggplant", "aubergine"], ["aubergine", "aubergine"],
+  ["bell peppers", "paprika's"], ["bell pepper", "paprika"], ["red pepper", "rode paprika"], ["sweet potatoes", "zoete aardappels"], ["sweet potato", "zoete aardappel"], ["potatoes", "aardappels"], ["potato", "aardappel"],
+  ["mushrooms", "champignons"], ["carrots", "wortels"], ["carrot", "wortel"], ["broccoli", "broccoli"], ["cucumber", "komkommer"], ["avocado", "avocado"], ["lemon juice", "citroensap"], ["lime juice", "limoensap"], ["lemon", "citroen"], ["lime", "limoen"],
+  ["chicken breast", "kipfilet"], ["chicken thighs", "kippendijen"], ["chicken", "kip"], ["ground beef", "rundergehakt"], ["minced beef", "rundergehakt"], ["beef", "rundvlees"], ["salmon fillets", "zalmfilets"], ["salmon fillet", "zalmfilet"], ["salmon", "zalm"], ["shrimp", "garnalen"], ["prawns", "garnalen"],
+  ["feta cheese", "feta"], ["parmesan cheese", "Parmezaanse kaas"], ["parmesan", "Parmezaanse kaas"], ["mozzarella", "mozzarella"], ["cream cheese", "roomkaas"], ["heavy cream", "slagroom"], ["cooking cream", "kookroom"], ["sour cream", "zure room"], ["greek yogurt", "Griekse yoghurt"], ["yogurt", "yoghurt"], ["milk", "melk"], ["butter", "roomboter"], ["eggs", "eieren"], ["egg", "ei"],
+  ["pasta", "pasta"], ["rice", "rijst"], ["noodles", "noedels"], ["breadcrumbs", "paneermeel"], ["flour", "bloem"], ["brown sugar", "bruine suiker"], ["sugar", "suiker"], ["honey", "honing"], ["water", "water"], ["chicken stock", "kippenbouillon"], ["vegetable stock", "groentebouillon"], ["coconut milk", "kokosmelk"],
+  ["cooked", "gekookt"], ["chopped", "gehakt"], ["minced", "fijngehakt"], ["sliced", "in plakjes"], ["diced", "in blokjes"], ["grated", "geraspt"], ["fresh", "vers"], ["large", "grote"], ["small", "kleine"], ["to taste", "naar smaak"],
+];
+const EN_UNITS = { tbsp: "el", tablespoon: "el", tablespoons: "el", tsp: "tl", teaspoon: "tl", teaspoons: "tl", cloves: "teentjes", clove: "teentje", pinch: "snufje", cups: "cup" };
+const EN_NL_SORTED = EN_NL.slice().sort((a, b) => b[0].length - a[0].length); // langste eerst ("chicken stock" vóór "chicken")
+function looksEnglish(text) { return /\b(ingredients|method|instructions|tbsp|tsp|cups?|the|and|with)\b/i.test(text) && !/\b(ingrediënten|bereiding|de|het|een|met)\b/i.test(text); }
+function translateIngredient(name) {
+  let out = " " + name + " ";
+  for (const [en, nl] of EN_NL_SORTED) out = out.replace(new RegExp("([^\\p{L}])" + en.replace(/ /g, "\\s+") + "(?=[^\\p{L}])", "giu"), (m0, pre) => pre + nl);
+  out = out.trim();
+  return out.charAt(0).toUpperCase() + out.slice(1);
 }
 // Lange alinea opdelen in losse stappen (per zin; korte zinnen blijven bij de vorige)
 function splitSentences(p) {
@@ -859,6 +903,16 @@ function parseRecipeText(src) {
     if (section === "tips") { out.tips.push(splitTitled(line)); continue; }
   }
   // Titel netjes: geen emoji/uitroeptekens aan het eind, en HOOFDLETTERS -> gewone zin
+  // Engels recept: ingrediënten en eenheden vertalen, en opnieuw bepalen wat uit de voorraadkast komt
+  if (looksEnglish(String(src))) {
+    let n = 0;
+    out.ingredients = out.ingredients.map((i) => {
+      const name = translateIngredient(i.name), unit = i.unit && EN_UNITS[i.unit.toLowerCase()] ? EN_UNITS[i.unit.toLowerCase()] : i.unit;
+      if (name !== i.name || unit !== i.unit) n++;
+      return { ...i, name, unit, is_pantry: isPantry(name) };
+    });
+    if (n) warnings.push(`${n} Engelse ingrediënten vertaald. Controleer ze even.`);
+  }
   out.title = out.title.replace(/[\s\p{Extended_Pictographic}️‍!]+$/u, "").trim();
   const letters = out.title.replace(/[^\p{L}]/gu, "");
   if (letters.length > 6 && letters === letters.toUpperCase()) out.title = out.title.charAt(0) + out.title.slice(1).toLowerCase();
@@ -2096,7 +2150,10 @@ function renderEdit() {
     d.ingredients = d.ingredients.map((_, k) => {
       const name = $(`#ing-name-${k}`).value.trim(), amtTxt = $(`#ing-amt-${k}`).value.trim(), unit = $(`#ing-unit-${k}`).value.trim();
       const a = parseAmount(amtTxt);
-      return { name, amount: a.amount, unit: unit || null, original_text: [amtTxt, unit].filter(Boolean).join(" "), is_pantry: !!d.ingredients[k].is_pantry };
+      const prev = d.ingredients[k];
+      // Naam veranderd en niet met de hand verplaatst: opnieuw bepalen of het uit de voorraadkast komt
+      const is_pantry = prev.pantry_manual || norm(prev.name || "") === norm(name) ? !!prev.is_pantry : isPantry(name);
+      return { name, amount: a.amount, unit: unit || null, original_text: [amtTxt, unit].filter(Boolean).join(" "), is_pantry, pantry_manual: !!prev.pantry_manual };
     });
     d.steps = d.steps.map((_, k) => ({ title: $(`#step-title-${k}`).value.trim(), text: $(`#step-text-${k}`).value.trim() }));
     d.tips = d.tips.map((_, k) => ({ title: $(`#tip-title-${k}`).value.trim(), text: $(`#tip-text-${k}`).value.trim() }));
@@ -2108,13 +2165,20 @@ function renderEdit() {
   $("#add-tip").onclick = () => { sync(); d.tips.push({ title: "", text: "" }); rerender(); };
   $("#edit-form").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.jar != null) { sync(); const it = d.ingredients[+b.dataset.jar]; it.is_pantry = !it.is_pantry; rerender(); return; }
+    if (b.dataset.jar != null) { sync(); const it = d.ingredients[+b.dataset.jar]; it.is_pantry = !it.is_pantry; it.pantry_manual = true; rerender(); return; }
     for (const kind of ["ing", "step", "tip"]) {
       const k = b.getAttribute(`data-rm-${kind}`);
       if (k != null) { sync(); ({ ing: d.ingredients, step: d.steps, tip: d.tips })[kind].splice(+k, 1); rerender(); }
     }
   });
   $("#e-owner").onchange = () => { sync(); rerender(); };
+  // Ingrediëntnaam aangepast (bijv. vertaald): direct in de juiste lijst zetten
+  $("#edit-form").addEventListener("change", (e) => {
+    if (!/^ing-name-\d+$/.test(e.target.id || "")) return;
+    const k = +e.target.id.split("-").pop(), was = !!d.ingredients[k].is_pantry;
+    sync();
+    if (d.ingredients[k].is_pantry !== was) { rerender(); toast(d.ingredients[k].is_pantry ? `${d.ingredients[k].name} staat nu bij de voorraadkast` : `${d.ingredients[k].name} staat nu bij de ingrediënten`); }
+  });
   $("#e-photo").onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     sync();
@@ -2189,7 +2253,7 @@ function drawMenu() {
           <div class="day-head"><h2>${dn}</h2><span class="muted">${fmtDay(d)}${iso === today ? " · vandaag" : ""}</span></div>
           ${meals.map((m) => { if (!m.recipe_id && m.title) return `
             <div class="meal loose-meal" data-meal="${m.id}">
-              <span class="meal-open"><span class="mini plate" aria-hidden="true">🍽️</span><span class="meal-title">${esc(m.title)}<span class="meal-sub">Zonder recept</span></span></span>
+              <button class="meal-open" data-loose="${m.id}"><span class="mini plate" aria-hidden="true">🍽️</span><span class="loose-text"><span class="meal-title loose-title">${esc(m.title)}</span><span class="meal-sub">Zonder recept · tik voor meer</span></span></button>
               <span></span>
               ${planPartners().length && m.user_id && m.user_id !== S.user.id ? `<span class="added-by" title="Gepland door ${esc(nameOf(m.user_id))}">${avatarHTML(m.user_id, 22)}</span>` : `<span></span>`}
               <button class="x" data-rm="${m.id}" aria-label="Haal van weekmenu">×</button>
@@ -2225,6 +2289,7 @@ function drawMenu() {
     const t = e.target.closest("button"); if (!t) return;
     try {
       if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
+      if (t.dataset.loose) return looseMealSheet(S.meals.find((x) => x.id === t.dataset.loose));
       if (t.dataset.open) return getRecipe(t.dataset.open) && go("detail", t.dataset.open);
       const id = t.dataset.inc || t.dataset.dec || t.dataset.rm;
       const m = S.meals.find((x) => x.id === id); if (!m) return;
@@ -2242,6 +2307,45 @@ function drawMenu() {
     if (v !== "week") return;
     try { await store.removeMeals(S.meals.map((m) => m.id)); S.meals = []; drawMenu(); toast(`Week ${weekNumber(ws)} is leeggemaakt`); }
     catch (err) { toast(err.message); }
+  };
+}
+// Los gerecht bekijken en aanpassen: tekst, dag, op de lijst, of er een recept van maken
+function looseParts(title) { return String(title).split(/,|\+|&|\s+en\s+|\s+met\s+/i).map((x) => x.trim()).filter(Boolean).map((x) => x[0].toUpperCase() + x.slice(1)); }
+function looseMealSheet(m) {
+  if (!m) return;
+  const ws = startOfWeek(new Date(m.plan_date + "T12:00:00"));
+  let day = m.plan_date;
+  const s = sheet(`<div class="sheet-head"><h2>Los gerecht</h2></div>
+    <div class="sheet-scroll">
+      <label class="field"><span>Wat eten jullie?</span><textarea class="input" id="lm-title" rows="3">${esc(m.title)}</textarea></label>
+      <div class="field"><span>Dag</span><div class="daygrid" id="lm-days">${DAY_NAMES.map((dn, i) => { const d = addDays(ws, i), iso = isoDate(d); return `<button type="button" data-day="${iso}" aria-pressed="${iso === day}"><small>${dn.slice(0, 2)}</small><b>${d.getDate()}</b></button>`; }).join("")}</div></div>
+      <button class="btn block" id="lm-list">${ICON.bag}<span>Onderdelen op de boodschappenlijst</span></button>
+      ${canEdit() ? `<button class="btn block" id="lm-recipe">${ICON.plus}<span>Maak er een recept van</span></button>` : ""}
+    </div>
+    <button class="btn primary block" id="lm-save">Opslaan</button>`);
+  $("#lm-days", s.el).onclick = (e) => { const b = e.target.closest("[data-day]"); if (!b) return; day = b.dataset.day; for (const x of $("#lm-days", s.el).children) x.setAttribute("aria-pressed", x === b); };
+  $("#lm-save", s.el).onclick = async () => {
+    const title = $("#lm-title", s.el).value.trim().replace(/\s+/g, " ");
+    if (!title) { toast("Vul in wat jullie eten, of haal het gerecht weg met ×"); return; }
+    try { await store.updateMeal(m.id, { title, plan_date: day }); Object.assign(m, { title, plan_date: day }); s.close(); drawMenu(); toast("Opgeslagen"); }
+    catch (err) { toast(err.message); }
+  };
+  $("#lm-list", s.el).onclick = async (e) => {
+    const parts = looseParts($("#lm-title", s.el).value);
+    const k = (n) => norm(n).trim();
+    const fresh = parts.filter((x) => !S.shop.some((y) => !y.is_checked && k(y.name) === k(x)));
+    try {
+      if (fresh.length) S.shop.push(...(await store.addShopping(S.household.id, fresh.map((x) => ({ name: x, amount: null, unit: null, is_manual: true, position: 0 })))));
+      e.currentTarget.disabled = true;
+      toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "ding" : "dingen"} op je lijst gezet` : "Staat al op je lijst");
+    } catch (err) { toast(err.message); }
+  };
+  const mk = $("#lm-recipe", s.el);
+  if (mk) mk.onclick = () => {
+    const title = $("#lm-title", s.el).value.trim();
+    s.close();
+    S.draft = { ...emptyDraft(), title, ingredients: looseParts(title).map((x) => ({ name: x, amount: null, unit: "", original_text: "", is_pantry: isPantry(x) })), warnings: ["Vul hoeveelheden en de bereiding aan. Het losse gerecht blijft op je weekmenu staan."] };
+    S.view = "edit"; render(); window.scrollTo(0, 0);
   };
 }
 function pickRecipeSheet(date) {
