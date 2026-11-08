@@ -268,8 +268,8 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 .sheet-head h2 { font-size: 21px; }
 .sheet > * { flex-shrink: 0; }
 .sheet > .opts, .sheet > .sheet-scroll { flex: 0 1 auto; min-height: 90px; }
-.opts { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.sheet-scroll { overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 12px; align-content: start; }
+.opts { touch-action: pan-y; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.sheet-scroll { touch-action: pan-y; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 12px; align-content: start; }
 .opt { display: flex; align-items: center; gap: 14px; min-height: 50px; border-bottom: 1px solid var(--line); font-size: 16px; cursor: pointer; }
 .opt:last-of-type { border-bottom: 0; }
 .opt[hidden] { display: none; }
@@ -396,7 +396,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .warn { color: var(--danger); font-size: 14px; }
 
 /* Bevestiging en melding */
-.sheet-bg { position: fixed; left: 0; right: 0; top: var(--vvtop, 0px); height: var(--vvh, 100%); background: rgb(0 0 0 / .4); z-index: 20; display: grid; align-items: end; }
+.sheet-bg { overscroll-behavior: contain; touch-action: none; position: fixed; left: 0; right: 0; top: var(--vvtop, 0px); height: var(--vvh, 100%); background: rgb(0 0 0 / .4); z-index: 20; display: grid; align-items: end; }
 .sheet {
   background: var(--surface); border-radius: 18px 18px 0 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden;
   padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
@@ -575,6 +575,13 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .tip-head .t { margin-left: auto; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
 .tip-text { margin: 0; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tip-actions { display: flex; gap: 14px; }
+
+/* Nieuwe versie */
+.update-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 78px); z-index: 25; display: flex; align-items: center; gap: 10px;
+  background: var(--ink); color: var(--bg); border-radius: 999px; padding: 6px 6px 6px 16px; font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgb(0 0 0 / .2); width: max-content; max-width: calc(100% - 24px); }
+.update-bar button { border: 0; border-radius: 999px; font-weight: 700; font-size: 14px; }
+.update-bar .go { background: var(--herb); color: var(--herb-ink); padding: 8px 14px; }
+.update-bar .later { background: none; color: var(--bg); opacity: .7; width: 30px; height: 30px; font-size: 18px; padding: 0; }
 </style>
 
 </head>
@@ -644,6 +651,31 @@ function syncViewport() {
   r.setProperty("--vvh", v.height + "px"); r.setProperty("--vvtop", v.offsetTop + "px");
 }
 if (window.visualViewport) { visualViewport.addEventListener("resize", syncViewport); visualViewport.addEventListener("scroll", syncViewport); syncViewport(); }
+// Zolang er een menu open is: achtergrond vastzetten, zodat die niet meescrollt
+let scrollLockY = 0, scrollLocked = false;
+function syncScrollLock() {
+  const open = !!document.querySelector(".sheet-bg");
+  if (open && !scrollLocked) {
+    scrollLockY = window.scrollY; scrollLocked = true;
+    Object.assign(document.body.style, { position: "fixed", top: `-${scrollLockY}px`, left: "0", right: "0", width: "100%" });
+  } else if (!open && scrollLocked) {
+    scrollLocked = false;
+    Object.assign(document.body.style, { position: "", top: "", left: "", right: "", width: "" });
+    window.scrollTo(0, scrollLockY);
+  }
+}
+new MutationObserver(syncScrollLock).observe(document.body, { childList: true });
+// Alleen de lijst ín een menu mag scrollen; daarbuiten (ook boven het menu) beweegt niets
+document.addEventListener("touchmove", (e) => {
+  if (!scrollLocked || !e.cancelable) return;
+  const scroller = e.target.closest && e.target.closest(".opts, .sheet-scroll, textarea");
+  if (!scroller || scroller.scrollHeight <= scroller.clientHeight) e.preventDefault();
+}, { passive: false });
+// Een veegbeweging op de achtergrond is geen tik: dan het menu niet sluiten
+let tapX = 0, tapY = 0, tapMoved = false;
+document.addEventListener("touchstart", (e) => { const t = e.touches[0]; tapX = t.clientX; tapY = t.clientY; tapMoved = false; }, { capture: true, passive: true });
+document.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (Math.abs(t.clientX - tapX) > 10 || Math.abs(t.clientY - tapY) > 10) tapMoved = true; }, { capture: true, passive: true });
+document.addEventListener("click", (e) => { if (tapMoved && e.target.classList && e.target.classList.contains("sheet-bg")) { e.stopImmediatePropagation(); e.preventDefault(); } tapMoved = false; }, true);
 // Menu's naar beneden vegen om te sluiten (vinger, en met de muis op de greep/kop)
 function enableSwipe(bg, close) {
   const sh = bg.querySelector(".sheet"); if (!sh) return;
@@ -1528,6 +1560,37 @@ async function goOnline() {
 window.addEventListener("offline", goOffline);
 window.addEventListener("online", goOnline);
 
+/* ================= Nieuwe versie van de app: melding met 'Vernieuwen' ================= */
+// De app vraagt af en toe (heel klein verzoek, zonder te downloaden) of index.html op de server is veranderd
+let knownVersion = null, updateShown = false;
+async function checkForUpdate() {
+  if (store.demo || !LIVE || isOffline() || updateShown) return;
+  try {
+    const r = await fetch("index.html", { method: "HEAD", cache: "no-store" });
+    const tag = r.headers.get("etag") || r.headers.get("last-modified");
+    if (!r.ok || !tag) return;
+    if (!knownVersion) { knownVersion = tag; return; }
+    if (tag !== knownVersion) showUpdateBar();
+  } catch (_) { /* volgende keer */ }
+}
+function showUpdateBar() {
+  if (updateShown) return;
+  updateShown = true;
+  const el = document.createElement("div");
+  el.className = "update-bar"; el.setAttribute("role", "status");
+  el.innerHTML = `<span>Er is een nieuwe versie van de app</span><button class="go">Vernieuwen</button><button class="later" aria-label="Later">×</button>`;
+  document.body.appendChild(el);
+  el.querySelector(".go").onclick = async () => {
+    el.querySelector(".go").textContent = "Even geduld…";
+    try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) await reg.update(); } catch (_) { /* gewoon herladen */ }
+    location.reload();
+  };
+  el.querySelector(".later").onclick = () => el.remove(); // bij de volgende keer openen staat de nieuwe versie er vanzelf
+}
+setTimeout(checkForUpdate, 4000);
+setInterval(checkForUpdate, 20 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+
 /* ================= Live bijwerken: boodschappen en weekmenu ================= */
 let liveStarted = false;
 function startLive() {
@@ -1627,7 +1690,7 @@ async function refreshData(opts = {}) {
     S.recipes = recipes; S.favs = new Set(favs); S.shop = shop; S.plan = plan;
     if (S.view === "menu") await loadWeek();
     if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))), true); S.shopPantryWeek = ws; }
-    lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache(); updateTipDot();
+    lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache(); updateTipDot(); checkForUpdate();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
     if (S.view === "admin") { if (["overzicht", "activiteit"].includes(S.adminTab)) { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); drawAdmin(); } }
@@ -1672,12 +1735,28 @@ document.addEventListener("visibilitychange", () => {
     d = 0;
   });
 })();
+const LIST_VIEWS = ["list", "menu", "shop", "fridge", "admin"];
+// Terug uit een recept: dezelfde scrollpositie, en het recept waar je naartoe bladerde in beeld
+function applyPendingScroll() {
+  if (S.pendingScroll == null) return;
+  const y = S.pendingScroll;
+  window.scrollTo(0, y);
+  if (Math.abs(window.scrollY - y) > 4 && document.documentElement.scrollHeight < y + window.innerHeight) return; // inhoud nog aan het laden
+  S.pendingScroll = null;
+  const card = S.returnId && document.querySelector(`.card[data-id="${CSS.escape(S.returnId)}"]`);
+  if (card) { const r = card.getBoundingClientRect(); if (r.top < 120 || r.bottom > window.innerHeight - 90) card.scrollIntoView({ block: "center" }); }
+  S.returnId = null;
+}
 function go(view, id) {
+  if (LIST_VIEWS.includes(S.view) && view === "detail") { S.scrollPos = S.scrollPos || {}; S.scrollPos[S.view] = window.scrollY; }
+  const back = S.view === "detail" && LIST_VIEWS.includes(view) && S.scrollPos && S.scrollPos[view] != null;
+  S.pendingScroll = back ? S.scrollPos[view] : null;
+  S.returnId = back ? S.current : null;
   if (["list", "menu", "shop", "fridge", "admin"].includes(S.view) && view === "detail") S.from = S.view;
   if (["list", "menu", "shop", "fridge", "admin"].includes(view)) S.from = view;
   if (view !== "detail" && view !== "edit") { S.detailList = null; S.swipeHinted = S.swipeHinted || false; }
   S.view = view; S.current = id || null; S.scale = null;
-  render(); window.scrollTo(0, 0);
+  render(); if (!back) window.scrollTo(0, 0); applyPendingScroll();
 }
 function render() {
   if (S.recovery) return renderNewPassword();
@@ -2300,6 +2379,11 @@ function renderDetail() {
     try { await store.deleteRecipe(r); S.recipes = S.recipes.filter((x) => x.id !== r.id); go("list"); toast("Recept verwijderd"); }
     catch (e) { toast(e.message); }
   };
+}
+
+for (const name of ["drawMenu", "drawShop", "drawFridge", "drawList"]) {
+  const orig = globalThis[name];
+  if (typeof orig === "function") globalThis[name] = function (...a) { const r = orig.apply(this, a); applyPendingScroll(); return r; };
 }
 
 /* ================= Bladeren tussen recepten (vegen naar links/rechts) ================= */
@@ -3557,12 +3641,14 @@ function renderSettings() {
         }).join("")}</ul></div>
       ${store.demo ? `<div class="panel"><p class="label" style="margin:0">Alleen in het voorbeeld</p>
         <label class="check-line"><input type="checkbox" id="sim-off" ${S.simOffline ? "checked" : ""}> Doe alsof ik offline ben (bijv. in de supermarkt)</label>
-        <p class="muted" style="margin:0;font-size:13px">Vink daarna dingen af op de boodschappenlijst en zet het vinkje hier weer uit.</p></div>` : ""}
+        <p class="muted" style="margin:0;font-size:13px">Vink daarna dingen af op de boodschappenlijst en zet het vinkje hier weer uit.</p>
+        <button class="btn" id="sim-update">Toon de melding 'nieuwe versie'</button></div>` : ""}
       <button class="btn" id="chpw">Wachtwoord wijzigen</button>
       <button class="btn" id="logout">Uitloggen</button>
     </div>`;
   bindHowto();
   $("#chpw").onclick = changePasswordSheet;
+  const su = $("#sim-update"); if (su) su.onclick = () => { updateShown = false; showUpdateBar(); };
   const so = $("#sim-off"); if (so) so.onchange = async (e) => { S.simOffline = e.target.checked; if (S.simOffline) goOffline(); else await goOnline(); };
   $("#theme").onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
