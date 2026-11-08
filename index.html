@@ -1664,7 +1664,12 @@ function tabBarHTML(active) {
 }
 function bindTabBar() {
   const bar = $(".tabbar"); if (!bar) return;
-  bar.onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) go(b.dataset.tab); };
+  bar.onclick = (e) => {
+    const b = e.target.closest("[data-tab]"); if (!b) return;
+    // Tik op de tab waar je al bent: niet herladen, alleen terug naar boven (verversen = omlaag trekken)
+    if (b.dataset.tab === S.view) { window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); return; }
+    go(b.dataset.tab);
+  };
 }
 function renderError(e) {
   $("#app").innerHTML = `<div class="auth"><h1>Er ging iets mis</h1><p class="notice error">${esc(e.message)}</p>
