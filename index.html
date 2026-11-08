@@ -236,6 +236,13 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 .member-row .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .danger-text { color: var(--danger) !important; }
 .results { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 4px; min-height: 28px; }
+.results { flex-wrap: wrap; row-gap: 8px; }
+.results .label, .results .linkbtn { white-space: nowrap; }
+.results-actions { margin-left: auto; }
+.results-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sortbtn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 50%; color: var(--herb); flex: none; }
+.sortbtn svg { width: 17px; height: 17px; }
+.sortbtn[aria-pressed="true"] { background: var(--herb); border-color: var(--herb); color: var(--herb-ink); }
 .linkbtn { border: 0; background: none; color: var(--herb); font-weight: 600; font-size: 15px; padding: 4px 0; }
 .results-actions { display: flex; align-items: center; gap: 14px; }
 .surprise {
@@ -499,8 +506,8 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .howto-ok b { color: var(--herb); }
 
 /* Beheer: overzicht en activiteit */
-.adm-tabs { grid-template-columns: repeat(4, 1fr); }
-.adm-tabs button { font-size: 14px; padding: 0 2px; }
+.adm-tabs { grid-template-columns: repeat(5, auto); }
+.adm-tabs button { font-size: 13px; padding: 0 6px; white-space: nowrap; }
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
 .stat b { font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -552,6 +559,22 @@ textarea.input { resize: vertical; line-height: 1.45; }
 #app.slide-l { animation: slideL .2s ease-out; }
 #app.slide-r { animation: slideR .2s ease-out; }
 @media (prefers-reduced-motion: reduce) { #app.slide-l, #app.slide-r { animation: none; } }
+
+/* Tips */
+.hdr-actions { display: flex; align-items: center; gap: 8px; }
+.tab { position: relative; }
+.tab .tab-dot { position: absolute; top: 2px; left: calc(50% + 8px); width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--surface); }
+.kind-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kind-pick button { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 6px; font-weight: 600; font-size: 14px; display: grid; justify-items: center; gap: 2px; }
+.kind-pick button span { font-size: 20px; line-height: 1; }
+.kind-pick button[aria-pressed="true"] { border-color: var(--herb); box-shadow: 0 0 0 2px var(--herb); }
+.tip-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; }
+.tip-card.new { border-left: 3px solid var(--danger); }
+.tip-card.done { opacity: .6; }
+.tip-head { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.tip-head .t { margin-left: auto; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.tip-text { margin: 0; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tip-actions { display: flex; gap: 14px; }
 </style>
 
 </head>
@@ -573,6 +596,8 @@ const LIVE = host.endsWith("github.io") || host === "localhost" || host === "127
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ICON = {
+  sort: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/></svg>',
+  tip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
@@ -1115,6 +1140,11 @@ function liveStore() {
     async updateShopping(id, patch) { const { error } = await sb.from("shopping_items").update(patch).eq("id", id); fail(error); },
     async removeShopping(ids) { if (!ids.length) return; const { error } = await sb.from("shopping_items").delete().in("id", ids); fail(error); },
     async removeMeals(ids) { if (!ids.length) return; const { error } = await sb.from("meal_plan").delete().in("id", ids); fail(error); },
+    async sendTip(hid, kind, text, context) { const { error } = await sb.from("feedback").insert({ household_id: hid, kind, text, context }); fail(error); },
+    async tips() { const { data, error } = await sb.from("feedback").select("*").order("at", { ascending: false }).limit(200); fail(error); return data; },
+    async newTipCount() { const { count, error } = await sb.from("feedback").select("id", { count: "exact", head: true }).eq("status", "nieuw"); fail(error); return count || 0; },
+    async setTipStatus(ids, status) { if (!ids.length) return; const { error } = await sb.from("feedback").update({ status }).in("id", ids); fail(error); },
+    async deleteTip(id) { const { error } = await sb.from("feedback").delete().eq("id", id); fail(error); },
     async activity() { const { data, error } = await sb.from("activity_log").select("*").order("at", { ascending: false }).limit(400); fail(error); return data; },
     async usage(hid) { const { data, error } = await sb.rpc("admin_usage", { p_household: hid }); fail(error); return data; },
     async restoreVersion(logId) { const { error } = await sb.rpc("restore_recipe_version", { p_log: logId }); fail(error); },
@@ -1238,6 +1268,10 @@ function demoStore() {
     { id: "a6", at: ago(80), actor_id: me.id, kind: "invite", action: "insert", target_id: "inv1", target_label: "Broer", owner_id: null, before: null, after: { role: "viewer" } },
     { id: "a7", at: ago(170), actor_id: mama.id, kind: "member", action: "insert", target_id: mama.id, target_label: mama.display_name, owner_id: null, before: null, after: { role: "editor" } },
   ];
+  const tips = [
+    { id: "t1", at: ago(3), user_id: partner.id, kind: "idee", text: "Zou fijn zijn als je bij een recept kunt aangeven hoe lekker je het vond, met sterren of zo.", context: "iPhone", status: "nieuw" },
+    { id: "t2", at: ago(28), user_id: mama.id, kind: "fout", text: "Als ik op de boodschappenlijst iets afvink, springt het soms terug.", context: "Android", status: "gezien" },
+  ];
   let shop = [];
   let ticks = 0;
   let pantryGroups = null;
@@ -1256,6 +1290,11 @@ function demoStore() {
     async setPantryFlags() { /* voorbeeld: alleen in het geheugen */ },
     async removeMeals(ids) { for (const id of ids) { const k = meals.findIndex((m) => m.id === id); if (k >= 0) meals.splice(k, 1); } },
     async activity() { return log.slice().sort((a, b) => b.at.localeCompare(a.at)); },
+    async sendTip(hid, kind, text, context) { tips.unshift({ id: uid(), at: now(), user_id: me.id, kind, text, context, status: "nieuw" }); },
+    async tips() { return tips.slice(); },
+    async newTipCount() { return tips.filter((t) => t.status === "nieuw").length; },
+    async setTipStatus(ids, status) { for (const t of tips) if (ids.includes(t.id)) t.status = status; },
+    async deleteTip(id) { const k = tips.findIndex((t) => t.id === id); if (k >= 0) tips.splice(k, 1); },
     async usage() {
       return {
         members: [{ user_id: me.id, last_active: ago(0.2) }, { user_id: partner.id, last_active: ago(2) }, { user_id: mama.id, last_active: ago(50) }],
@@ -1537,7 +1576,7 @@ async function loadAll() {
     lastSync = Date.now();
     S.fromCache = false; S.offline = false;
     render();
-    saveCache(); updateNetBar(); startLive(); flushQueue();
+    saveCache(); updateNetBar(); startLive(); flushQueue(); updateTipDot();
   } catch (e) {
     const c = isNetErr(e) ? loadCache() : null;
     if (c) { applyCache(c); S.fromCache = true; goOffline(); render(); }
@@ -1588,7 +1627,7 @@ async function refreshData(opts = {}) {
     S.recipes = recipes; S.favs = new Set(favs); S.shop = shop; S.plan = plan;
     if (S.view === "menu") await loadWeek();
     if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))), true); S.shopPantryWeek = ws; }
-    lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache();
+    lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache(); updateTipDot();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
     if (S.view === "admin") { if (["overzicht", "activiteit"].includes(S.adminTab)) { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); drawAdmin(); } }
@@ -1659,7 +1698,7 @@ function tabBarHTML(active) {
     ${tab("list", "Recepten", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>')}
     ${tab("menu", "Weekmenu", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>')}
     ${tab("shop", "Boodschappen", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16l-1.5 9.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M9 6V5a3 3 0 0 1 6 0v1"/></svg>')}
-    ${isAdmin() ? tab("admin", "Beheer", ICON.chart) : ""}
+    ${isAdmin() ? tab("admin", "Beheer", ICON.chart).replace("</button>", S.newTips ? `<span class="tab-dot" aria-label="${S.newTips} nieuwe tips"></span></button>` : "</button>") : ""}
   </nav>`;
 }
 function bindTabBar() {
@@ -1971,7 +2010,7 @@ function renderList() {
     <header class="top">
       ${store.demo ? `<div class="demo-banner">Voorbeeldweergave met voorbeeldrecepten. Wat je hier wijzigt, wordt niet opgeslagen.</div>` : ""}
       <div class="brand"><div class="hello"><p class="greet">${esc(greeting())}, ${esc(firstName(nameOf(S.user.id)))} 👋</p><h1>Wat koken we?</h1></div>
-        <button class="iconbtn" id="to-settings" aria-label="Instellingen">${ICON.gear}</button></div>
+        <span class="hdr-actions"><button class="iconbtn" id="to-tip" aria-label="Geef een tip">${ICON.tip}</button><button class="iconbtn" id="to-settings" aria-label="Instellingen">${ICON.gear}</button></span></div>
       <label class="search">${ICON.search}<input id="q" type="search" placeholder="Zoek op gerecht of ingrediënt" value="${esc(S.query)}" autocomplete="off"></label>
       <div class="filterbar" id="filters" role="group" aria-label="Filters">${filterBarHTML()}</div>
     </header>
@@ -1990,19 +2029,46 @@ function renderList() {
   };
   if ($("#add")) $("#add").onclick = () => { S.draft = null; go("paste"); };
   $("#to-settings").onclick = () => go("settings");
+  $("#to-tip").onclick = tipSheet;
+}
+// Sorteren (keuze onthouden op dit toestel)
+const SORT_KEY = "receptenboek-sortering";
+const byTitle = (a, b) => a.title.localeCompare(b.title, "nl");
+const timeOrNull = (r) => r.prep_time_minutes || null;
+const SORTS = [
+  ["az", "A–Z", (a, b) => byTitle(a, b)],
+  ["za", "Z–A", (a, b) => byTitle(b, a)],
+  ["owner", "Per persoon", (a, b) => nameOf(ownerOf(a)).localeCompare(nameOf(ownerOf(b)), "nl") || byTitle(a, b)],
+  ["fast", "Snelst klaar", (a, b) => (timeOrNull(a) == null) - (timeOrNull(b) == null) || (timeOrNull(a) - timeOrNull(b)) || byTitle(a, b)],
+  ["slow", "Langst bezig", (a, b) => (timeOrNull(a) == null) - (timeOrNull(b) == null) || (timeOrNull(b) - timeOrNull(a)) || byTitle(a, b)],
+  ["new", "Nieuwst toegevoegd", (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")) || byTitle(a, b)],
+  ["old", "Oudst toegevoegd", (a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")) || byTitle(a, b)],
+  ["edited", "Laatst gewijzigd", (a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")) || byTitle(a, b)],
+  ["few", "Minste ingrediënten", (a, b) => a.recipe_ingredients.filter((i) => !i.is_pantry).length - b.recipe_ingredients.filter((i) => !i.is_pantry).length || byTitle(a, b)],
+];
+function getSort() { try { const v = localStorage.getItem(SORT_KEY); return SORTS.some((x) => x[0] === v) ? v : "az"; } catch (_) { return "az"; } }
+function setSort(v) { try { localStorage.setItem(SORT_KEY, v); } catch (_) { /* alleen nu */ } }
+function sortRecipes(list) { const f = (SORTS.find((x) => x[0] === getSort()) || SORTS[0])[2]; return list.slice().sort(f); }
+function sortSheet() {
+  const cur = getSort();
+  const s = sheet(`<div class="sheet-head"><h2>Sorteren</h2>${cur !== "az" ? `<button class="linkbtn" id="sort-reset">Terug naar A–Z</button>` : ""}</div>
+    <div class="opts" id="sort-opts">${SORTS.map(([k, l]) => `<label class="opt"><input type="radio" name="sort" value="${k}" ${k === cur ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>
+    <p class="muted" style="margin:0;font-size:13px">Bij tijd komen recepten zonder bereidingstijd onderaan. Je keuze wordt op dit toestel onthouden.</p>`);
+  $("#sort-opts", s.el).onchange = (e) => { setSort(e.target.value); s.close(); drawList(); };
+  const rs = $("#sort-reset", s.el); if (rs) rs.onclick = () => { setSort("az"); s.close(); drawList(); };
 }
 function drawList() {
-  const list = filtered();
+  const list = sortRecipes(filtered());
   const el = $("#list");
   if (!S.recipes.length) {
     el.innerHTML = `<div class="empty"><h2>Nog geen recepten</h2><p class="muted" style="margin:0">${canEdit() ? "Tik op <b>Recept</b> en plak een link of de tekst uit Notes." : "Zodra iemand een recept toevoegt, zie je het hier."}</p></div>`;
     return;
   }
   if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && !S.time.length && !S.src.length && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
-  const clearBtn = filtersActive() ? `<button class="linkbtn" id="clear-filters">Filters wissen</button>` : "";
+  const clearBtn = filtersActive() || getSort() !== "az" ? `<button class="linkbtn" id="clear-filters" title="Filters en sortering wissen">Wissen</button>` : "";
   const fridge = `<button class="fridge-entry" id="to-fridge"><span class="ico" aria-hidden="true">${ICON.fridge}</span><span><b>Wat kan ik maken?</b><small class="muted">${(S.fridge || []).length ? `Je hebt ${S.fridge.length} ${S.fridge.length === 1 ? "ding" : "dingen"} gekozen` : "Kies wat je in de koelkast hebt"}</small></span><span class="chev">›</span></button>`;
   if (!list.length) { el.innerHTML = `${fridge}<div class="empty"><h2>Niets gevonden</h2><p class="muted" style="margin:0">Probeer een ander woord, of zet de filters uit.</p>${clearBtn}</div>`; }
-  else el.innerHTML = `${fridge}<div class="results"><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p><div class="results-actions">${clearBtn}${list.length > 1 ? `<button class="surprise" id="surprise" title="Kies een willekeurig recept${filtersActive() || S.query ? " binnen je filters" : ""}"><span class="die" aria-hidden="true">🎲</span>Verras me</button>` : ""}</div></div><div class="grid">${list.map((r) => `
+  else el.innerHTML = `${fridge}<div class="results"><span class="results-left"><button class="sortbtn" id="sort" aria-pressed="${getSort() !== "az"}" aria-label="Sorteren: ${esc((SORTS.find((x) => x[0] === getSort()) || SORTS[0])[1])}" title="Sorteren: ${esc((SORTS.find((x) => x[0] === getSort()) || SORTS[0])[1])}">${ICON.sort}</button><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p></span><div class="results-actions">${clearBtn}${list.length > 1 ? `<button class="surprise" id="surprise" title="Kies een willekeurig recept${filtersActive() || S.query ? " binnen je filters" : ""}"><span class="die" aria-hidden="true">🎲</span>Verras me</button>` : ""}</div></div><div class="grid">${list.map((r) => `
     <button class="card" data-id="${r.id}">
       ${thumbHTML(r, "thumb")}
       <h3>${esc(r.title)}</h3>
@@ -2010,8 +2076,10 @@ function drawList() {
     </button>`).join("")}</div>${updatedHTML()}`;
   el.onclick = (e) => {
     if (e.target.closest("#to-fridge")) return go("fridge");
+    if (e.target.closest("#sort")) return sortSheet();
     if (e.target.closest("#clear-filters")) {
       Object.assign(S, { owner: "all", tags: [], time: [], src: [], favOnly: false });
+      setSort("az");
       $("#filters").innerHTML = filterBarHTML(); drawList(); return;
     }
     const s = e.target.closest("#surprise");
@@ -3296,7 +3364,7 @@ function otherDiff(e) {
 async function renderAdmin() {
   S.adminTab = S.adminTab || "overzicht";
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Beheer</h1></div>
-      <div class="tabs adm-tabs" role="tablist" id="adm-tabs">${[["overzicht", "Overzicht"], ["activiteit", "Activiteit"], ["leden", "Leden"], ["voorraad", "Voorraad"]].map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${S.adminTab === k}">${l}</button>`).join("")}</div></header>
+      <div class="tabs adm-tabs" role="tablist" id="adm-tabs">${[["overzicht", "Overzicht"], ["activiteit", "Activiteit"], ["leden", "Leden"], ["voorraad", "Voorraad"], ["tips", S.newTips ? `Tips (${S.newTips})` : "Tips"]].map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${S.adminTab === k}">${l}</button>`).join("")}</div></header>
     <main id="adm"><div class="spinner" aria-label="Laden"></div></main>${tabBarHTML("admin")}`;
   bindTabBar();
   $("#adm-tabs").onclick = (e) => { const b = e.target.closest("[data-t]"); if (!b) return; S.adminTab = b.dataset.t; for (const x of $("#adm-tabs").children) x.setAttribute("aria-selected", x === b); drawAdmin(); };
@@ -3309,6 +3377,7 @@ function drawAdmin() {
   box.onclick = null;
   if (S.adminTab === "leden") return renderMembers(box);
   if (S.adminTab === "voorraad") return drawPantryAdmin(box);
+  if (S.adminTab === "tips") return drawTips(box);
   if (S.adminTab === "overzicht") return drawUsage(box);
   drawActivity(box);
 }
@@ -3384,6 +3453,71 @@ function actDetail(e) {
       s.close(); toast(`“${e.target_label}” is teruggezet`);
       S.activity = await store.activity(); drawAdmin();
     } catch (err) { rs.disabled = false; toast(err.message); }
+  };
+}
+
+/* ================= Tips: iedereen kan een idee of probleem doorgeven, de beheerder leest ze onder Beheer ================= */
+const TIP_KINDS = { idee: ["💡", "Idee"], fout: ["🛠️", "Werkt niet"], anders: ["💬", "Anders"] };
+function adminName() { const id = Object.keys(S.roles || {}).find((x) => S.roles[x] === "admin" && x !== S.user.id) || Object.keys(S.roles || {}).find((x) => S.roles[x] === "admin"); return id ? firstName(nameOf(id)) : "de beheerder"; }
+function tipSheet() {
+  let kind = "idee";
+  const s = sheet(`<div class="sheet-head"><h2>Geef een tip</h2></div>
+    <p class="muted" style="margin:-6px 0 0;font-size:15px">Mis je iets, werkt iets niet goed of heb je een idee? ${isAdmin() ? "Je tip komt in je eigen lijst onder Beheer." : `${esc(adminName())} leest het onder Beheer.`}</p>
+    <div class="kind-pick" id="tp-kind">${Object.entries(TIP_KINDS).map(([k, [ic, l]]) => `<button type="button" data-k="${k}" aria-pressed="${k === kind}"><span aria-hidden="true">${ic}</span>${l}</button>`).join("")}</div>
+    <textarea class="input" id="tp-text" rows="5" maxlength="2000" placeholder="Bijv. het zou handig zijn als…"></textarea>
+    <button class="btn primary block" id="tp-send">Verstuur</button>`);
+  $("#tp-kind", s.el).onclick = (e) => { const b = e.target.closest("[data-k]"); if (!b) return; kind = b.dataset.k; for (const x of $("#tp-kind", s.el).children) x.setAttribute("aria-pressed", x === b); };
+  $("#tp-send", s.el).onclick = async (e) => {
+    const text = $("#tp-text", s.el).value.trim();
+    if (!text) { toast("Schrijf eerst je tip"); $("#tp-text", s.el).focus(); return; }
+    e.currentTarget.disabled = true;
+    const context = `${deviceKind() === "android" ? "Android" : "iPhone"}${isStandalone() ? " · app op beginscherm" : " · browser"}`;
+    try { await store.sendTip(S.household.id, kind, text, context); s.close(); toast(isAdmin() ? "Tip opgeslagen" : `Bedankt! ${adminName()} krijgt je tip te zien`); if (isAdmin()) updateTipDot(); }
+    catch (err) { e.currentTarget.disabled = false; toast(err.message); }
+  };
+  setTimeout(() => $("#tp-text", s.el)?.focus(), 250);
+}
+async function updateTipDot() {
+  if (!isAdmin() || !store.newTipCount) return;
+  try { S.newTips = await store.newTipCount(); } catch (_) { return; }
+  const t = document.querySelector('.tab[data-tab="admin"]');
+  if (t) { t.querySelector(".tab-dot")?.remove(); if (S.newTips) t.insertAdjacentHTML("beforeend", `<span class="tab-dot" aria-label="${S.newTips} nieuwe tips"></span>`); }
+  const seg = document.querySelector('#adm-tabs [data-t="tips"]'); if (seg) seg.textContent = S.newTips ? `Tips (${S.newTips})` : "Tips";
+}
+async function drawTips(box) {
+  box.innerHTML = `<div class="spinner" aria-label="Laden"></div>`;
+  let list = [];
+  try { list = await store.tips(); } catch (e) { box.innerHTML = `<p class="notice error">${esc(e.message)}</p>`; return; }
+  const fresh = list.filter((t) => t.status === "nieuw").map((t) => t.id);
+  const draw = () => {
+    const open = list.filter((t) => t.status !== "afgehandeld"), done = list.filter((t) => t.status === "afgehandeld");
+    const card = (t) => `<div class="tip-card${fresh.includes(t.id) ? " new" : ""}${t.status === "afgehandeld" ? " done" : ""}">
+      <div class="tip-head">${avatarHTML(t.user_id, 28)}<b>${esc(firstName(nameOf(t.user_id)))}</b><span class="badge-act">${(TIP_KINDS[t.kind] || TIP_KINDS.anders)[0]} ${(TIP_KINDS[t.kind] || TIP_KINDS.anders)[1]}</span>${fresh.includes(t.id) ? `<span class="badge-act del">Nieuw</span>` : ""}<span class="t">${esc(relTime(t.at))}</span></div>
+      <p class="tip-text">${esc(t.text)}</p>
+      ${t.context ? `<small class="muted" style="font-size:12.5px">${esc(t.context)}</small>` : ""}
+      <div class="tip-actions">${t.status === "afgehandeld" ? `<button class="linkbtn" data-reopen="${t.id}">Terugzetten</button>` : `<button class="linkbtn" data-done="${t.id}">Afgehandeld</button>`}<button class="linkbtn danger-text" data-del="${t.id}">Verwijderen</button></div></div>`;
+    box.innerHTML = `<div class="stack" style="gap:10px">
+      ${open.length ? open.map(card).join("") : `<div class="empty" style="padding:28px 8px"><p class="muted" style="margin:0">Geen openstaande tips. Iedereen kan een tip geven met het lampje naast het tandwiel.</p></div>`}
+      ${done.length ? `<div class="section-head" style="margin-top:12px"><p class="label" style="margin:0">Afgehandeld (${done.length})</p><button class="linkbtn danger-text" id="tips-purge">Alles verwijderen</button></div>${done.map(card).join("")}` : ""}</div>`;
+  };
+  draw();
+  if (fresh.length) { try { await store.setTipStatus(fresh, "gezien"); for (const t of list) if (fresh.includes(t.id)) t.status = "gezien"; } catch (_) { /* volgende keer */ } updateTipDot(); }
+  box.onclick = async (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    try {
+      if (b.id === "tips-purge") {
+        const ids = list.filter((t) => t.status === "afgehandeld").map((t) => t.id);
+        if (!(await confirmSheet(`${ids.length} afgehandelde ${ids.length === 1 ? "tip" : "tips"} definitief verwijderen? Dit kan niet ongedaan worden gemaakt.`, "Definitief verwijderen"))) return;
+        for (const id of ids) await store.deleteTip(id);
+        list = list.filter((t) => !ids.includes(t.id)); draw(); toast(`${ids.length} ${ids.length === 1 ? "tip" : "tips"} verwijderd`);
+        return;
+      }
+      if (b.dataset.done || b.dataset.reopen) { const id = b.dataset.done || b.dataset.reopen, st = b.dataset.done ? "afgehandeld" : "gezien"; await store.setTipStatus([id], st); list.find((t) => t.id === id).status = st; draw(); }
+      if (b.dataset.del) {
+        if (!(await confirmSheet("Deze tip verwijderen?", "Verwijderen"))) return;
+        await store.deleteTip(b.dataset.del); list = list.filter((t) => t.id !== b.dataset.del); draw();
+      }
+    } catch (err) { toast(err.message); }
   };
 }
 
