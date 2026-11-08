@@ -508,6 +508,16 @@ textarea.input { resize: vertical; line-height: 1.45; }
 /* Beheer: overzicht en activiteit */
 .adm-tabs { grid-template-columns: repeat(5, auto); }
 .adm-tabs button { font-size: 13px; padding: 0 6px; white-space: nowrap; }
+.metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.metric { text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; color: inherit; font: inherit; cursor: pointer; }
+.metric b { font-family: var(--font-display); font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.metric span { font-size: 12.5px; color: var(--muted); line-height: 1.25; }
+.metric[aria-pressed="true"] { border-color: var(--herb); box-shadow: inset 0 0 0 1px var(--herb); }
+.colchart { display: flex; align-items: flex-end; gap: 2px; height: 110px; padding-top: 6px; border-bottom: 1px solid var(--line); }
+.colchart i { flex: 1; background: var(--herb); border-radius: 3px 3px 0 0; min-width: 2px; opacity: .85; }
+.colchart-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); gap: 8px; }
+.person-stats small { display: block; font-size: 13px; }
+.pnums { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
 .stat b { font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -1179,6 +1189,8 @@ function liveStore() {
     async deleteTip(id) { const { error } = await sb.from("feedback").delete().eq("id", id); fail(error); },
     async activity() { const { data, error } = await sb.from("activity_log").select("*").order("at", { ascending: false }).limit(400); fail(error); return data; },
     async usage(hid) { const { data, error } = await sb.rpc("admin_usage", { p_household: hid }); fail(error); return data; },
+    async stats(hid, days) { const { data, error } = await sb.rpc("admin_stats", { p_household: hid, p_days: days }); if (error) return null; return data; },
+    async logOpen(hid, recipeId) { try { await sb.rpc("log_recipe_open", { p_recipe: recipeId }); } catch (_) {} },
     async restoreVersion(logId) { const { error } = await sb.rpc("restore_recipe_version", { p_log: logId }); fail(error); },
     async pantry(hid) { const { data, error } = await sb.from("households").select("pantry").eq("id", hid).single(); fail(error); return data.pantry; },
     async savePantry(hid, groups) { const { error, count } = await sb.from("households").update({ pantry: groups }, { count: "exact" }).eq("id", hid); fail(error); if (!count) throw new Error("Alleen de beheerder kan de voorraadkast aanpassen."); },
@@ -1334,6 +1346,27 @@ function demoStore() {
         top_planned: [{ title: "Bowl met orzo en kippendijreepjes", n: 4 }, { title: "Shakshuka met feta", n: 3 }, { title: "Zalm uit de oven", n: 2 }, { title: "Kip teriyaki bowl", n: 2 }, { title: "Pasta pesto met tomaatjes", n: 1 }],
       };
     },
+    async stats(hid, days) {
+      let seed = 7; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+      const people = [[me.id, 1], [partner.id, 0.8], [mama.id, 0.15]];
+      const series = [], per = {};
+      for (const [id] of people) per[id] = { user_id: id, opens: 0, meals: 0, items_added: 0, items_checked: 0, days: new Set() };
+      for (let d = 89; d >= 0; d--) {
+        const day = new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
+        const wknd = [0, 5, 6].includes(new Date(day).getDay());
+        const row = { day, opens: 0, meals: 0, items: 0 };
+        for (const [id, w] of people) {
+          if (rnd() > w * (wknd ? 0.9 : 0.6)) continue;
+          const o = Math.round(rnd() * 4 * w) + 1, m = wknd && rnd() < 0.6 ? Math.round(rnd() * 3) + 1 : 0, it = m ? Math.round(rnd() * 8) + 2 : (rnd() < 0.3 ? 1 : 0), ch = wknd ? Math.round(it * 0.8 + rnd() * 6) : 0;
+          if (d < days) { const q = per[id]; q.opens += o; q.meals += m; q.items_added += it; q.items_checked += ch; q.days.add(day); }
+          row.opens += o; row.meals += m; row.items += it + ch;
+        }
+        if (d < days) series.push(row);
+      }
+      const tops = recs.slice(0, 6).map((r, k) => ({ title: r.title, n: Math.max(1, Math.round((14 - k * 2.3) * days / 30)) }));
+      return { series, people: Object.values(per).map((q) => ({ ...q, active_days: q.days.size, days: undefined })), top_opened: tops };
+    },
+    async logOpen() {},
     async restoreVersion(logId) {
       const e = log.find((l) => l.id === logId); const b = e.before;
       let r = recs.find((x) => x.id === e.target_id);
@@ -1693,7 +1726,7 @@ async function refreshData(opts = {}) {
     lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache(); updateTipDot(); checkForUpdate();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
-    if (S.view === "admin") { if (["overzicht", "activiteit"].includes(S.adminTab)) { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); drawAdmin(); } }
+    if (S.view === "admin") { if (["overzicht", "activiteit"].includes(S.adminTab)) { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id), loadStats()]); drawAdmin(); } }
     else if (S.view === "menu") drawMenu(); else if (S.view === "shop") drawShop(); else if (S.view === "fridge") drawFridge(); else render();
     window.scrollTo(0, y);
     if (roleMsg) toast(roleMsg); else if (!opts.quiet) toast("Bijgewerkt");
@@ -1748,6 +1781,7 @@ function applyPendingScroll() {
   S.returnId = null;
 }
 function go(view, id) {
+  if (view !== "detail") S.loggedOpen = null;
   if (LIST_VIEWS.includes(S.view) && view === "detail") { S.scrollPos = S.scrollPos || {}; S.scrollPos[S.view] = window.scrollY; }
   const back = S.view === "detail" && LIST_VIEWS.includes(view) && S.scrollPos && S.scrollPos[view] != null;
   S.pendingScroll = back ? S.scrollPos[view] : null;
@@ -2279,6 +2313,7 @@ function stepOrder(r) {
   return [...idx.filter((i) => !done.has(i)), ...idx.filter((i) => done.has(i))];
 }
 function renderDetail() {
+  if (S.current && S.loggedOpen !== S.current && !isOffline()) { S.loggedOpen = S.current; store.logOpen(S.household && S.household.id, S.current); }
   const r = getRecipe(S.current);
   if (!r) return go("list");
   const base = r.servings || 2;
@@ -3452,7 +3487,7 @@ async function renderAdmin() {
     <main id="adm"><div class="spinner" aria-label="Laden"></div></main>${tabBarHTML("admin")}`;
   bindTabBar();
   $("#adm-tabs").onclick = (e) => { const b = e.target.closest("[data-t]"); if (!b) return; S.adminTab = b.dataset.t; for (const x of $("#adm-tabs").children) x.setAttribute("aria-selected", x === b); drawAdmin(); };
-  try { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); }
+  try { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id), loadStats()]); }
   catch (e) { $("#adm").innerHTML = `<p class="notice error">${esc(e.message)}</p>`; return; }
   drawAdmin();
 }
@@ -3465,28 +3500,63 @@ function drawAdmin() {
   if (S.adminTab === "overzicht") return drawUsage(box);
   drawActivity(box);
 }
+const STAT_RANGES = [[7, "7 dagen"], [30, "30 dagen"], [90, "3 maanden"]];
+const STAT_METRICS = [["opens", "recepten geopend", "📖"], ["meals", "op het weekmenu", "🗓️"], ["items", "boodschappen", "🛒"]];
+async function loadStats() {
+  S.statDays = S.statDays || 30;
+  const days = S.statDays;
+  try { S.stats = await store.stats(S.household.id, days); S.stats && (S.stats.daysAsked = days); } catch (_) { S.stats = null; }
+}
+function statChart(series, metric) {
+  let buckets = series.map((r) => ({ label: r.day, v: r[metric] }));
+  const weekly = series.length > 31;
+  if (weekly) {
+    const by = {};
+    for (const r of series) { const d = new Date(r.day), m = new Date(d); m.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const k = m.toISOString().slice(0, 10); by[k] = (by[k] || 0) + r[metric]; }
+    buckets = Object.entries(by).sort().map(([label, v]) => ({ label, v }));
+  }
+  const max = Math.max(1, ...buckets.map((b) => b.v));
+  const fmt = (d) => new Date(d).toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+  const first = buckets[0], last = buckets[buckets.length - 1];
+  return `<div class="colchart" role="img" aria-label="Verloop per ${weekly ? "week" : "dag"}">${buckets.map((b) => `<i title="${weekly ? "Week van " : ""}${esc(fmt(b.label))}: ${b.v}" style="height:${b.v ? Math.max(4, Math.round((b.v / max) * 100)) : 0}%"></i>`).join("")}</div>
+    <div class="colchart-axis"><span>${first ? esc(fmt(first.label)) : ""}</span><span class="muted">per ${weekly ? "week" : "dag"} · hoogste ${max}</span><span>${last ? (weekly ? "deze week" : "vandaag") : ""}</span></div>`;
+}
 function drawUsage(box) {
-  const u = S.usage || {};
+  const u = S.usage || {}, st = S.stats;
+  S.statDays = S.statDays || 30; S.statMetric = S.statMetric || "opens";
   const perOwner = {};
   for (const r of S.recipes) perOwner[ownerOf(r)] = (perOwner[ownerOf(r)] || 0) + 1;
   const ownerRows = Object.entries(perOwner).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...ownerRows.map((x) => x[1]));
-  const editsOnOthers = (S.activity || []).filter((e) => e.kind === "recipe" && e.owner_id && e.actor_id !== e.owner_id && Date.now() - new Date(e.at) < 30 * 864e5).length;
+  const lastActive = Object.fromEntries((u.members || []).map((m) => [m.user_id, m.last_active]));
+  const tot = { opens: 0, meals: 0, items: 0 };
+  for (const r of (st && st.series) || []) for (const k in tot) tot[k] += r[k];
+  const people = ((st && st.people) || []).slice().sort((a, b) => (b.opens + b.meals + b.items_added) - (a.opens + a.meals + a.items_added));
+  const rangeLabel = (STAT_RANGES.find((x) => x[0] === S.statDays) || [0, ""])[1];
   box.innerHTML = `<div class="stack" style="gap:16px">
+    <div class="tabs three" role="radiogroup" aria-label="Periode" id="stat-range">${STAT_RANGES.map(([d, l]) => `<button role="radio" data-days="${d}" aria-checked="${S.statDays === d}" aria-selected="${S.statDays === d}">${l}</button>`).join("")}</div>
+    ${st ? `<div class="panel"><p class="label" style="margin:0">Gebruik · afgelopen ${esc(rangeLabel)}</p>
+      <div class="metric-row" id="stat-metric">${STAT_METRICS.map(([k, l, ic]) => `<button class="metric" data-m="${k}" aria-pressed="${S.statMetric === k}"><b>${tot[k]}</b><span>${ic} ${l}</span></button>`).join("")}</div>
+      ${statChart(st.series, S.statMetric)}</div>
+    <div class="panel"><p class="label" style="margin:0">Per persoon · afgelopen ${esc(rangeLabel)}</p>
+      <ul class="top-list person-stats">${people.map((q) => `<li>${avatarHTML(q.user_id, 32)}<span>${esc(nameOf(q.user_id))}<small class="muted">${lastActive[q.user_id] ? "actief " + relTime(lastActive[q.user_id]) : "nog niet actief"} · op ${q.active_days} ${q.active_days === 1 ? "dag" : "dagen"} gebruikt</small>
+        <span class="pnums"><span title="Recepten geopend">📖 ${q.opens}</span><span title="Op het weekmenu gezet">🗓️ ${q.meals}</span><span title="Boodschappen erbij">🛒 ${q.items_added}</span><span title="Boodschappen afgevinkt">✓ ${q.items_checked}</span></span></span></li>`).join("")}</ul>
+      <p class="muted" style="margin:0;font-size:13px">📖 recepten geopend · 🗓️ op het weekmenu gezet · 🛒 boodschappen erbij · ✓ afgevinkt</p></div>
+    ${(st.top_opened || []).length ? `<div class="panel"><p class="label" style="margin:0">Meest bekeken recepten</p>
+      <ul class="top-list">${st.top_opened.map((t, k) => `<li><span class="muted" style="width:18px">${k + 1}</span><span>${esc(t.title)}</span><span class="n">${t.n}×</span></li>`).join("")}</ul></div>` : ""}`
+    : `<p class="notice">Gebruikscijfers zijn nog niet beschikbaar.</p>`}
     <div class="stat-grid">
       <div class="stat"><b>${u.recipes_total ?? S.recipes.length}</b><span>recepten</span>${u.recipes_30d ? `<small>+${u.recipes_30d} afgelopen 30 dagen</small>` : ""}</div>
       <div class="stat"><b>${(u.members || []).length}</b><span>leden</span></div>
-      <div class="stat"><b>${u.changes_30d ?? 0}</b><span>receptwijzigingen</span><small>${editsOnOthers ? `${editsOnOthers} aan andermans recept` : "afgelopen 30 dagen"}</small></div>
-      <div class="stat"><b>${u.meals_week ?? 0}</b><span>gerechten op de weekmenu's</span><small>deze week, alle huishoudens</small></div>
     </div>
-    <div class="panel"><p class="label" style="margin:0">Leden</p>
-      <ul class="top-list">${(u.members || []).sort((a, b) => (b.last_active || "").localeCompare(a.last_active || "")).map((m) => `<li>${avatarHTML(m.user_id, 30)}<span>${esc(nameOf(m.user_id))}<small class="muted" style="display:block;font-size:13px">${esc(ROLE_LABEL[S.roles[m.user_id]] || "")} · ${perOwner[m.user_id] || 0} recepten</small></span><span class="n">${m.last_active ? "actief " + relTime(m.last_active) : "nog niet actief"}</span></li>`).join("")}</ul></div>
     <div class="panel"><p class="label" style="margin:0">Recepten per persoon</p>
       <div class="bars">${ownerRows.map(([id, n]) => `<div class="bar-row">${avatarHTML(id, 26)}<span class="track"><i style="width:${Math.round((n / max) * 100)}%"></i></span><span class="v">${n}</span></div>`).join("")}</div></div>
     ${(u.top_planned || []).length ? `<div class="panel"><p class="label" style="margin:0">Vaakst op het weekmenu gezet</p>
       <ul class="top-list">${u.top_planned.map((t, k) => `<li><span class="muted" style="width:18px">${k + 1}</span><span>${esc(t.title)}</span><span class="n">${t.n}×</span></li>`).join("")}</ul></div>` : ""}
-    <p class="muted" style="margin:0;font-size:13px">Alleen jij als beheerder ziet dit. Wat iemand op zijn eigen weekmenu of boodschappenlijst zet, zie je bewust niet per persoon.</p>
+    <p class="muted" style="margin:0;font-size:13px">Alleen jij als beheerder ziet dit. Je ziet per persoon alleen aantallen, niet welke recepten iemand bekeek of wat er op een lijstje staat. Cijfers worden 3 maanden bewaard; de leden zien dit ook staan bij hun Instellingen.</p>
   </div>`;
+  $("#stat-range").onclick = async (e) => { const b = e.target.closest("[data-days]"); if (!b) return; S.statDays = +b.dataset.days; await loadStats(); drawUsage(box); };
+  const sm = $("#stat-metric"); if (sm) sm.onclick = (e) => { const b = e.target.closest("[data-m]"); if (!b) return; S.statMetric = b.dataset.m; drawUsage(box); };
 }
 function drawActivity(box) {
   S.actKind = S.actKind || "all"; S.actWho = S.actWho || "all"; S.actOthers = !!S.actOthers;
@@ -3643,6 +3713,7 @@ function renderSettings() {
         <label class="check-line"><input type="checkbox" id="sim-off" ${S.simOffline ? "checked" : ""}> Doe alsof ik offline ben (bijv. in de supermarkt)</label>
         <p class="muted" style="margin:0;font-size:13px">Vink daarna dingen af op de boodschappenlijst en zet het vinkje hier weer uit.</p>
         <button class="btn" id="sim-update">Toon de melding 'nieuwe versie'</button></div>` : ""}
+      ${isAdmin() ? "" : `<p class="muted" style="margin:0 4px;font-size:13px">De beheerder ziet per persoon hoe vaak de app gebruikt wordt: hoeveel recepten je opent en hoeveel je op het weekmenu en de boodschappenlijst zet. Niet welke recepten je bekijkt of wat er op je lijstje staat.</p>`}
       <button class="btn" id="chpw">Wachtwoord wijzigen</button>
       <button class="btn" id="logout">Uitloggen</button>
     </div>`;
