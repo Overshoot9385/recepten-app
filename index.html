@@ -499,6 +499,8 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .howto-ok b { color: var(--herb); }
 
 /* Beheer: overzicht en activiteit */
+.adm-tabs { grid-template-columns: repeat(4, 1fr); }
+.adm-tabs button { font-size: 14px; padding: 0 2px; }
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
 .stat b { font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -533,6 +535,13 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .diff-line.rem { background: color-mix(in srgb, var(--danger) 11%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
 .diff-line .old { color: var(--muted); text-decoration: line-through; }
 .diff-line .arr { color: var(--muted); margin: 0 6px; }
+
+/* Offline en live */
+.net-bar { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 6px); z-index: 14; display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ink); color: var(--bg); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgb(0 0 0 / .15); max-width: calc(100% - 24px); }
+.net-bar[hidden] { display: none; }
+.net-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--saffron); flex: none; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--herb); display: inline-block; box-shadow: 0 0 0 3px color-mix(in srgb, var(--herb) 25%, transparent); }
 </style>
 
 </head>
@@ -584,7 +593,10 @@ function addClear(input, onClear) {
   b.addEventListener("pointerdown", (e) => e.preventDefault()); // toetsenbord blijft open
   b.onclick = () => { input.value = ""; sync(); input.dispatchEvent(new Event("input", { bubbles: true })); input.focus(); if (onClear) onClear(); };
 }
+const NET_RE = /failed to fetch|networkerror|network error|load failed|network request failed|fetch failed|internet connection/i;
+function isNetErr(e) { return !navigator.onLine || NET_RE.test(String((e && e.message) || e || "")); }
 function toast(msg) {
+  if (NET_RE.test(String(msg))) msg = "Geen internetverbinding. Probeer het zo opnieuw.";
   document.querySelectorAll(".toast").forEach((x) => x.remove());
   const t = document.createElement("div");
   t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg;
@@ -964,7 +976,14 @@ function liveStore() {
   return {
     sb,
     async session() { const { data } = await sb.auth.getSession(); return data.session; },
-    onAuth(cb) { sb.auth.onAuthStateChange((_e, s) => cb(s)); },
+    onAuth(cb) { sb.auth.onAuthStateChange((ev, s) => cb(s, ev)); },
+    async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() }); fail(error); },
+    async updatePassword(pw) { const { error } = await sb.auth.updateUser({ password: pw }); fail(error); },
+    // Live bijwerken: Supabase meldt wijzigingen (alleen wat je volgens de toegangsregels mag zien)
+    subscribe(table, cb, onStatus) {
+      const ch = sb.channel("live-" + table).on("postgres_changes", { event: "*", schema: "public", table }, cb).subscribe((st) => onStatus && onStatus(st));
+      return () => sb.removeChannel(ch);
+    },
     async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); fail(error); },
     async signUp(email, password, name, inviteCode) {
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: { display_name: name, invite_code: inviteCode || null } } });
@@ -1218,6 +1237,9 @@ function demoStore() {
     // Voorbeeld: bij de eerste keer verversen heeft je vriendin iets op de lijst gezet
     demoTick() { if (ticks++ === 0) shop.push({ id: uid(), name: "Koffiebonen", amount: null, unit: null, is_checked: false, is_manual: true, position: 0 }); },
     async signIn() { toast("Voorbeeld: hier log je in"); },
+    async resetPassword() { await new Promise((r) => setTimeout(r, 400)); },
+    async updatePassword() { await new Promise((r) => setTimeout(r, 300)); },
+    subscribe() { return () => {}; },
     async signUp() { toast("Voorbeeld: hier wordt het account gemaakt"); },
     async pantry() { return pantryGroups; },
     async savePantry(hid, groups) { pantryGroups = groups; },
@@ -1382,6 +1404,105 @@ applyTheme(getTheme());
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => applyTheme(getTheme()));
 function getRecipe(id) { return S.recipes.find((r) => r.id === id); }
 
+/* ================= Offline: laatste stand onthouden, afvinken bewaren tot er weer verbinding is ================= */
+const CACHE_KEY = () => `receptenboek-cache-${S.user && S.user.id}`;
+const QUEUE_KEY = "receptenboek-wachtrij";
+function isOffline() { return !!S.simOffline || !navigator.onLine || !!S.offline; }
+let cacheTimer = null;
+function saveCache() {
+  if (!S.user || !S.household || S.fromCache) return;
+  clearTimeout(cacheTimer);
+  cacheTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(CACHE_KEY(), JSON.stringify({ at: lastSync, household: S.household, role: S.role, names: S.names, avatars: S.avatars, roles: S.roles,
+        recipes: S.recipes, favs: [...S.favs], shop: S.shop, plan: S.plan, pantry: PANTRY_GROUPS, meals: S.meals, weekStart: isoDate(S.weekStart) }));
+    } catch (_) { /* vol of niet beschikbaar: dan zonder offline-kopie */ }
+  }, 300);
+}
+function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY()) || "null"); } catch (_) { return null; } }
+function applyCache(c) {
+  Object.assign(S, { household: c.household, role: c.role, names: c.names || {}, avatars: c.avatars || {}, roles: c.roles || {}, recipes: c.recipes || [], favs: new Set(c.favs || []), shop: c.shop || [], plan: c.plan });
+  if (c.pantry) { PANTRY_GROUPS = c.pantry; buildPantryRe(); }
+  S.cachedMeals = { week: c.weekStart, meals: c.meals || [] };
+  lastSync = c.at || Date.now();
+}
+function getQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); } catch (_) { return []; } }
+function setQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (_) { /* niet erg */ } updateNetBar(); }
+function enqueue(op) {
+  const q = getQueue();
+  if (op.t === "check") {
+    const add = q.find((x) => x.t === "add" && x.tmp === op.id);
+    if (add) { add.item.is_checked = op.v; setQueue(q); return; }
+    const prev = q.find((x) => x.t === "check" && x.id === op.id);
+    if (prev) { prev.v = op.v; setQueue(q); return; }
+  }
+  q.push(op); setQueue(q);
+}
+let flushing = false;
+async function flushQueue() {
+  if (flushing || isOffline()) return;
+  flushing = true;
+  let q = getQueue(), done = 0;
+  try {
+    while (q.length) {
+      const op = q[0];
+      if (op.t === "check") await store.updateShopping(op.id, { is_checked: op.v });
+      if (op.t === "add") {
+        const [row] = await store.addShopping(S.household.id, [op.item]);
+        const local = S.shop.find((x) => x.id === op.tmp); if (local) Object.assign(local, row);
+      }
+      q.shift(); setQueue(q); done++;
+    }
+  } catch (e) { if (isNetErr(e)) goOffline(); else { toast(e.message); setQueue([]); } }
+  finally { flushing = false; }
+  if (done) toast(`${done} ${done === 1 ? "wijziging" : "wijzigingen"} van je boodschappenlijst verstuurd`);
+}
+function updateNetBar() {
+  let el = document.getElementById("net-bar");
+  if (!el) { el = document.createElement("div"); el.id = "net-bar"; el.className = "net-bar"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+  const n = getQueue().length;
+  el.hidden = !isOffline();
+  if (!el.hidden) document.querySelectorAll(".ptr-hint").forEach((x) => x.remove());
+  if (!el.hidden) {
+    const t = new Date(lastSync).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+    el.innerHTML = `<span class="dot"></span><span>Offline · stand van ${t}${n ? ` · ${n} ${n === 1 ? "wijziging wacht" : "wijzigingen wachten"}` : ""}</span>`;
+  }
+}
+function goOffline() { S.offline = true; updateNetBar(); }
+async function goOnline() {
+  if (S.simOffline || !navigator.onLine) return;
+  S.offline = false; updateNetBar();
+  await flushQueue();
+  if (S.fromCache) { S.fromCache = false; await loadAll(); }
+  else refreshData({ quiet: true });
+}
+window.addEventListener("offline", goOffline);
+window.addEventListener("online", goOnline);
+
+/* ================= Live bijwerken: boodschappen en weekmenu ================= */
+let liveStarted = false;
+function startLive() {
+  if (liveStarted || store.demo || !store.subscribe) return;
+  liveStarted = true;
+  let tShop = null, tMenu = null;
+  store.subscribe("shopping_items", () => {
+    clearTimeout(tShop);
+    tShop = setTimeout(async () => {
+      try {
+        S.shop = await store.shopping(); saveCache();
+        if (S.view === "shop" && !S.shopEdit && !document.querySelector(".sheet-bg") && document.activeElement?.id !== "shop-new") drawShop();
+      } catch (_) { /* volgende keer */ }
+    }, 600);
+  }, (st) => { S.live = st === "SUBSCRIBED"; });
+  store.subscribe("meal_plan", () => {
+    clearTimeout(tMenu);
+    tMenu = setTimeout(async () => {
+      if (S.view !== "menu" || document.querySelector(".sheet-bg")) return;
+      try { await loadWeek(); drawMenu(); } catch (_) { /* volgende keer */ }
+    }, 600);
+  });
+}
+
 async function boot() {
   const session = await store.session();
   S.user = session?.user || null;
@@ -1404,8 +1525,14 @@ async function loadAll() {
     const pg = await store.pantry(S.household.id);
     if (pg) { PANTRY_GROUPS = pg; buildPantryRe(); }
     lastSync = Date.now();
+    S.fromCache = false; S.offline = false;
     render();
-  } catch (e) { renderError(e); }
+    saveCache(); updateNetBar(); startLive(); flushQueue();
+  } catch (e) {
+    const c = isNetErr(e) ? loadCache() : null;
+    if (c) { applyCache(c); S.fromCache = true; goOffline(); render(); }
+    else renderError(isNetErr(e) ? new Error("Geen internetverbinding, en er is nog geen opgeslagen versie op dit toestel. Probeer het opnieuw zodra je verbinding hebt.") : e);
+  }
 }
 
 /* ================= 1. Verversen: omlaag trekken, en vanzelf bij terugkomen in de app ================= */
@@ -1413,13 +1540,15 @@ let lastSync = Date.now(), hiddenAt = 0;
 // Klein regeltje onderaan: wanneer bijgewerkt, en dat omlaag trekken ververst
 function updatedHTML() {
   const t = new Date(lastSync).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  if (isOffline()) return `<p class="updated">${ICON.refresh}<span>Offline · stand van ${t}</span></p>`;
+  if (S.live && ["shop", "menu"].includes(S.view)) return `<p class="updated"><span class="live-dot" aria-hidden="true"></span><span>Live: wijzigingen van anderen verschijnen vanzelf</span></p>`;
   return `<p class="updated">${ICON.refresh}<span>Bijgewerkt om ${t} · trek omlaag om te verversen</span></p>`;
 }
 // Uitleg voor nieuwe gebruikers: een paar keer een melding bovenin, tot je het één keer gedaan hebt
 const PTR_KEY = "receptenboek-verversen-geleerd";
 function ptrLearned() { try { return +(localStorage.getItem(PTR_KEY) || 0) >= 99; } catch (_) { return false; } }
 function ptrHintMaybe() {
-  if (S.ptrHintShown || ptrLearned()) return;
+  if (S.ptrHintShown || ptrLearned() || isOffline()) return;
   let n = 0; try { n = +(localStorage.getItem(PTR_KEY) || 0); localStorage.setItem(PTR_KEY, String(n + 1)); } catch (_) { /* elke keer tonen is ook goed */ }
   if (n >= 4) return; // na een paar keer niet meer zeuren
   S.ptrHintShown = true;
@@ -1433,6 +1562,7 @@ function ptrHintMaybe() {
 function ptrDone() { try { localStorage.setItem(PTR_KEY, "99"); } catch (_) { /* niet erg */ } document.querySelectorAll(".ptr-hint").forEach((x) => x.remove()); }
 async function refreshData(opts = {}) {
   if (!S.user || !S.household || S.refreshing) return false;
+  if (isOffline()) { if (!opts.quiet) toast("Je bent offline: je ziet de laatst opgeslagen stand"); return false; }
   if (["edit", "paste", "members"].includes(S.view) || document.querySelector(".sheet-bg")) return false;
   S.refreshing = true;
   try {
@@ -1448,10 +1578,10 @@ async function refreshData(opts = {}) {
     S.recipes = recipes; S.favs = new Set(favs); S.shop = shop; S.plan = plan;
     if (S.view === "menu") await loadWeek();
     if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))), true); S.shopPantryWeek = ws; }
-    lastSync = Date.now();
+    lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
-    if (S.view === "admin") { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); drawAdmin(); }
+    if (S.view === "admin") { if (["overzicht", "activiteit"].includes(S.adminTab)) { [S.activity, S.usage] = await Promise.all([store.activity(), store.usage(S.household.id)]); drawAdmin(); } }
     else if (S.view === "menu") drawMenu(); else if (S.view === "shop") drawShop(); else if (S.view === "fridge") drawFridge(); else render();
     window.scrollTo(0, y);
     if (roleMsg) toast(roleMsg); else if (!opts.quiet) toast("Bijgewerkt");
@@ -1500,11 +1630,12 @@ function go(view, id) {
   render(); window.scrollTo(0, 0);
 }
 function render() {
+  if (S.recovery) return renderNewPassword();
   if (S.view === "detail") return renderDetail();
   if (S.view === "edit") return canEdit() ? renderEdit() : go("list");
   if (S.view === "paste") return canEdit() ? renderPaste() : go("list");
   if (S.view === "settings") return renderSettings();
-  if (S.view === "members") return isAdmin() ? renderMembers() : go("settings");
+  if (S.view === "members") { S.adminTab = "leden"; return isAdmin() ? go("admin") : go("settings"); }
   if (S.view === "menu") return renderMenu();
   if (S.view === "shop") return renderShop();
   if (S.view === "admin") return isAdmin() ? renderAdmin() : go("list");
@@ -1548,8 +1679,9 @@ function renderAuth(mode = S.inviteCode ? "up" : "in", msg = "") {
       <label class="field"><span>Wachtwoord</span><input class="input" id="a-pass" type="password" minlength="6" autocomplete="${mode === "up" ? "new-password" : "current-password"}" required></label>
       ${msg ? `<p class="notice error">${esc(msg)}</p>` : ""}
       <button class="btn primary block" id="a-submit">${mode === "up" ? "Account maken" : "Inloggen"}</button>
-      ${mode === "up" ? `<p class="muted" style="margin:0;font-size:14px">De code krijg je van de beheerder van het receptenboek.</p>` : ""}
+      ${mode === "up" ? `<p class="muted" style="margin:0;font-size:14px">De code krijg je van de beheerder van het receptenboek.</p>` : `<button type="button" class="linkbtn" id="forgot" style="justify-self:center">Wachtwoord vergeten?</button>`}
     </form></div>`;
+  const fg = $("#forgot"); if (fg) fg.onclick = () => forgotSheet($("#a-email").value.trim());
   if ($("#demo-back")) $("#demo-back").onclick = () => { S.inviteCode = null; render(); };
   $("#tab-in").onclick = () => renderAuth("in");
   $("#tab-up").onclick = () => renderAuth("up");
@@ -1567,6 +1699,65 @@ function renderAuth(mode = S.inviteCode ? "up" : "in", msg = "") {
         : mode === "up" && /database error|uitnodigingscode/i.test(err.message) ? "Deze uitnodigingscode is ongeldig, al gebruikt of verlopen. Vraag de beheerder om een nieuwe."
         : err.message);
     }
+  };
+}
+
+/* ================= Wachtwoord vergeten en nieuw wachtwoord ================= */
+function forgotSheet(email) {
+  const s = sheet(`<div class="sheet-head"><h2>Wachtwoord vergeten</h2></div>
+    <p class="muted" style="margin:-6px 0 0;font-size:15px">Vul je e-mailadres in. Je krijgt een mail met een link om een nieuw wachtwoord te kiezen.</p>
+    <form id="fg-form" class="stack" style="gap:10px"><input class="input" id="fg-email" type="email" autocomplete="email" required value="${esc(email || "")}" placeholder="naam@voorbeeld.nl">
+      <button class="btn primary block" id="fg-send">Stuur de link</button></form>
+    <p class="notice" id="fg-ok" hidden></p>
+    ${store.demo ? `<button class="linkbtn" id="fg-demo" style="justify-self:center">Voorbeeld: zo ziet het scherm na de link eruit</button>` : ""}`);
+  $("#fg-form", s.el).onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("#fg-send", s.el); btn.disabled = true;
+    try {
+      await store.resetPassword($("#fg-email", s.el).value.trim());
+      const ok = $("#fg-ok", s.el); ok.hidden = false;
+      ok.textContent = "Verstuurd. Als dit adres bij een account hoort, staat de mail binnen een paar minuten in je inbox (kijk ook bij spam). Open de link op dit toestel.";
+      btn.textContent = "Opnieuw versturen";
+    } catch (err) { toast(/rate limit|too many/i.test(err.message) ? "Er zijn net te veel mails verstuurd. Probeer het over een uur opnieuw." : err.message); }
+    btn.disabled = false;
+  };
+  const dm = $("#fg-demo", s.el); if (dm) dm.onclick = () => { s.close(); S.recovery = true; renderNewPassword(); };
+}
+function renderNewPassword(msg = "") {
+  $("#app").innerHTML = `<div class="auth">
+    <div><p class="label">${esc(APP_NAME)}</p><h1>Kies een nieuw wachtwoord</h1></div>
+    <form id="np-form" class="stack">
+      <label class="field"><span>Nieuw wachtwoord</span><input class="input" id="np-1" type="password" minlength="6" autocomplete="new-password" required></label>
+      <label class="field"><span>Nog een keer</span><input class="input" id="np-2" type="password" minlength="6" autocomplete="new-password" required></label>
+      ${msg ? `<p class="notice error">${esc(msg)}</p>` : ""}
+      <button class="btn primary block" id="np-save">Wachtwoord opslaan</button>
+      <p class="muted" style="margin:0;font-size:14px">Minstens 6 tekens. Je iPhone kan een sterk wachtwoord voorstellen en het voor je onthouden.</p>
+    </form></div>`;
+  $("#np-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const a = $("#np-1").value, b = $("#np-2").value;
+    if (a !== b) return renderNewPassword("De twee wachtwoorden zijn niet hetzelfde.");
+    $("#np-save").disabled = true;
+    try {
+      await store.updatePassword(a);
+      S.recovery = false;
+      try { history.replaceState(null, "", location.pathname); } catch (_) { /* niet erg */ }
+      toast("Je nieuwe wachtwoord is opgeslagen");
+      await boot();
+    } catch (err) { renderNewPassword(/should be different|same/i.test(err.message) ? "Kies een ander wachtwoord dan je oude." : err.message); }
+  };
+}
+function changePasswordSheet() {
+  const s = sheet(`<div class="sheet-head"><h2>Wachtwoord wijzigen</h2></div>
+    <form id="cp-form" class="stack" style="gap:10px">
+      <input class="input" id="cp-1" type="password" minlength="6" autocomplete="new-password" placeholder="Nieuw wachtwoord" required>
+      <input class="input" id="cp-2" type="password" minlength="6" autocomplete="new-password" placeholder="Nog een keer" required>
+      <button class="btn primary block" id="cp-save">Opslaan</button></form>`);
+  $("#cp-form", s.el).onsubmit = async (e) => {
+    e.preventDefault();
+    if ($("#cp-1", s.el).value !== $("#cp-2", s.el).value) { toast("De twee wachtwoorden zijn niet hetzelfde"); return; }
+    try { await store.updatePassword($("#cp-1", s.el).value); s.close(); toast("Je nieuwe wachtwoord is opgeslagen"); }
+    catch (err) { toast(/should be different|same/i.test(err.message) ? "Kies een ander wachtwoord dan je oude." : err.message); }
   };
 }
 
@@ -2221,7 +2412,13 @@ function miniThumb(r) {
 function minWeek() { return addDays(startOfWeek(new Date()), -7); }
 async function loadWeek() {
   const from = isoDate(S.weekStart), to = isoDate(addDays(S.weekStart, 6));
-  S.meals = await store.mealPlan(from, to);
+  try { S.meals = await store.mealPlan(from, to); if (isoDate(S.weekStart) === isoDate(startOfWeek(new Date()))) saveCache(); }
+  catch (e) {
+    if (!isNetErr(e)) throw e;
+    goOffline();
+    const c = S.cachedMeals || (loadCache() || {});
+    S.meals = (c.week || c.weekStart) === from ? (c.meals || []) : [];
+  }
 }
 async function renderMenu() {
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Weekmenu</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("menu")}`;
@@ -2540,8 +2737,15 @@ function drawShop() {
     const v = $("#shop-new").value.trim(); if (!v) return;
     const a = v.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]{1,6})?\s+(.+)$/);
     const item = a ? { name: a[3], amount: parseFloat(a[1].replace(",", ".")), unit: a[2] || null } : { name: v, amount: null, unit: null };
-    try { const [row] = await store.addShopping(S.household.id, [{ ...item, is_manual: true, position: 0 }]); S.shop.push(row); drawShop(); $("#shop-new").focus(); }
-    catch (err) { toast(err.message); }
+    const addOffline = () => {
+      const tmp = "tmp-" + Math.random().toString(36).slice(2, 10);
+      S.shop.push({ id: tmp, ...item, is_checked: false, is_manual: true, position: 0 });
+      enqueue({ t: "add", tmp, item: { ...item, is_manual: true, position: 0 } });
+      drawShop(); saveCache(); $("#shop-new").focus();
+    };
+    if (isOffline()) return addOffline();
+    try { const [row] = await store.addShopping(S.household.id, [{ ...item, is_manual: true, position: 0 }]); S.shop.push(row); drawShop(); saveCache(); $("#shop-new").focus(); }
+    catch (err) { if (isNetErr(err)) { goOffline(); addOffline(); } else toast(err.message); }
   };
   const se = $("#shop-edit"); if (se) se.onclick = () => { S.shopEdit = !S.shopEdit; drawShop(); };
   $("main").addEventListener("click", async (e) => {
@@ -2570,8 +2774,10 @@ function drawShop() {
     const cb = e.target.closest("input[type=checkbox][data-id]"); if (!cb) return;
     const it = S.shop.find((x) => x.id === cb.dataset.id);
     it.is_checked = cb.checked;
-    drawShop();
-    try { await store.updateShopping(it.id, { is_checked: it.is_checked }); } catch (err) { toast(err.message); }
+    drawShop(); saveCache();
+    if (isOffline() || String(it.id).startsWith("tmp-")) { enqueue({ t: "check", id: it.id, v: it.is_checked }); return; }
+    try { await store.updateShopping(it.id, { is_checked: it.is_checked }); }
+    catch (err) { if (isNetErr(err)) { goOffline(); enqueue({ t: "check", id: it.id, v: it.is_checked }); } else toast(err.message); }
   });
   const cd = $("#clear-done"); if (cd) cd.onclick = async () => {
     try { await store.removeShopping(done.map((x) => x.id)); S.shop = S.shop.filter((x) => !x.is_checked); drawShop(); }
@@ -2645,15 +2851,18 @@ function showInvite(inv) {
   $("#inv-close", s.el).onclick = s.close;
   const pv = $("#inv-preview", s.el); if (pv) pv.onclick = () => { s.close(); S.inviteCode = inv.code; renderAuth("up"); };
 }
-async function renderMembers() {
-  $("#app").innerHTML = `<div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Leden en uitnodigingen</span><span style="width:40px"></span></div><div class="spinner"></div>`;
-  $("#back").onclick = () => go("settings");
+async function renderMembers(box) {
+  // In Beheer (box) of als losse pagina
+  const rerender = () => renderMembers(box && document.body.contains(box) ? box : undefined);
+  const header = box ? "" : `<div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Leden en uitnodigingen</span><span style="width:40px"></span></div>`;
+  const target = box || $("#app");
+  target.innerHTML = `${header}<div class="spinner" aria-label="Laden"></div>`;
+  if (!box) $("#back").onclick = () => go("settings");
   let invites = [], members = [];
   try { [invites, members] = await Promise.all([store.invites(), store.members()]); } catch (e) { toast(e.message); }
   S.roles = Object.fromEntries(members.map((m) => [m.user_id, m.role]));
   const roleSelect = (id, val, extra = "") => `<select class="input role-select" ${extra} data-role-for="${esc(id)}">${["admin", "editor", "viewer"].map((r) => `<option value="${r}" ${val === r ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("")}</select>`;
-  $("#app").innerHTML = `
-    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Leden en uitnodigingen</span><span style="width:40px"></span></div>
+  target.innerHTML = `${header}
     <div class="stack" id="mv">
       <form class="panel" id="inv-form">
         <h2 style="font-size:20px">Iemand uitnodigen</h2>
@@ -2672,21 +2881,21 @@ async function renderMembers() {
           ${m.user_id === S.user.id ? `<span style="width:32px"></span>` : `<button class="x" data-remove="${esc(m.user_id)}" aria-label="Verwijder ${esc(nameOf(m.user_id))}">×</button>`}</li>`).join("")}</ul>
         <p class="muted" style="margin:0;font-size:14px">${Object.entries(ROLE_HELP).map(([k, v]) => `<b>${ROLE_LABEL[k]}</b>: ${v.toLowerCase()}.`).join(" ")}</p></div>
     </div>`;
-  $("#back").onclick = () => go("settings");
+  if (!box) $("#back").onclick = () => go("settings");
   $("#inv-role").onchange = (e) => { $("#inv-help").textContent = ROLE_HELP[e.target.value]; };
   $("#inv-form").onsubmit = async (e) => {
     e.preventDefault();
-    try { const inv = await store.createInvite(S.household.id, $("#inv-name").value.trim(), $("#inv-role").value); await renderMembers(); showInvite(inv); }
+    try { const inv = await store.createInvite(S.household.id, $("#inv-name").value.trim(), $("#inv-role").value); await rerender(); showInvite(inv); }
     catch (err) { toast(err.message); }
   };
   $("#mv").onclick = async (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.show) showInvite(invites.find((i) => i.id === b.dataset.show));
-    if (b.dataset.revoke) { try { await store.revokeInvite(b.dataset.revoke); toast("Uitnodiging ingetrokken"); renderMembers(); } catch (err) { toast(err.message); } }
+    if (b.dataset.revoke) { try { await store.revokeInvite(b.dataset.revoke); toast("Uitnodiging ingetrokken"); rerender(); } catch (err) { toast(err.message); } }
     if (b.dataset.remove) {
       const id = b.dataset.remove;
       if (!(await confirmSheet(`${nameOf(id)} uit het receptenboek halen? Recepten van deze persoon blijven staan.`, "Verwijderen"))) return;
-      try { await store.removeMember(id); toast(`${nameOf(id)} is verwijderd`); renderMembers(); } catch (err) { toast(err.message); }
+      try { await store.removeMember(id); toast(`${nameOf(id)} is verwijderd`); rerender(); } catch (err) { toast(err.message); }
     }
   };
   $("#mv").onchange = async (e) => {
@@ -2696,11 +2905,62 @@ async function renderMembers() {
       await store.setRole(id, sel.value);
       toast(`${nameOf(id)} is nu ${ROLE_LABEL[sel.value].toLowerCase()}`);
       if (id === S.user.id) { S.role = sel.value; if (!isAdmin()) return go("settings"); }
-    } catch (err) { toast(/minstens/.test(err.message) ? "Er moet minstens één beheerder blijven." : err.message); renderMembers(); }
+    } catch (err) { toast(/minstens/.test(err.message) ? "Er moet minstens één beheerder blijven." : err.message); rerender(); }
   };
 }
 
 /* ================= 4. Voorraadkast beheren ================= */
+// Binnen Beheer: lijst direct aanpassen, elke wijziging wordt meteen opgeslagen
+function drawPantryAdmin(box) {
+  let saveT = null;
+  const save = () => { clearTimeout(saveT); saveT = setTimeout(async () => { try { await store.savePantry(S.household.id, PANTRY_GROUPS); } catch (err) { toast(err.message); } }, 500); };
+  const draw = () => {
+    box.innerHTML = `<div class="stack" style="gap:14px">
+      <p class="muted" style="margin:0;font-size:14px">${pantryCount()} dingen die jullie meestal in huis hebben. Die komen niet vanzelf op de boodschappenlijst, en bij <b>Wat kan ik maken?</b> tellen ze als in huis. Een woord telt ook binnen een langere naam: <b>sriracha</b> herkent ook ‘Sriracha saus’, en Engelse namen als <b>olive oil</b> worden ook herkend.</p>
+      <form id="pa-add" class="loose"><b style="font-size:15px">Iets toevoegen</b>
+        <div class="row2"><input class="input" id="pa-new" placeholder="Bijv. kokosmelk" autocomplete="off" autocapitalize="off" enterkeyhint="done">
+          <select class="input" id="pa-group" style="width:auto;flex:none;max-width:42%">${PANTRY_GROUPS.map((g, i) => `<option value="${i}">${esc(g.group)}</option>`).join("")}</select></div>
+        <button class="btn primary">Toevoegen</button></form>
+      ${PANTRY_GROUPS.map((g, gi) => `<div class="panel pantry-group"><p class="label" style="margin:0">${esc(g.group)} (${g.items.length})</p>
+        <div class="chipwrap">${g.items.map((w, wi) => `<span class="pantry-chip">${esc(w)}<button data-g="${gi}" data-w="${wi}" aria-label="${esc(w)} weghalen">×</button></span>`).join("") || `<span class="muted" style="font-size:14px">Leeg</span>`}</div></div>`).join("")}
+      <div class="panel"><p class="label" style="margin:0">Bestaande recepten</p>
+        <p class="muted" style="margin:0;font-size:14px">De lijst aangepast? Deel dan ook de recepten die er al in staan opnieuw in.</p>
+        <button class="btn" id="pa-apply">Ook toepassen op bestaande recepten</button></div>
+    </div>`;
+    $("#pa-add", box).onsubmit = (e) => {
+      e.preventDefault();
+      const words = $("#pa-new", box).value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+      if (!words.length) return;
+      const g = PANTRY_GROUPS[+$("#pa-group", box).value];
+      const fresh = words.filter((w) => !PANTRY_GROUPS.some((x) => x.items.some((y) => norm(y) === norm(w))));
+      g.items.push(...fresh); g.items.sort((a, b) => a.localeCompare(b, "nl"));
+      buildPantryRe(); save(); draw();
+      toast(fresh.length ? `${fresh.join(", ")} toegevoegd aan ${g.group.toLowerCase()}` : "Staat er al in");
+    };
+    box.querySelectorAll("[data-g]").forEach((b) => b.onclick = () => {
+      const w = PANTRY_GROUPS[+b.dataset.g].items.splice(+b.dataset.w, 1)[0];
+      buildPantryRe(); save(); draw(); toast(`${w} weggehaald`);
+    });
+    $("#pa-apply", box).onclick = (e) => applyPantryToRecipes(e.currentTarget);
+  };
+  draw();
+}
+async function applyPantryToRecipes(btn) {
+  const changes = [];
+  let recs = 0;
+  for (const r of S.recipes) {
+    let changed = false;
+    for (const i of r.recipe_ingredients) { const v = isPantry(i.name); if (!!i.is_pantry !== v) { changes.push({ id: i.id, is_pantry: v, ref: i }); changed = true; } }
+    if (changed) recs++;
+  }
+  const n = changes.length;
+  if (!n) { toast("Alle recepten waren al goed ingedeeld"); return; }
+  if (!(await confirmSheet(`${n} ${n === 1 ? "ingrediënt" : "ingrediënten"} in ${recs} ${recs === 1 ? "recept" : "recepten"} opnieuw indelen? Ook wat iemand met de hand naar of uit de voorraadkast heeft verplaatst.`, "Opnieuw indelen"))) return;
+  if (btn) btn.disabled = true;
+  try { await store.setPantryFlags(changes); for (const c of changes) c.ref.is_pantry = c.is_pantry; toast(`${n} ${n === 1 ? "ingrediënt" : "ingrediënten"} opnieuw ingedeeld in ${recs} ${recs === 1 ? "recept" : "recepten"}`); }
+  catch (err) { toast(err.message); }
+  if (btn) btn.disabled = false;
+}
 function pantrySheet() {
   const admin = isAdmin();
   let dirty = false;
@@ -2959,7 +3219,7 @@ function otherDiff(e) {
 async function renderAdmin() {
   S.adminTab = S.adminTab || "overzicht";
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Beheer</h1></div>
-      <div class="tabs" role="tablist" id="adm-tabs"><button role="tab" data-t="overzicht" aria-selected="${S.adminTab === "overzicht"}">Overzicht</button><button role="tab" data-t="activiteit" aria-selected="${S.adminTab === "activiteit"}">Activiteit</button></div></header>
+      <div class="tabs adm-tabs" role="tablist" id="adm-tabs">${[["overzicht", "Overzicht"], ["activiteit", "Activiteit"], ["leden", "Leden"], ["voorraad", "Voorraad"]].map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${S.adminTab === k}">${l}</button>`).join("")}</div></header>
     <main id="adm"><div class="spinner" aria-label="Laden"></div></main>${tabBarHTML("admin")}`;
   bindTabBar();
   $("#adm-tabs").onclick = (e) => { const b = e.target.closest("[data-t]"); if (!b) return; S.adminTab = b.dataset.t; for (const x of $("#adm-tabs").children) x.setAttribute("aria-selected", x === b); drawAdmin(); };
@@ -2969,6 +3229,9 @@ async function renderAdmin() {
 }
 function drawAdmin() {
   const box = $("#adm"); if (!box) return;
+  box.onclick = null;
+  if (S.adminTab === "leden") return renderMembers(box);
+  if (S.adminTab === "voorraad") return drawPantryAdmin(box);
   if (S.adminTab === "overzicht") return drawUsage(box);
   drawActivity(box);
 }
@@ -3061,6 +3324,7 @@ function renderSettings() {
             <button class="btn" id="s-emoji">${S.avatars?.[S.user.id]?.emoji ? "Andere emoji" : "Kies je emoji"}</button>
             <p class="muted" style="margin:0;font-size:13px">Zo herkennen anderen jouw recepten en gerechten.</p>
           </div></div>
+        <p class="muted" style="margin:0;font-size:14px">Jouw rol: <b>${esc(ROLE_LABEL[S.role] || "")}</b> · ${esc((ROLE_HELP[S.role] || "").toLowerCase())}.</p>
         <form id="name-form" class="stack" style="gap:10px"><label class="field"><span>Jouw naam bij recepten</span><input class="input" id="s-name" value="${esc(myName)}" required></label>
           <button class="btn">Naam opslaan</button></form>
       </div>
@@ -3070,9 +3334,6 @@ function renderSettings() {
           ${[["auto", "Automatisch"], ["light", "Licht"], ["dark", "Donker"]].map(([v, l]) => `<button role="radio" data-theme-opt="${v}" aria-selected="${getTheme() === v}" aria-checked="${getTheme() === v}">${l}</button>`).join("")}
         </div>
         <p class="muted" style="margin:0;font-size:14px">Automatisch volgt de instelling van je telefoon. Je keuze wordt op dit toestel onthouden.</p></div>
-      <div class="panel"><p class="label" style="margin:0">Voorraadkast</p>
-        <p class="muted" style="margin:0;font-size:14px">${pantryCount()} dingen die jullie meestal in huis hebben, zoals sauzen en kruiden. Die komen niet vanzelf op de boodschappenlijst, en bij <b>Wat kan ik maken?</b> tellen ze als in huis.</p>
-        <button class="btn" id="to-pantry">${isAdmin() ? "Voorraadkast aanpassen" : "Bekijk de lijst"}</button></div>
       <div class="panel" id="plan-panel"><p class="label" style="margin:0">Jouw huishouden</p>
         ${planRequestBanner()}
         ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 30)).join("")}<span>${esc(planWithText())}</span></div>
@@ -3083,12 +3344,15 @@ function renderSettings() {
           const pending = ((S.plan && S.plan.outgoing) || []).includes(id);
           return `<li>${avatarHTML(id, 32)}<span>${esc(nameOf(id))}</span><span class="n">${pending ? `<span class="muted">Gevraagd</span> · <button class="linkbtn danger-text" data-cancel="${esc(id)}">Intrekken</button>` : `<button class="linkbtn" data-ask="${esc(id)}">Vraag voor huishouden</button>`}</span></li>`;
         }).join("")}</ul></div>
-      <div class="panel"><p class="label" style="margin:0">In ${esc(S.household.name || APP_NAME)}</p>
-        <ul class="members">${Object.keys(S.names).filter((id) => S.roles[id]).sort((a, b) => (a === S.user.id ? -1 : b === S.user.id ? 1 : nameOf(a).localeCompare(nameOf(b), "nl"))).map((id) => `<li>${avatarHTML(id, 36)}<span>${esc(nameOf(id))}${id === S.user.id ? ' <span class="muted">(jij)</span>' : ""}<small class="muted" style="display:block">${ROLE_LABEL[S.roles[id]] || ""}</small></span><span class="n">${((n) => n === 1 ? "1 recept" : n + " recepten")(S.recipes.filter((r) => ownerOf(r) === id).length)}</span></li>`).join("")}</ul>
-        ${isAdmin() ? `<button class="btn" id="to-members">Leden en uitnodigingen beheren</button>` : `<p class="muted" style="margin:0;font-size:14px">Jij bent ${esc((ROLE_LABEL[S.role] || "").toLowerCase())}: ${esc((ROLE_HELP[S.role] || "").toLowerCase())}.</p>`}</div>
+      ${store.demo ? `<div class="panel"><p class="label" style="margin:0">Alleen in het voorbeeld</p>
+        <label class="check-line"><input type="checkbox" id="sim-off" ${S.simOffline ? "checked" : ""}> Doe alsof ik offline ben (bijv. in de supermarkt)</label>
+        <p class="muted" style="margin:0;font-size:13px">Vink daarna dingen af op de boodschappenlijst en zet het vinkje hier weer uit.</p></div>` : ""}
+      <button class="btn" id="chpw">Wachtwoord wijzigen</button>
       <button class="btn" id="logout">Uitloggen</button>
     </div>`;
   bindHowto();
+  $("#chpw").onclick = changePasswordSheet;
+  const so = $("#sim-off"); if (so) so.onchange = async (e) => { S.simOffline = e.target.checked; if (S.simOffline) goOffline(); else await goOnline(); };
   $("#theme").onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
     setTheme(b.dataset.themeOpt);
@@ -3096,8 +3360,6 @@ function renderSettings() {
   };
   $("#s-emoji").onclick = () => emojiSheet();
   $("#back").onclick = () => go("list");
-  if ($("#to-members")) $("#to-members").onclick = () => go("members");
-  $("#to-pantry").onclick = () => pantrySheet();
   $("#plan-panel").onclick = async (e) => {
     if (await handlePlanBanner(e, renderSettings)) return;
     const b = e.target.closest("button"); if (!b) return;
@@ -3124,8 +3386,13 @@ try {
   const c = new URLSearchParams(location.search).get("code");
   if (c) { S.inviteCode = c.trim().toUpperCase(); history.replaceState(null, "", location.pathname + location.hash); }
 } catch (_) { /* geen code */ }
-if (store.onAuth) store.onAuth((s) => { if (!s && S.user && !store.demo) { S.user = null; renderAuth(); } });
+if (store.onAuth) store.onAuth((s, ev) => {
+  if (ev === "PASSWORD_RECOVERY") { S.user = s?.user || S.user; S.recovery = true; renderNewPassword(); return; }
+  if (!s && S.user && !store.demo) { S.user = null; renderAuth(); }
+});
 boot().catch(renderError);
+// App-bestanden op het toestel bewaren, zodat de app ook zonder bereik opent
+if ("serviceWorker" in navigator && LIVE && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { /* zonder offline-opslag verder */ });
 </script>
 
 </body>
