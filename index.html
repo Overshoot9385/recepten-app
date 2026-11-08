@@ -270,7 +270,7 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 
 /* Lijst */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 6px; }
-.card { background: none; border: 0; padding: 0; text-align: left; display: grid; gap: 8px; min-width: 0; }
+.card { background: none; border: 0; padding: 0; text-align: left; display: grid; gap: 8px; min-width: 0; align-content: start; grid-template-rows: auto auto auto; }
 .thumb {
   aspect-ratio: 4 / 3; width: 100%; max-width: 100%; border-radius: var(--r); overflow: hidden;
   background: var(--sunk); display: grid; place-items: center; position: relative;
@@ -279,7 +279,10 @@ select.input.role-select { width: auto; flex: none; min-height: 38px; padding: 6
 .thumb .initial { font-family: var(--font-display); font-size: 44px; font-weight: 800; color: var(--herb); opacity: .55; }
 .fav-dot { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; color: var(--saffron); }
 .fav-dot svg { width: 15px; height: 15px; }
-.card h3 { font-size: 17px; font-weight: 600; }
+.card h3 { font-size: 17px; font-weight: 600; line-height: 1.25; min-height: 2.5em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .meta { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; gap: 0; }
+.card .meta span + span::before { content: "·"; margin: 0 6px; }
+.card .meta span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .empty { text-align: center; padding: 48px 16px; display: grid; gap: 10px; justify-items: center; }
 .empty h2 { font-size: 22px; }
@@ -478,6 +481,16 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .copy-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 6px 12px; font-weight: 600; font-size: 14px; min-height: 36px; }
 .copy-btn.done { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
 .demo-note { font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Op je beginscherm zetten */
+.howto-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: st; }
+.howto-steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; counter-increment: st; font-size: 15px; line-height: 1.45; }
+.howto-steps li::before { content: counter(st); width: 28px; height: 28px; border-radius: 50%; background: var(--herb); color: var(--herb-ink); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.howto-steps .key { display: inline-flex; align-items: center; gap: 4px; vertical-align: -3px; background: var(--sunk); border: 1px solid var(--line); border-radius: 7px; padding: 1px 7px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+.howto-steps .key svg { width: 15px; height: 15px; }
+#howto-body, #hs-body { display: grid; gap: 14px; }
+.howto-ok { display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--herb) 12%, transparent); border-radius: 12px; padding: 12px 14px; font-size: 15px; }
+.howto-ok b { color: var(--herb); }
 </style>
 
 </head>
@@ -499,6 +512,9 @@ const LIVE = host.endsWith("github.io") || host === "localhost" || host === "127
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ICON = {
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
+  dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+  plusSq: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>',
   down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
   fridge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="2.5" width="13" height="19" rx="2.5"/><path d="M5.5 10h13M9 5.5v2M9 13v3"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
@@ -609,7 +625,9 @@ function fmtDate(iso) {
 const FRAC = { "½": .5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": .25, "¾": .75, "⅛": .125 };
 function parseAmount(text) {
   const raw = String(text || "").trim();
-  const m = raw.match(/^(\d+(?:[.,]\d+)?)?\s*([½⅓⅔¼¾⅛])?\s*(?:-\s*\d+(?:[.,]\d+)?\s*)?(.*)$/);
+  const fr = raw.match(/^(?:(\d+)\s+)?(\d+)\s*\/\s*(\d+)\s*(.*)$/);
+  if (fr && +fr[3]) return { amount: Math.round(((+fr[1] || 0) + +fr[2] / +fr[3]) * 1000) / 1000, unit: fr[4].trim() || null, original: raw };
+  const m = raw.match(/^(\d+(?:[.,]\d+)?)?\s*([½⅓⅔¼¾⅛])?\s*(?:[-–]\s*\d+(?:[.,]\d+)?\s*)?(.*)$/);
   if (!m || (!m[1] && !m[2])) return { amount: null, unit: raw || null, original: raw };
   let v = m[1] ? parseFloat(m[1].replace(",", ".")) : 0;
   if (m[2]) v += FRAC[m[2]];
@@ -635,8 +653,8 @@ function fmtAmount(v, unit) {
 
 /* ================= Recept uit Notes inlezen ================= */
 const SECTIONS = [
-  { key: "ing", re: /^(ingredi[eë]nten|ingredients|wat heb je nodig|je hebt nodig|benodigdheden|boodschappen(lijst)?)\b/i },
-  { key: "steps", re: /^(bereidingswijze|bereiding|bereiden|werkwijze|instructies|zo maak je (het|dit)|aan de slag|stappen|method|instructions|directions)\b/i },
+  { key: "ing", re: /^(ingredi[eë]nten|ingredients|(dit |wat )?heb je nodig|je hebt nodig|benodigdheden|boodschappen(lijst)?|what you need|you need)\b/i },
+  { key: "steps", re: /^(bereidingswijze|bereiding|bereiden|werkwijze|instructies|(zo|hoe) maak je (het|dit|ze)|aan de slag|stappen|method|instructions|directions|how to make)\b/i },
   { key: "tips", re: /^(kooktips|tips)\b/i },
 ];
 const TAG_RULES = [
@@ -680,64 +698,117 @@ function splitTitled(line) {
   const m = t.match(/^([^:]{2,45}):\s+(.+)$/);
   return m ? { title: m[1].trim(), text: m[2].trim() } : { title: "", text: t };
 }
+// Lange alinea opdelen in losse stappen (per zin; korte zinnen blijven bij de vorige)
+function splitSentences(p) {
+  const parts = String(p).split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý0-9])/).map((x) => x.trim()).filter(Boolean);
+  const out = [];
+  for (const x of parts) { if (out.length && (x.length < 45 || out[out.length - 1].length < 45)) out[out.length - 1] += " " + x; else out.push(x); }
+  return out;
+}
+const QTY_TOKEN = /(?:^|\s)(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+)?|\d+\s*\/\s*\d+|[½⅓⅔¼¾⅛])\s*(?:g|gr|gram|kg|ml|l|dl|cl|el|tl|tbsp|tsp|cups?|stuks?|tenen|teen)?\s+(?=\p{L})/giu;
+// Instagram-oproepjes en reclameregels
+const CTA_RE = /(vergeet .{0,12}niet op te slaan|sla (dit|hem|'m|’m|het)( recept)? op|^sla op|bewaar (dit|deze)|save (this|for later|&|en)|^save\b|volg (mij|me|ons)( voor|\b)|follow (me|for)|tag (een|iemand|a friend|someone)|deel (dit|met)|share (this|with)|link in (de )?bio|meer recepten|^enjoy\b|^eet smakelijk|^smakelijk)/i;
+const PROMO_RE = /@\S+.*(gekregen|code|samenwerking|sponsor|partner|i\.s\.m|ad\b|korting)|(gekregen|code|samenwerking|sponsor|korting).*@\S+/i;
 function parseRecipeText(src) {
-  const lines = String(src).replace(/\r/g, "").split("\n").map((l) => l.replace(/ /g, " ").trimEnd());
   const out = { title: "", subtitle: "", servings: 2, prep_time_minutes: null, ingredients: [], steps: [], tips: [], tags: [], source_url: "" };
-  let section = "head";
   const warnings = [];
-  const UNIT_WORD = /^(g|gr|gram|kg|ml|l|dl|cl|el|tl|eetlepels?|theelepels?|stuks?|tenen|teentjes?|teen|blikjes?|blik|zakjes?|snufje|snuf|bosjes?|bos|takjes?|cups?|tbsp|tsp)\.?$/i;
-  for (const rawLine of lines) {
-    // Opsommingstekens en emoji vooraan weghalen (komt veel voor op Instagram)
-    const line = rawLine.trim().replace(/^[\p{Extended_Pictographic}\uFE0F\u200D*•·▪\-–✓✔]+\s*/u, "").trim();
+  const UNIT_WORD = /^(g|gr|gram|kg|ml|l|dl|cl|el|tl|eetlepels?|theelepels?|stuks?|tenen|teentjes?|teen|blikjes?|blik|zakjes?|snufje|snuf|bosjes?|bos|takjes?|cups?|tbsp|tsp|tablespoons?|teaspoons?|handje|handjes|scheutje|plakjes?|sneetjes?|cloves?)\.?$/i;
+  // 1. Regels voorbereiden: opsommingsteken onthouden, emoji en tekens vooraan weg, hashtags achteraan weg
+  const prepared = [];
+  for (const raw of String(src).replace(/\r/g, "").split("\n")) {
+    let line = raw.replace(/ /g, " ").trim().replace(/^(\d{1,2})️?⃣\s*/u, "$1. ");
+    if (/^([#@][\p{L}\p{N}_.]+[\s\p{Extended_Pictographic}\uFE0F]*)+$/u.test(line)) continue; // alleen hashtags of @namen
+    const bullet = /^[^\p{L}\p{N}(“"'¼½¾⅓⅔⅛]/u.test(line);
+    line = line.replace(/^[^\p{L}\p{N}(“"'¼½¾⅓⅔⅛]+/u, "").trim();
+    line = line.replace(/(\s+#[\p{L}\p{N}_]+)+\s*$/u, "").replace(/[\s\p{Extended_Pictographic}️‍]+$/u, "").trim();
     if (!line) continue;
-    if (/^(#\S+\s*)+$/.test(line)) continue; // regel met alleen hashtags
+    if (/^([#@][\p{L}\p{N}_.]+\s*)+$/u.test(line)) continue;
+    if (/^(stap|step)\s*\d+\s*[:.)-]?\s*$/i.test(line)) continue;
+    if (line.length < 140 && (CTA_RE.test(line) || PROMO_RE.test(line))) continue;
+    line = line.replace(/(^|\s)(\d+(?:[.,]\d+)?)(g|gr|kg|ml|cl|dl|l|el|tl)\b/gi, (m0, sp, n, u) => `${sp}${n} ${u.toLowerCase()}`); // "200G" -> "200 g"
+    // Ingrediënten die allemaal op één regel staan ("4 salmon fillets 200 g feta 1 cup …") opknippen
+    const tokens = [...line.matchAll(QTY_TOKEN)];
+    if (tokens.length >= 3 && !/[.!?]\s/.test(line) && line.length > 40) {
+      const cuts = tokens.map((t) => t.index + (t[0].startsWith(" ") ? 1 : 0)).filter((x) => x > 0);
+      let last = 0;
+      for (const c of cuts) { prepared.push({ text: line.slice(last, c).trim().replace(/,$/, ""), bullet: true, split: true }); last = c; }
+      prepared.push({ text: line.slice(last).trim(), bullet: true, split: true });
+      continue;
+    }
+    prepared.push({ text: line, bullet });
+  }
+  // 2. Indelen in titel, ingrediënten, stappen en tips
+  let section = "head";
+  const isQtyStart = (l) => /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+|[½⅓⅔¼¾⅛])\s*\S/.test(l);
+  const isNumbered = (l) => /^\d+[.)]\s+\S/.test(l);
+  const pushSteps = (l, bullet) => {
+    const clean = l.replace(/^(stap\s*)?\d+[.):]\s+/i, "");
+    if (clean.length > 220 && !isNumbered(l) && !bullet) for (const x of splitSentences(clean)) out.steps.push({ title: "", text: x });
+    else out.steps.push(splitTitled(clean));
+  };
+  for (let n = 0; n < prepared.length; n++) {
+    const { text: line, bullet } = prepared[n];
+    const next = prepared[n + 1];
+    const perPerson = /per persoon|per person/i.test(line) && !isQtyStart(line) && line.length < 60;
+    if (perPerson && section === "head") out.servings = 1;
+    const serv = line.match(/(?:voor|serves|recept voor)\s*(\d{1,2})\s*(?:personen|pers\.?|p\b|people|porties)/i);
+    if (serv && line.length < 50) { out.servings = +serv[1]; if (section !== "head" || out.title) { if (section === "head" && next && (next.bullet || isQtyStart(next.text))) section = "ing"; continue; } }
     const url = line.match(/https?:\/\/\S+/);
     if (url) { out.source_url = url[0]; continue; }
     if (/-url$/i.test(line) || /^(bron|link|url)\s*:?$/i.test(line)) continue;
-    const sec = SECTIONS.find((s) => s.re.test(line) && line.length < 40);
+    const sec = SECTIONS.find((x) => x.re.test(line) && line.length < 50);
     if (sec) {
       section = sec.key;
       const sp = line.match(/(\d+)\s*(?:p\b|pers|personen)/i); if (sp && sec.key === "ing") out.servings = +sp[1];
+      else if (perPerson && sec.key === "ing") out.servings = 1;
       continue;
     }
     const time = line.match(/(\d+)\s*(?:min|minuten)\b/i);
     if (section === "head") {
-      // Geen kopjes? Herken ingrediënten (begint met hoeveelheid) en genummerde stappen
-      if (out.title && /^\d+[.)]\s+\S/.test(line)) { section = "steps"; out.steps.push(splitTitled(line.replace(/^\d+[.)]\s+/, ""))); continue; }
-      if (out.title && /^(\d+(?:[.,]\d+)?|[½⅓⅔¼¾⅛])\s*\S/.test(line) && line.length < 60) section = "ing";
+      // Geen kopjes? Herken ingrediënten (begint met hoeveelheid of opsommingsteken) en genummerde stappen
+      if (out.title && isNumbered(line)) { section = "steps"; pushSteps(line, bullet); continue; }
+      if (out.title && ((isQtyStart(line) && line.length < 60) || (bullet && line.length < 60 && next && next.bullet))) section = "ing";
     }
     if (section === "head") {
       if (!out.title) out.title = line;
-      else if (!out.subtitle) out.subtitle = line;
+      else if (!out.subtitle && line.length < 160) out.subtitle = line;
       if (time && !out.prep_time_minutes) out.prep_time_minutes = +time[1];
       continue;
     }
-    if (section === "ing" && /^\d+[.)]\s+\S/.test(line) && line.length > 25) { section = "steps"; out.steps.push(splitTitled(line.replace(/^\d+[.)]\s+/, ""))); continue; }
     if (section === "ing") {
+      if (isNumbered(line) && line.length > 25) { section = "steps"; pushSteps(line, bullet); continue; }
+      // Lange zin zonder hoeveelheid vooraan: dan begint de bereiding (ook zonder kopje)
+      if (!isQtyStart(line) && line.length > 70 && !prepared[n].split) { section = "steps"; pushSteps(line, bullet); continue; }
+      // Tussenkopje in de ingrediëntenlijst ("Voor de dressing", "Salade")
+      if (!isQtyStart(line) && line.length < 35 && (/:$/.test(line) || /^voor (de|het)\s/i.test(line) || (!bullet && next && next.bullet))) continue;
       const pm = line.match(/\((\d+)\s*p(?:ers(?:onen)?)?\)/i);
       if (/hoeveelheid/i.test(line)) { if (pm) out.servings = +pm[1]; continue; }
       let name, qty;
-      const parts = line.split(/\t+|\s{2,}/).map((s) => s.trim()).filter(Boolean);
+      const parts = line.split(/\t+|\s{2,}/).map((x) => x.trim()).filter(Boolean);
       // Hoeveelheid vooraan: "500 g gnocchi", "2 tenen knoflook", "1 ui"
-      const lead = line.match(/^(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+)?\s*[½⅓⅔¼¾⅛]?|[½⅓⅔¼¾⅛])\s+(\S+)\s*(.*)$/);
+      const lead = line.match(/^(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+)?\s*[½⅓⅔¼¾⅛]?|[½⅓⅔¼¾⅛])\s+(\S+)\s*(.*)$/);
       if (lead && parts.length < 2) {
-        if (lead[3] && UNIT_WORD.test(lead[2])) { qty = lead[1] + " " + lead[2]; name = lead[3]; }
+        if (lead[3] && UNIT_WORD.test(lead[2])) { qty = lead[1] + " " + lead[2].toLowerCase(); name = lead[3]; }
         else { qty = lead[1]; name = (lead[2] + " " + lead[3]).trim(); }
         name = name.charAt(0).toUpperCase() + name.slice(1);
       }
       else if (parts.length >= 2) { qty = parts.pop(); name = parts.join(" "); }
       else {
         const m = line.match(/^(.*?)\s+(\d+(?:[.,]\d+)?\s*[½⅓⅔¼¾⅛]?\s*\S*|[½⅓⅔¼¾⅛]\s*\S*)$/);
-        if (m) { name = m[1]; qty = m[2]; } else { name = line; qty = ""; }
+        if (m && !/\b(van|of|met|en)$/i.test(m[1])) { name = m[1]; qty = m[2]; } else { name = line; qty = ""; }
       }
       const a = parseAmount(qty);
-      const nm = name.replace(/^[*•\-–]\s*/, "");
-      out.ingredients.push({ name: nm, amount: a.amount, unit: a.unit, original_text: a.original, is_pantry: isPantry(nm) });
+      const nm = name.replace(/^[*•\-–]\s*/, "").replace(/,\s*$/, "");
+      out.ingredients.push({ name: nm.charAt(0).toUpperCase() + nm.slice(1), amount: a.amount, unit: a.unit, original_text: a.original, is_pantry: isPantry(nm) });
       continue;
     }
-    if (section === "steps") { out.steps.push(splitTitled(line.replace(/^(stap\s*)?\d+[.):]\s+/i, ""))); continue; }
+    if (section === "steps") { pushSteps(line, bullet); continue; }
     if (section === "tips") { out.tips.push(splitTitled(line)); continue; }
   }
+  // Titel netjes: geen emoji/uitroeptekens aan het eind, en HOOFDLETTERS -> gewone zin
+  out.title = out.title.replace(/[\s\p{Extended_Pictographic}️‍!]+$/u, "").trim();
+  const letters = out.title.replace(/[^\p{L}]/gu, "");
+  if (letters.length > 6 && letters === letters.toUpperCase()) out.title = out.title.charAt(0) + out.title.slice(1).toLowerCase();
   out.tags = suggestTags(out);
   if (!out.title) warnings.push("Geen titel gevonden: zet de naam van het gerecht op de eerste regel.");
   if (!out.ingredients.length) warnings.push("Geen ingrediënten gevonden: zet ze onder een kopje “Ingrediënten”.");
@@ -1569,7 +1640,7 @@ function drawList() {
     <button class="card" data-id="${r.id}">
       ${thumbHTML(r, "thumb")}
       <h3>${esc(r.title)}</h3>
-      <div class="meta">${r.prep_time_minutes ? `<span>${timeText(r)}</span>` : ""}<span>${r.servings}p</span><span>${r.recipe_ingredients.length} ingrediënten</span></div>
+      <div class="meta">${r.prep_time_minutes ? `<span>${timeText(r)}</span>` : ""}<span>${r.servings} pers.</span><span>${r.recipe_ingredients.length} ingr.</span></div>
     </button>`).join("")}</div>${updatedHTML()}`;
   el.onclick = (e) => {
     if (e.target.closest("#to-fridge")) return go("fridge");
@@ -2509,9 +2580,85 @@ function emojiSheet() {
   const none = $("#em-none", s.el); if (none) none.onclick = () => save(null);
 }
 
+/* ================= Op je beginscherm zetten (uitleg iPhone en Android) ================= */
+let installPrompt = null; // Android/Chrome: echte installeerknop als de browser die aanbiedt
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installPrompt = e; if (S.view === "settings") renderSettings(); });
+window.addEventListener("appinstalled", () => { installPrompt = null; toast("Geïnstalleerd! Je vindt de app nu op je startscherm"); });
+function isStandalone() {
+  try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (_) { return false; }
+}
+function deviceKind() {
+  const ua = navigator.userAgent || "";
+  if (/android/i.test(ua)) return "android";
+  if (/iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return "ios";
+  return "ios";
+}
+function howtoHTML(kind) {
+  const k = (icon, txt) => `<span class="key">${icon || ""}${txt}</span>`;
+  if (kind === "android") return `<ol class="howto-steps">
+      <li><span>Open de link van de app in <b>Chrome</b>.</span></li>
+      <li><span>Tik rechtsboven op ${k(ICON.dots, "")} (de drie puntjes).</span></li>
+      <li><span>Kies ${k("", "App installeren")} of ${k("", "Toevoegen aan startscherm")}.</span></li>
+      <li><span>Tik op ${k("", "Installeren")}. De app staat nu tussen je andere apps en op je startscherm.</span></li>
+    </ol>
+    <p class="muted" style="margin:0;font-size:14px">Gebruik je de Samsung-browser? Tik dan onderin op ${k("", "☰")} en kies <b>Pagina toevoegen aan</b> → <b>Startscherm</b>.</p>`;
+  return `<ol class="howto-steps">
+      <li><span>Open de link van de app in <b>Safari</b>.</span></li>
+      <li><span>Tik op de deelknop ${k(ICON.share, "")}. Zie je die niet? Tik dan eerst onderin op ${k("", "•••")}.</span></li>
+      <li><span>Scrol omlaag en kies ${k(ICON.plusSq, "Zet op beginscherm")}.</span></li>
+      <li><span>Staat er een schakelaar <b>Open als webapp</b>? Laat die aan. Tik daarna rechtsboven op ${k("", "Voeg toe")}.</span></li>
+    </ol>
+    <p class="muted" style="margin:0;font-size:14px">Open de app daarna altijd via het icoon op je beginscherm: dan opent hij schermvullend, zonder adresbalk, en blijf je ingelogd.</p>`;
+}
+function howtoPanelHTML() {
+  if (isStandalone()) return `<div class="panel"><p class="label" style="margin:0">Op je beginscherm</p>
+    <div class="howto-ok"><span style="font-size:22px" aria-hidden="true">✓</span><span><b>Top, je gebruikt de app al vanaf je beginscherm.</b><br><span class="muted" style="font-size:14px">Wil je iemand anders helpen? Hieronder staat de uitleg.</span></span></div>
+    <button class="btn" id="howto-open">Uitleg voor iPhone en Android</button></div>`;
+  return `<div class="panel" id="howto"><p class="label" style="margin:0">Op je beginscherm zetten</p>
+    <p class="muted" style="margin:0;font-size:14px">Zet de app op je beginscherm. Dan opent hij als een echte app: schermvullend, met eigen icoon en zonder adresbalk.</p>
+    ${installPrompt ? `<button class="btn primary" id="howto-install">${ICON.plusSq}Installeer de app</button>` : ""}
+    <div class="tabs" role="tablist" id="howto-tabs">
+      <button role="tab" data-k="ios" aria-selected="${S.howto === "ios"}">iPhone / iPad</button>
+      <button role="tab" data-k="android" aria-selected="${S.howto === "android"}">Android</button>
+    </div>
+    <div id="howto-body">${howtoHTML(S.howto)}</div></div>`;
+}
+function bindHowto() {
+  const tabs = $("#howto-tabs");
+  if (tabs) tabs.onclick = (e) => {
+    const b = e.target.closest("[data-k]"); if (!b) return;
+    S.howto = b.dataset.k;
+    for (const x of tabs.children) x.setAttribute("aria-selected", x === b);
+    $("#howto-body").innerHTML = howtoHTML(S.howto);
+  };
+  const ins = $("#howto-install");
+  if (ins) ins.onclick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    try { await installPrompt.userChoice; } catch (_) { /* geannuleerd */ }
+    installPrompt = null; renderSettings();
+  };
+  const open = $("#howto-open");
+  if (open) open.onclick = () => {
+    let kind = deviceKind();
+    const s = sheet(`<div class="sheet-head"><h2>Op je beginscherm zetten</h2></div>
+      <div class="tabs" role="tablist" id="hs-tabs"><button role="tab" data-k="ios" aria-selected="${kind === "ios"}">iPhone / iPad</button><button role="tab" data-k="android" aria-selected="${kind === "android"}">Android</button></div>
+      <div class="sheet-scroll" id="hs-body">${howtoHTML(kind)}</div>
+      <button class="btn block" id="hs-close">Sluiten</button>`);
+    $("#hs-tabs", s.el).onclick = (e) => {
+      const b = e.target.closest("[data-k]"); if (!b) return;
+      kind = b.dataset.k;
+      for (const x of $("#hs-tabs", s.el).children) x.setAttribute("aria-selected", x === b);
+      $("#hs-body", s.el).innerHTML = howtoHTML(kind);
+    };
+    $("#hs-close", s.el).onclick = s.close;
+  };
+}
+
 /* ================= Instellingen ================= */
 function renderSettings() {
   const myName = S.names[S.user.id] || "";
+  S.howto = S.howto || deviceKind();
   $("#app").innerHTML = `
     <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">Instellingen</span><span style="width:40px"></span></div>
     <div class="stack">
@@ -2525,6 +2672,7 @@ function renderSettings() {
         <form id="name-form" class="stack" style="gap:10px"><label class="field"><span>Jouw naam bij recepten</span><input class="input" id="s-name" value="${esc(myName)}" required></label>
           <button class="btn">Naam opslaan</button></form>
       </div>
+      ${howtoPanelHTML()}
       <div class="panel"><p class="label" style="margin:0">Weergave</p>
         <div class="tabs three" role="radiogroup" aria-label="Weergave" id="theme">
           ${[["auto", "Automatisch"], ["light", "Licht"], ["dark", "Donker"]].map(([v, l]) => `<button role="radio" data-theme-opt="${v}" aria-selected="${getTheme() === v}" aria-checked="${getTheme() === v}">${l}</button>`).join("")}
@@ -2548,6 +2696,7 @@ function renderSettings() {
         ${isAdmin() ? `<button class="btn" id="to-members">Leden en uitnodigingen beheren</button>` : `<p class="muted" style="margin:0;font-size:14px">Jij bent ${esc((ROLE_LABEL[S.role] || "").toLowerCase())}: ${esc((ROLE_HELP[S.role] || "").toLowerCase())}.</p>`}</div>
       <button class="btn" id="logout">Uitloggen</button>
     </div>`;
+  bindHowto();
   $("#theme").onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
     setTheme(b.dataset.themeOpt);
