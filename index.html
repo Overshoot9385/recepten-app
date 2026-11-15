@@ -233,6 +233,10 @@ button { cursor: pointer; }
 .shop-amt { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 15px; }
 .shop-item.done .shop-name { text-decoration: line-through; color: var(--muted); }
 .shop-item.editing { cursor: default; }
+.shop-item { cursor: default; }
+.shop-item .chk { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px -10px; cursor: pointer; }
+.amt-link { border: 0; background: none; padding: 8px 0 8px 12px; margin: -8px 0; font: inherit; min-height: 40px; cursor: pointer; }
+.amt-link:active { color: var(--ink); }
 .rm-item { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 0; background: var(--danger); color: #fff; font-size: 18px; font-weight: 700; line-height: 1; display: grid; place-items: center; padding: 0 0 2px; }
 #shop-add { padding-right: 6px; }
 .add-opts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: -2px; }
@@ -453,6 +457,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 
 /* Rode prullenbak in de kop */
 .iconbtn.trash { color: var(--danger); }
+.iconbtn.on { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
 .brand-actions { display: flex; align-items: center; gap: 10px; }
 .choice-sheet .btn { justify-content: space-between; }
 .choice-sheet .btn small { font-weight: 500; color: var(--muted); }
@@ -840,6 +845,11 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .listbar span { font-size: 14px; font-weight: 600; line-height: 1.25; }
 .listbar button { flex: none; height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-size: 14px; font-weight: 700; }
 .listbar button:disabled { opacity: .5; }
+.ld-quick { display: flex; gap: 8px; }
+.ld-quick .amt-btn { font-size: 14px; min-height: 34px; padding: 5px 14px; }
+.ld-day span { display: grid; gap: 2px; min-width: 0; }
+.ld-day small { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ld-list { max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; }
 .wk-foot { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .wk-foot .linkbtn { align-self: flex-start; color: var(--danger); font-size: 14px; }
 
@@ -995,6 +1005,8 @@ const ICON = {
   jar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8v3H8z"/><path d="M7 6h10a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1z"/><path d="M6 11h12"/></svg>',
   star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
   starOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
 // Kruisje in een zoekveld: verschijnt zodra er tekst staat, wist de tekst met één tik
@@ -3266,8 +3278,8 @@ function drawMenu() {
   if (S.menuWeek === 0 && rows.length === 0) nextRows = mkDays(addDays(ws, 7));
   const rowHTML = (x) => { const ms = mealsOf(x.iso); return `<button class="wrow${ms.length ? "" : " empty"}" data-day="${x.iso}" data-week="${x.iso > isoDate(we) ? 1 : 0}"><small>${x.ab}</small><span>${ms.length ? esc(ms.map(titleOf).join(" + ")) : "+ Gerecht kiezen"}</span></button>`; };
   const sr = shopRange();
-  const listCount = S.meals.filter((m) => m.plan_date >= isoDate(sr.from) && m.plan_date <= isoDate(sr.to)).length;
-  const listLabel = planToday().getDay() === 0 ? `voor week ${weekNumber(sr.from)}` : "de rest van deze week";
+  const listCount = S.meals.filter((m) => m.plan_date >= isoDate(planToday())).length;
+  const listLabel = "gepland vanaf vandaag";
   $("#app").innerHTML = `
     <header class="stack" style="gap:14px;padding-top:12px">
       <div class="wk-head"><div><h1>Planning</h1><p>Week ${weekNumber(ws)} · ${label} · ${fmtDay(ws)} – ${fmtDay(we)}</p></div>
@@ -3646,13 +3658,53 @@ function aggregate(meals, pantry = false) {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
-async function makeShoppingList() {
-  const { from: weekStart, to: weekEnd } = shopRange();
+// Kies welke geplande dagen (vanaf vandaag) op de lijst komen. Standaard: vandaag plus de boodschappenweek.
+async function pickListDays() {
+  const today = planToday(), last = planRange().to;
+  let meals;
+  try { meals = await store.mealPlan(isoDate(today), isoDate(last)); } catch (err) { toast(err.message); return; }
+  if (!meals.length) { toast("Er staat vanaf vandaag nog niets op de planning"); return; }
+  const sr = shopRange();
+  const days = [...new Set(meals.map((m) => m.plan_date))].sort();
+  const sel = new Set(days.filter((d) => d === isoDate(today) || (d >= isoDate(sr.from) && d <= isoDate(sr.to))));
+  const thisWeekEnd = isoDate(addDays(startOfWeek(today), 6));
+  const title = (m) => (getRecipe(m.recipe_id) || {}).title || m.title || "Gerecht";
+  const dayRow = (d) => {
+    const dt = new Date(d + "T12:00:00"), ms = meals.filter((m) => m.plan_date === d);
+    const lbl = d === isoDate(today) ? "Vandaag" : DAY_NAMES[(dt.getDay() + 6) % 7];
+    return `<label class="opt ld-day"><input type="checkbox" value="${d}" ${sel.has(d) ? "checked" : ""}><span><b>${lbl} ${dt.getDate()} ${dt.toLocaleDateString("nl-NL", { month: "short" })}</b><small class="muted">${ms.map((m) => esc(title(m))).join(" · ")}</small></span></label>`;
+  };
+  const a = days.filter((d) => d <= thisWeekEnd), b = days.filter((d) => d > thisWeekEnd);
+  return new Promise((resolve) => {
+    let result = null;
+    const s = sheet(`<div class="sheet-head"><h2>Welke dagen?</h2></div>
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">Alleen de gerechten van de dagen die je aanvinkt komen op de lijst.</p>
+      <div class="ld-quick"><button type="button" class="amt-btn" data-q="all">Alles</button><button type="button" class="amt-btn" data-q="none">Niets</button></div>
+      <div class="stack ld-list" style="gap:12px">
+        ${a.length ? `<div><p class="label" style="margin:0 0 6px">Deze week · week ${weekNumber(today)}</p><div class="opts">${a.map(dayRow).join("")}</div></div>` : ""}
+        ${b.length ? `<div><p class="label" style="margin:0 0 6px">Volgende week · week ${weekNumber(addDays(startOfWeek(today), 7))}</p><div class="opts">${b.map(dayRow).join("")}</div></div>` : ""}
+      </div>
+      <p class="muted" style="margin:0;font-size:13.5px">Wat eerder uit de planning op de lijst kwam, wordt vervangen. Wat je zelf toevoegde of aanpaste blijft staan.</p>
+      <button class="btn primary block" id="ld-go"></button>`, () => resolve(result));
+    const el = s.el, go = $("#ld-go", el);
+    const paint = () => {
+      const on = [...el.querySelectorAll(".ld-day input:checked")].map((x) => x.value);
+      const n = meals.filter((m) => on.includes(m.plan_date)).length;
+      go.textContent = n ? `Lijst maken · ${n} ${n === 1 ? "gerecht" : "gerechten"}` : "Kies minstens één dag"; go.disabled = !n;
+    };
+    el.addEventListener("change", paint);
+    $(".ld-quick", el).onclick = (e) => { const q = e.target.closest("[data-q]"); if (!q) return; el.querySelectorAll(".ld-day input").forEach((x) => (x.checked = q.dataset.q === "all")); paint(); };
+    go.onclick = () => { result = [...el.querySelectorAll(".ld-day input:checked")].map((x) => x.value); s.close(); };
+    paint();
+  }).then((picked) => picked && picked.length ? makeShoppingList(picked, meals.filter((m) => picked.includes(m.plan_date))) : null);
+}
+async function makeShoppingList(days, preMeals) {
+  if (!days) return pickListDays();
   try {
-    const meals = await store.mealPlan(isoDate(weekStart), isoDate(weekEnd));
-    if (!meals.length) { toast(planToday().getDay() === 0 ? "Er staat voor volgende week nog niets op de planning" : "Er staat voor de rest van deze week nog niets op de planning"); return; }
+    const meals = preMeals || (await store.mealPlan(days[0], days[days.length - 1])).filter((m) => days.includes(m.plan_date));
+    if (!meals.length) { toast("Op die dagen staat niets op de planning"); return; }
     const items = aggregate(meals);
-    try { localStorage.setItem(LIST_WEEK_KEY, isoDate(weekStart)); } catch (_) { /* niet erg */ }
+    try { localStorage.setItem(LIST_WEEK_KEY, days[0]); } catch (_) { /* niet erg */ }
     const current = await store.shopping();
     await store.removeShopping(current.filter((x) => !x.is_manual).map((x) => x.id));
     // Wat je zelf al op de lijst zette (bijv. met +) niet nog een keer toevoegen
@@ -3754,12 +3806,12 @@ function drawShop() {
   const row = (g) => S.shopEdit
     ? `<div class="shop-item editing${g.first.is_checked ? " done" : ""}"><button class="rm-item" data-del="${g.ids.join(",")}" aria-label="Haal ${esc(g.name)} van de lijst">−</button>
       ${true ? `<button class="shop-name aisle-btn" ${isAdmin() ? `data-aisle="${esc(g.name)}"` : `data-iaisle="${g.ids.join(",")}"`}><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<button class="amt-btn${g.amt ? "" : " empty"}" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+ aantal"}</button></div>`
-    : `<label class="shop-item${g.first.is_checked ? " done" : ""}"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""}>
-      <span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span></label>`;
+    : `<div class="shop-item${g.first.is_checked ? " done" : ""}"><label class="chk"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""} aria-label="${esc(g.name)} afvinken"></label>
+      <span class="shop-name">${esc(g.name)}</span>${g.first.is_checked ? `<span class="shop-amt">${esc(g.amt)}</span>` : `<button class="shop-amt amt-link" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+"}</button>`}</div>`;
   const openG = groupShop(open), doneG = groupShop(done);
   $("#app").innerHTML = `
     <header class="top">
-      <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="linkbtn" id="shop-edit">${S.shopEdit ? "Klaar" : "Wijzig"}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
+      <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="iconbtn${S.shopEdit ? " on" : ""}" id="shop-edit" aria-pressed="${S.shopEdit}" aria-label="${S.shopEdit ? "Klaar met wijzigen" : "Lijst wijzigen"}">${S.shopEdit ? ICON.check : ICON.pencil}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
       ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op een hoeveelheid om die aan te passen, of op <b>−</b> om iets weg te halen dat je al in huis hebt.${isAdmin() ? " Tik op een product om de afdeling voor iedereen te kiezen." : " Tik op een product om de afdeling te kiezen."}</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
       ${S.shop.length && !S.shopEdit ? `<span class="sbar" role="img" aria-label="${S.shop.length - open.length} van ${S.shop.length} afgevinkt"><i style="width:${Math.round(((S.shop.length - open.length) / S.shop.length) * 100)}%"></i></span>` : ""}
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
@@ -3892,12 +3944,7 @@ function drawShop() {
       } catch (err) { b.disabled = false; toast(err.message); }
     };
   };
-  $("#from-menu").onclick = async () => {
-    const r = shopRange();
-    const what = planToday().getDay() === 0 ? `volgende week (week ${weekNumber(r.from)}, ${fmtDay(r.from)} t/m ${fmtDay(r.to)})` : `de rest van deze week (t/m ${fmtDay(r.to)})`;
-    if (!(await confirmSheet(`Lijst maken voor ${what}? Een eerder gemaakte lijst uit de planning wordt vervangen; wat je zelf toevoegde blijft staan.`, "Lijst maken"))) return;
-    await makeShoppingList();
-  };
+  $("#from-menu").onclick = () => pickListDays();
 }
 
 /* ================= Leden en uitnodigingen (beheerder) ================= */
