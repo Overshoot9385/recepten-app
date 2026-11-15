@@ -728,7 +728,16 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .frows span { font-size: 14px; color: var(--muted); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frows span.on { color: var(--acc); font-weight: 700; }
 .frows svg { width: 15px; height: 15px; flex: none; }
-.pop-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+.pop-foot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; position: sticky; bottom: -18px; margin: 0 -18px -18px; padding: 10px 18px 18px; background: var(--bg); }
+.pm-head { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; position: sticky; top: -18px; margin: -18px -18px 0; padding: 14px 18px 8px; background: var(--bg); z-index: 1; }
+.pm-head h2 { margin: 0; font-size: 22px; }
+.pm-head .linkbtn { font-size: 14px; }
+.pm-back { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line2); background: var(--surface); color: var(--ink); display: grid; place-items: center; padding: 0; }
+.pm-back svg { width: 18px; height: 18px; }
+.pm-body { display: flex; flex-direction: column; gap: 10px; }
+.pm-body .opts { padding: 0 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.pm-body .opt:last-child { border-bottom: 0; }
+.pm-hint { margin: 0; font-size: 14px; }
 .pop-foot button { height: 50px; border-radius: 999px; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .pop-foot .ghost { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
 .pop-foot .solid { border: 0; background: var(--herb); color: var(--herb-ink); }
@@ -2625,7 +2634,8 @@ function drawTop() {
     if (b.id === "tile-fridge") return go("fridge");
   };
 }
-// Menu onder de filterknop: weergave, sorteren en filters op één plek
+// Menu onder de filterknop: weergave, sorteren en filters op één plek.
+// Alles is eerst een concept: je stelt in (ook in de subschermen) en past pas toe met "Toon X recepten".
 function listMenu() {
   // Eerst de zoekbalk bovenaan zetten (die plakt daar), dan het menu eronder
   const ss = $(".search-sticky");
@@ -2637,35 +2647,90 @@ function listMenu() {
   const vh = window.visualViewport ? visualViewport.height : innerHeight;
   if (vh - top - 16 >= 440) { pop.style.top = top + "px"; pop.style.maxHeight = (vh - top - 16) + "px"; }
   else { pop.style.top = "auto"; pop.style.bottom = "calc(12px + env(safe-area-inset-bottom, 0px))"; pop.style.maxHeight = (vh - 24) + "px"; }
-  const fv = (kind) => {
-    if (kind === "person") return S.owner === "all" ? "Iedereen" : S.owner === "me" ? "Van mij" : S.owner === "others" ? "Van anderen" : nameOf(S.owner);
-    if (kind === "tags") return S.tags.length ? S.tags.join(S.tagMode === "any" ? " of " : ", ") : "Alle";
-    if (kind === "time") return S.time.length ? TIME_BLOCKS.filter((b) => S.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", ") : "Alle";
-    return S.src.length ? S.src.join(", ") : "Alle";
+
+  const f = { query: S.query, favOnly: S.favOnly, owner: S.owner, tags: [...S.tags], tagMode: S.tagMode, time: [...S.time], src: [...S.src], sort: getSort(), mode: getMode() };
+  let page = "main", tagQ = "";
+  const count = (patch) => filtered({ ...f, ...patch }).length;
+  const isOn = (k) => k === "sort" ? f.sort !== "az" : k === "person" ? f.owner !== "all" : k === "tags" ? f.tags.length > 0 : k === "time" ? f.time.length > 0 : f.src.length > 0;
+  const anyOn = () => ["sort", "person", "tags", "time", "source"].some(isOn);
+  const fv = (k) => {
+    if (k === "sort") return (SORTS.find((x) => x[0] === f.sort) || SORTS[0])[1];
+    if (k === "person") return f.owner === "all" ? "Iedereen" : f.owner === "me" ? "Van mij" : f.owner === "others" ? "Van anderen" : nameOf(f.owner);
+    if (k === "tags") return f.tags.length ? f.tags.join(f.tagMode === "any" ? " of " : ", ") : "Alle";
+    if (k === "time") return f.time.length ? TIME_BLOCKS.filter((b) => f.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", ") : "Alle";
+    return f.src.length ? f.src.join(", ") : "Alle";
   };
-  const on = (kind) => kind === "person" ? S.owner !== "all" : kind === "tags" ? S.tags.length > 0 : kind === "time" ? S.time.length > 0 : S.src.length > 0;
+  const TITLES = { sort: "Sorteren", person: "Van wie", tags: "Tags", time: "Bereidingstijd", source: "Bron" };
   const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
+  const opt = (type, v, checked, label, n, pre = "") => `<label class="opt"><input type="${type}" name="pm-opt" value="${esc(v)}" ${checked ? "checked" : ""}>${pre}<span>${label}</span>${n != null ? `<span class="n">${n}</span>` : ""}</label>`;
+  const subBody = () => {
+    if (page === "sort") return `<div class="opts">${SORTS.map(([k, l]) => opt("radio", k, f.sort === k, esc(l))).join("")}</div>`;
+    if (page === "person") {
+      const opts = [["all", "Iedereen"], ["me", "Van mij"], ["others", "Van anderen"], ...people()];
+      return `<div class="opts">${opts.map(([v, l], i) => (i === 3 ? `<p class="label opt-group">Personen</p>` : "") + opt("radio", v, f.owner === v, esc(l), count({ owner: v }), i >= 3 ? avatarHTML(v, 30) : "")).join("")}</div>`;
+    }
+    if (page === "source") return `<p class="muted pm-hint">Je kunt meerdere bronnen kiezen.</p><div class="opts">${sourceList().map(([v]) => opt("checkbox", v, f.src.includes(v), esc(v), count({ src: [v] }))).join("")}</div>`;
+    if (page === "time") return `<p class="muted pm-hint">Je kunt meerdere blokken kiezen. Recepten zonder bereidingstijd vallen dan weg.</p><div class="opts">${TIME_BLOCKS.map(([v, l, sub]) => opt("checkbox", v, f.time.includes(v), `${l}${sub ? ` <span class="muted">· ${sub}</span>` : ""}`, count({ time: [v] }))).join("")}</div>`;
+    const all = [...new Set(S.recipes.flatMap((r) => r.tags || []))].sort((a, b) => a.localeCompare(b, "nl"));
+    if (!all.length) return `<p class="muted">Er zijn nog geen tags. Voeg ze toe bij het bewerken van een recept.</p>`;
+    return `<div class="seg" id="pm-tagmode"><button data-tm="all" aria-pressed="${f.tagMode !== "any"}">Alle tags</button><button data-tm="any" aria-pressed="${f.tagMode === "any"}">Eén van de tags</button></div>
+      <p class="muted pm-hint">${f.tagMode === "any" ? "Recepten met minstens één van de gekozen tags, bijv. kip óf vis." : "Alleen recepten met álle gekozen tags, bijv. kip én pasta."}</p>
+      <label class="search sheet-search">${ICON.search}<input id="pm-tagq" type="search" placeholder="Zoek een tag" value="${esc(tagQ)}" autocomplete="off" autocapitalize="off" enterkeyhint="done" aria-label="Zoek een tag"></label>
+      <div class="opts" id="pm-tags">${all.map((t) => opt("checkbox", t, f.tags.includes(t), esc(t), S.recipes.filter((r) => (r.tags || []).includes(t)).length)).join("")}</div>`;
+  };
+  const foot = () => { const n = filtered(f).length; return `<div class="pop-foot"><button class="solid" id="pm-done">Toon ${n} ${n === 1 ? "recept" : "recepten"}</button></div>`; };
   const draw = () => {
-    const n = filtered().length, mode = getMode(), cur = getSort();
-    pop.innerHTML = `
-      <div class="lab"><span>Weergave</span>${menuActive() ? `<button class="linkbtn" id="pm-clear" style="font-size:14px">Alles wissen</button>` : ""}</div>
-      <div class="seg"><button data-mode="lijst" aria-pressed="${mode === "lijst"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg>Lijst</button><button data-mode="raster" aria-pressed="${mode === "raster"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.5"/></svg>Raster</button></div>
-      <div class="lab"><span>Sorteren</span></div>
-      <div class="sortgrid" role="radiogroup" aria-label="Sorteren">${SORTS.map(([k, l]) => `<button role="radio" data-sort="${k}" aria-checked="${k === cur}"><i aria-hidden="true"></i>${esc(l)}</button>`).join("")}</div>
+    if (page === "main") {
+      pop.innerHTML = `
+      <div class="lab"><span>Weergave</span>${anyOn() ? `<button class="linkbtn" id="pm-clear" style="font-size:14px">Alles wissen</button>` : ""}</div>
+      <div class="seg"><button data-mode="lijst" aria-pressed="${f.mode === "lijst"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg>Lijst</button><button data-mode="raster" aria-pressed="${f.mode === "raster"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.5"/></svg>Raster</button></div>
+      <div class="frows">${[["sort", "Sorteren"]].map(([k, l]) => `<button data-page="${k}"><b>${l}</b><span class="${isOn(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
       <div class="lab"><span>Filteren</span></div>
-      <div class="frows">${[["person", "Van wie"], ["tags", "Tags"], ["time", "Tijd"], ["source", "Bron"]].map(([k, l]) => `<button data-f="${k}"><b>${l}</b><span class="${on(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
-      <div class="pop-foot"><button class="solid" id="pm-done">Toon ${n} ${n === 1 ? "recept" : "recepten"}</button></div>`;
+      <div class="frows">${[["person", "Van wie"], ["tags", "Tags"], ["time", "Tijd"], ["source", "Bron"]].map(([k, l]) => `<button data-page="${k}"><b>${l}</b><span class="${isOn(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
+      ${foot()}`;
+    } else {
+      pop.innerHTML = `<div class="pm-head"><button class="pm-back" id="pm-back" aria-label="Terug naar alle filters">${back}</button><h2>${TITLES[page]}</h2>${isOn(page) ? `<button class="linkbtn" id="pm-reset">Wissen</button>` : "<span></span>"}</div>
+        <div class="pm-body">${subBody()}</div>${foot()}`;
+      const q = $("#pm-tagq", pop);
+      if (q) { q.oninput = () => { tagQ = q.value; filterTags(); }; q.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); q.blur(); } }; filterTags(); }
+    }
+  };
+  const filterTags = () => {
+    const q = norm(tagQ.trim());
+    pop.querySelectorAll("#pm-tags .opt").forEach((l) => { const i = l.querySelector("input"); l.hidden = !!q && !i.checked && !norm(i.value).includes(q); });
+  };
+  const refreshFoot = () => { const ft = $(".pop-foot", pop); if (ft) ft.outerHTML = foot(); const h = $(".pm-head", pop); if (h) { const r = $("#pm-reset", pop); if (isOn(page) && !r) draw(); else if (!isOn(page) && r) r.replaceWith(document.createElement("span")); } };
+  const apply = () => {
+    if (f.tagMode !== S.tagMode) saveTagMode(f.tagMode);
+    Object.assign(S, { owner: f.owner, tags: f.tags, tagMode: f.tagMode, time: f.time, src: f.src });
+    setSort(f.sort); setMode(f.mode);
+    close();
   };
   const close = () => { bg.remove(); pop.remove(); document.removeEventListener("keydown", onKey); syncScrollLock(); refreshFilters(); drawList(); };
-  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const onKey = (e) => { if (e.key === "Escape") { if (page !== "main") { page = "main"; draw(); } else close(); } };
+  pop.addEventListener("change", (e) => {
+    const inp = e.target; if (inp.name !== "pm-opt") return;
+    const vals = () => [...pop.querySelectorAll('input[name="pm-opt"]:checked')].map((i) => i.value);
+    if (page === "sort") f.sort = inp.value;
+    else if (page === "person") f.owner = inp.value;
+    else if (page === "time") f.time = vals();
+    else if (page === "source") f.src = vals();
+    else if (page === "tags") f.tags = vals();
+    refreshFoot();
+  });
   pop.onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.mode) { setMode(b.dataset.mode); draw(); }
-    else if (b.dataset.sort) { setSort(b.dataset.sort); draw(); }
-    else if (b.dataset.f) { close(); openFilterSheet(b.dataset.f); }
-    else if (b.id === "pm-clear") { Object.assign(S, { owner: "all", tags: [], time: [], src: [] }); setSort("az"); draw(); }
-    else if (b.id === "pm-surprise") { close(); surpriseMe(); }
-    else if (b.id === "pm-done") close();
+    if (b.dataset.mode) { f.mode = b.dataset.mode; draw(); }
+    else if (b.dataset.page) { page = b.dataset.page; tagQ = ""; draw(); pop.scrollTop = 0; }
+    else if (b.dataset.tm) { f.tagMode = b.dataset.tm; draw(); }
+    else if (b.id === "pm-back") { page = "main"; draw(); pop.scrollTop = 0; }
+    else if (b.id === "pm-reset") {
+      if (page === "sort") f.sort = "az"; else if (page === "person") f.owner = "all"; else if (page === "time") f.time = []; else if (page === "source") f.src = []; else f.tags = [];
+      draw();
+    }
+    else if (b.id === "pm-clear") { Object.assign(f, { owner: "all", tags: [], time: [], src: [], sort: "az" }); draw(); }
+    else if (b.id === "pm-done") apply();
   };
   bg.onclick = close;
   document.addEventListener("keydown", onKey);
