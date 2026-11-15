@@ -3371,7 +3371,7 @@ function addToMenuSheet(r, withList = false) {
 async function addRecipeToList(r, servings) {
   const items = aggregate([{ recipe_id: r.id, servings }]);
   S.shop = await store.shopping();
-  const key = (n, u) => norm(n).replace(/\s+/g, " ").trim() + "|" + (u || "");
+  const key = (n, u) => shopKey(n) + "|" + shopUnit(u);
   const fresh = [];
   for (const it of items) {
     const ex = S.shop.find((x) => !x.is_checked && !x.is_manual && key(x.name, x.unit) === key(it.name, it.unit));
@@ -3383,6 +3383,58 @@ async function addRecipeToList(r, servings) {
   if (fresh.length) S.shop.push(...(await store.addShopping(S.household.id, fresh)));
   return items.length;
 }
+
+/* ================= Boodschappen samenvoegen: Ei, Eieren en "Parmezaanse kaas (optioneel)" zijn hetzelfde product ================= */
+const SHOP_IRREG = { eieren: "ei", eitjes: "ei", eitje: "ei" };
+function shopStem(w, keepEn) {
+  if (SHOP_IRREG[w]) return SHOP_IRREG[w];
+  let x = w.replace(/'s$/, "");
+  if (!keepEn && x.length > 3 && /en$/.test(x)) x = x.slice(0, -2);
+  else if (x.length > 3 && /s$/.test(x) && !/ss$/.test(x)) x = x.slice(0, -1);
+  x = x.replace(/([aeou])\1([^aeiou])$/, "$1$2");   // tomaat → tomat (zelfde als tomaten → tomat)
+  x = x.replace(/([^aeiou])\1$/, "$1");             // kippen → kipp → kip
+  return x;
+}
+function shopKey(name, keepEn) {
+  const n = norm(name).replace(/\([^)]*\)/g, " ").replace(/\b(optioneel|naar smaak|eventueel|evt\.?)\b/g, " ")
+    .replace(/[,;:].*$/, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  return n.split(" ").filter(Boolean).map((w) => shopStem(w, keepEn)).join(" ");
+}
+// Losse aantallen (zonder eenheid) en "stuk(s)" tellen we bij elkaar op
+function shopUnit(u) { const x = (u || "").trim().toLowerCase(); const n = UNIT_NORM[x] || x; return n === "stuk" || n === "st" || n === "" ? "#" : n; }
+function shopName(items) {
+  // Kies de duidelijkste naam: zonder haakjes of "optioneel", bij gelijkspel de langste (Eieren boven Ei)
+  const clean = (n) => String(n).replace(/\s*\([^)]*\)\s*/g, " ").replace(/\b(optioneel|naar smaak)\b/gi, "").replace(/\s+/g, " ").trim();
+  const names = items.map((i) => clean(i.name)).filter(Boolean);
+  names.sort((a, b) => b.length - a.length);
+  return names[0] || items[0].name;
+}
+function shopAmount(items) {
+  const by = new Map();
+  for (const i of items) {
+    if (i.amount == null) { if (i.unit && !by.has("txt:" + i.unit)) by.set("txt:" + i.unit, { txt: i.unit }); continue; }
+    const u = shopUnit(i.unit);
+    const cur = by.get(u) || { amount: 0, unit: u === "#" ? (/stuk/i.test(i.unit || "") ? "stuk" : "") : (UNIT_NORM[(i.unit || "").toLowerCase()] || i.unit) };
+    cur.amount += i.amount; if (u === "#" && /stuk/i.test(i.unit || "")) cur.unit = "stuk";
+    by.set(u, cur);
+  }
+  const parts = [...by.values()].map((v) => v.txt != null ? v.txt : fmtAmount(v.amount, v.unit) + (v.unit ? " " + (v.unit === "stuk" && v.amount > 1 ? "stuks" : v.unit) : ""));
+  const nums = parts.filter((p) => /\d|[½⅓⅔¼¾]/.test(p));
+  return (nums.length ? nums : parts).join(" + ");
+}
+// Groepeer regels op de lijst die over hetzelfde product gaan
+function groupShop(items) {
+  // Twee vormen per naam (met en zonder -en eraf), zodat zowel Ui/Uien als Citroen/Citroenen samenkomen
+  const groups = [], byKey = new Map();
+  for (const i of items) {
+    const keys = [shopKey(i.name), shopKey(i.name, true)].filter(Boolean);
+    let g = keys.map((k) => byKey.get(k)).find(Boolean);
+    if (!g) { g = []; groups.push(g); }
+    g.push(i);
+    for (const k of keys) if (!byKey.has(k)) byKey.set(k, g);
+  }
+  return groups.map((g) => ({ ids: g.map((x) => x.id), items: g, name: shopName(g), amt: shopAmount(g), first: g[0] }));
+}
 const UNIT_NORM = { gram: "g", gr: "g", stuks: "stuk", "stuk(s)": "stuk", eetlepel: "el", theelepel: "tl", "zakje(s)": "zakje", zakjes: "zakje" };
 function aggregate(meals, pantry = false) {
   const map = new Map();
@@ -3393,10 +3445,11 @@ function aggregate(meals, pantry = false) {
       if (!!i.is_pantry !== pantry) continue;
       const unitRaw = (i.unit || "").trim().toLowerCase();
       const unit = UNIT_NORM[unitRaw] || unitRaw;
-      const key = norm(i.name).replace(/\s+/g, " ").trim() + "|" + unit;
+      const key = shopKey(i.name) + "|" + shopUnit(unit);
       const cur = map.get(key);
       const amt = i.amount == null ? null : i.amount * f;
-      if (!cur) map.set(key, { name: i.name, unit: unit || null, amount: amt });
+      if (!cur) map.set(key, { name: shopName([i]), unit: unit || null, amount: amt });
+      else if (cur.name.length < shopName([i]).length) cur.name = shopName([i]);
       else if (cur.amount != null && amt != null) cur.amount += amt;
       else if (cur.amount == null && amt != null) cur.amount = amt;
     }
@@ -3412,7 +3465,7 @@ async function makeShoppingList(weekStart = S.weekStart) {
     const current = await store.shopping();
     await store.removeShopping(current.filter((x) => !x.is_manual).map((x) => x.id));
     // Wat je zelf al op de lijst zette (bijv. met +) niet nog een keer toevoegen
-    const k = (n) => norm(n).replace(/\s+/g, " ").trim();
+    const k = (n) => shopKey(n);
     const manual = new Set(current.filter((x) => x.is_manual && !x.is_checked).map((x) => k(x.name)));
     const skipped = items.filter((i) => manual.has(k(i.name))).length;
     items.splice(0, items.length, ...items.filter((i) => !manual.has(k(i.name))));
@@ -3441,22 +3494,23 @@ function drawShop() {
   const open = S.shop.filter((i) => !i.is_checked).sort((a, b) => (b.is_manual - a.is_manual) || (a.position - b.position) || a.name.localeCompare(b.name, "nl"));
   const done = S.shop.filter((i) => i.is_checked);
   const amtOf = (i) => (i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || ""));
-  const row = (i) => S.shopEdit
-    ? `<div class="shop-item editing${i.is_checked ? " done" : ""}"><button class="rm-item" data-del="${i.id}" aria-label="Haal ${esc(i.name)} van de lijst">−</button>
-      <span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amtOf(i)}</span></div>`
-    : `<label class="shop-item${i.is_checked ? " done" : ""}"><input type="checkbox" data-id="${i.id}" ${i.is_checked ? "checked" : ""}>
-      <span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amtOf(i)}</span></label>`;
+  const row = (g) => S.shopEdit
+    ? `<div class="shop-item editing${g.first.is_checked ? " done" : ""}"><button class="rm-item" data-del="${g.ids.join(",")}" aria-label="Haal ${esc(g.name)} van de lijst">−</button>
+      <span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span></div>`
+    : `<label class="shop-item${g.first.is_checked ? " done" : ""}"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""}>
+      <span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span></label>`;
+  const openG = groupShop(open), doneG = groupShop(done);
   $("#app").innerHTML = `
     <header class="top">
       <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="linkbtn" id="shop-edit">${S.shopEdit ? "Klaar" : "Wijzig"}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
-      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op <b>−</b> om iets weg te halen dat je al in huis hebt.</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${open.length} te halen</p>` : "")}
+      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op <b>−</b> om iets weg te halen dat je al in huis hebt.</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
       ${S.shop.length && !S.shopEdit ? `<span class="sbar" role="img" aria-label="${S.shop.length - open.length} van ${S.shop.length} afgevinkt"><i style="width:${Math.round(((S.shop.length - open.length) / S.shop.length) * 100)}%"></i></span>` : ""}
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
     </header>
     <main class="stack" style="gap:18px">
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op je weekmenu en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
-      ${open.length ? `<div class="shop-list">${open.map(row).join("")}</div>` : ""}
-      ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${done.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${done.map(row).join("")}</div></div>` : ""}
+      ${open.length ? `<div class="shop-list">${openG.map(row).join("")}</div>` : ""}
+      ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${doneG.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${doneG.map(row).join("")}</div></div>` : ""}
       ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast voor week ${weekNumber(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
         <button class="btn block" id="from-menu">Lijst maken van weekmenu</button>
@@ -3484,12 +3538,13 @@ function drawShop() {
   const se = $("#shop-edit"); if (se) se.onclick = () => { S.shopEdit = !S.shopEdit; drawShop(); };
   $("main").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-del]"); if (!b) return;
-    const it = S.shop.find((x) => x.id === b.dataset.del);
-    S.shop = S.shop.filter((x) => x.id !== it.id);
+    const ids = b.dataset.del.split(",");
+    const gone = S.shop.filter((x) => ids.includes(x.id));
+    S.shop = S.shop.filter((x) => !ids.includes(x.id));
     if (!S.shop.length) S.shopEdit = false;
     drawShop();
-    try { await store.removeShopping([it.id]); toast(`${it.name} van de lijst gehaald`); }
-    catch (err) { S.shop.push(it); drawShop(); toast(err.message); }
+    try { await store.removeShopping(ids); toast(`${shopName(gone)} van de lijst gehaald`); }
+    catch (err) { S.shop.push(...gone); drawShop(); toast(err.message); }
   });
   const sc = $("#shop-clear"); if (sc) sc.onclick = async () => {
     const opts = [];
@@ -3506,12 +3561,14 @@ function drawShop() {
   };
   $("main").addEventListener("change", async (e) => {
     const cb = e.target.closest("input[type=checkbox][data-id]"); if (!cb) return;
-    const it = S.shop.find((x) => x.id === cb.dataset.id);
-    it.is_checked = cb.checked;
+    const items = cb.dataset.id.split(",").map((id) => S.shop.find((x) => x.id === id)).filter(Boolean);
+    for (const it of items) it.is_checked = cb.checked;
     drawShop(); saveCache();
-    if (isOffline() || String(it.id).startsWith("tmp-")) { enqueue({ t: "check", id: it.id, v: it.is_checked }); return; }
-    try { await store.updateShopping(it.id, { is_checked: it.is_checked }); }
-    catch (err) { if (isNetErr(err)) { goOffline(); enqueue({ t: "check", id: it.id, v: it.is_checked }); } else toast(err.message); }
+    for (const it of items) {
+      if (isOffline() || String(it.id).startsWith("tmp-")) { enqueue({ t: "check", id: it.id, v: it.is_checked }); continue; }
+      try { await store.updateShopping(it.id, { is_checked: it.is_checked }); }
+      catch (err) { if (isNetErr(err)) { goOffline(); enqueue({ t: "check", id: it.id, v: it.is_checked }); } else toast(err.message); }
+    }
   });
   const cd = $("#clear-done"); if (cd) cd.onclick = async () => {
     try { await store.removeShopping(done.map((x) => x.id)); S.shop = S.shop.filter((x) => !x.is_checked); drawShop(); }
