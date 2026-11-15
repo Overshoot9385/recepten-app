@@ -235,6 +235,9 @@ button { cursor: pointer; }
 .shop-item.editing { cursor: default; }
 .rm-item { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 0; background: var(--danger); color: #fff; font-size: 18px; font-weight: 700; line-height: 1; display: grid; place-items: center; padding: 0 0 2px; }
 #shop-add { padding-right: 6px; }
+.add-opts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: -2px; }
+.add-opts .amt-btn { font-size: 14px; min-height: 34px; padding: 5px 12px; }
+.add-opts .amt-btn.ask { border-color: var(--acc); color: var(--ink); background: color-mix(in srgb, var(--acc) 14%, var(--surface)); }
 #shop-add input { border: 0; background: transparent; flex: 1; min-width: 0; height: 100%; outline: none; font-size: 16px; }
 
 /* Leden */
@@ -1556,6 +1559,13 @@ function liveStore() {
     async savePantry(hid, groups) { const { error, count } = await sb.from("households").update({ pantry: groups }, { count: "exact" }).eq("id", hid); fail(error); if (!count) throw new Error("Alleen de beheerder kan de voorraadkast aanpassen."); },
     // Afdelingen op de boodschappenlijst; werkt ook zolang de kolom nog niet bestaat (dan alleen de vaste woordenlijst)
     async shopSections(hid) { const { data, error } = await sb.from("households").select("shop_sections").eq("id", hid).single(); return error ? null : (data.shop_sections || {}); },
+    // Gedeelde productenlijst (afdeling per product); null als de tabel er (nog) niet is
+    async products(hid) { const { data, error } = await sb.from("shop_products").select("key,aisle,source").eq("household_id", hid); return error ? null : data; },
+    async learnProduct(hid, key, name, aisle) { const { error } = await sb.from("shop_products").insert({ household_id: hid, key, name, aisle, source: "user" }); if (error && error.code !== "23505") fail(error); },
+    async setProduct(hid, key, name, aisle) {
+      if (!aisle) { const { error } = await sb.from("shop_products").delete().eq("household_id", hid).eq("key", key); fail(error); return; }
+      const { error } = await sb.from("shop_products").upsert({ household_id: hid, key, name, aisle, source: "admin", updated_at: new Date().toISOString() }, { onConflict: "household_id,key" }); fail(error);
+    },
     async saveShopSections(hid, map) { const { error, count } = await sb.from("households").update({ shop_sections: map }, { count: "exact" }).eq("id", hid);
       if (error) throw new Error(/shop_sections/.test(error.message) ? "Afdelingen kunnen nog niet bewaard worden: de database-aanvulling ontbreekt nog." : error.message);
       if (!count) throw new Error("Alleen de beheerder kan afdelingen aanpassen."); },
@@ -1698,6 +1708,9 @@ function demoStore() {
     async pantry() { return pantryGroups; },
     async shopSections() { return demoSections; },
     async saveShopSections(hid, map) { demoSections = map; },
+    async products() { return Object.entries(demoSections).map(([key, v]) => ({ key, aisle: v.aisle || v, source: v.source || "admin" })); },
+    async learnProduct(hid, key, name, aisle) { if (!demoSections[key]) demoSections[key] = { aisle, source: "user" }; },
+    async setProduct(hid, key, name, aisle) { if (aisle) demoSections[key] = { aisle, source: "admin" }; else delete demoSections[key]; },
     async savePantry(hid, groups) { pantryGroups = groups; },
     async setPantryFlags() { /* voorbeeld: alleen in het geheugen */ },
     async removeMeals(ids) { for (const id of ids) { const k = meals.findIndex((m) => m.id === id); if (k >= 0) meals.splice(k, 1); } },
@@ -2038,7 +2051,10 @@ async function loadAll() {
     S.recipes = recipes;
     S.favs = new Set(favs);
     const pg = await store.pantry(S.household.id);
-    try { S.shopSections = (await store.shopSections(S.household.id)) || {}; } catch (_) { S.shopSections = {}; }
+    try {
+      const prods = await store.products(S.household.id);
+      S.shopSections = prods ? Object.fromEntries(prods.map((x) => [x.key, x.aisle])) : ((await store.shopSections(S.household.id)) || {});
+    } catch (_) { S.shopSections = S.shopSections || {}; }
     if (pg) { PANTRY_GROUPS = pg; buildPantryRe(); }
     lastSync = Date.now();
     S.fromCache = false; S.offline = false;
@@ -3488,11 +3504,54 @@ function aisleOf(name) {
 }
 // Afdeling van een samengevoegde regel: een correctie van de beheerder gaat voor, anders de meest specifieke naam (met haakjes)
 function groupAisle(g) {
+  const own = g.items.find((i) => i.aisle && AISLES.some((a) => a[0] === i.aisle));
+  if (own) return own.aisle;
   const map = S.shopSections || {};
   const o = map[shopKey(g.name)] || map[shopKey(g.name, true)];
   if (o && AISLES.some((a) => a[0] === o)) return o;
   const found = g.items.map((i) => aisleOf(i.name)).filter((x) => x !== "overig");
   return found.find((x) => x === "diepvries") || found[0] || "overig";
+}
+// Kent de app dit product al? (gedeelde lijst of de vaste woordenlijst)
+function aisleKnown(name) {
+  const map = S.shopSections || {};
+  if (map[shopKey(name)] || map[shopKey(name, true)]) return true;
+  const n = norm(name); return AISLE_RULES.some(([, re]) => re.test(n));
+}
+function inProducts(name) { const map = S.shopSections || {}; return !!(map[shopKey(name)] || map[shopKey(name, true)]); }
+const aisleLabel = (k) => (AISLES.find((a) => a[0] === k) || AISLES[AISLES.length - 1])[1];
+// Kies een afdeling. Geeft de sleutel terug, "" voor automatisch, of null als je annuleert.
+function aislePicker(title, text, cur, autoLabel) {
+  return new Promise((resolve) => {
+    let val = null;
+    const s = sheet(`<div class="sheet-head"><h2>${esc(title)}</h2></div>
+      ${text ? `<p class="muted" style="margin:-6px 0 0;font-size:14px">${esc(text)}</p>` : ""}
+      <div class="opts" id="ap-opts">
+        ${autoLabel ? `<label class="opt"><input type="radio" name="ap" value="" ${cur ? "" : "checked"}><span>Automatisch <small class="muted">(${esc(autoLabel)})</small></span></label>` : ""}
+        ${AISLES.map(([k, l]) => `<label class="opt"><input type="radio" name="ap" value="${k}" ${cur === k ? "checked" : ""}><span>${esc(l)}</span></label>`).join("")}
+      </div>`, () => resolve(val));
+    $("#ap-opts", s.el).onchange = (e) => { val = e.target.value; setTimeout(s.close, 120); };
+  });
+}
+// Iedereen: afdeling van een regel op je eigen lijst. Een nieuw product leert de app meteen voor iedereen.
+async function itemAisleSheet(ids) {
+  const items = ids.map((id) => S.shop.find((x) => x.id === id)).filter(Boolean); if (!items.length) return;
+  const name = shopName(items), cur = (items.find((i) => i.aisle) || {}).aisle || "";
+  const auto = aisleOf(name), isNew = !aisleKnown(name);
+  const v = await aislePicker(name, isNew ? "Nieuw product. Je keuze geldt voortaan voor iedereen." : "Je keuze geldt alleen voor jullie lijst.", cur, isNew ? null : aisleLabel(auto));
+  if (v == null) return;
+  const old = items.map((i) => i.aisle);
+  try {
+    if (isNew && v) {
+      await store.learnProduct(S.household.id, shopKey(name), name, v);
+      S.shopSections = Object.assign({}, S.shopSections, { [shopKey(name)]: v });
+      for (const i of items) if (i.aisle) { i.aisle = null; await store.updateShopping(i.id, { aisle: null }); }
+    } else {
+      const a = v && v !== auto ? v : null;
+      for (const i of items) { i.aisle = a; await store.updateShopping(i.id, { aisle: a }); }
+    }
+    drawShop(); saveCache(); toast(`${name} staat nu bij ${aisleLabel(v || auto)}`);
+  } catch (err) { items.forEach((i, k) => (i.aisle = old[k])); drawShop(); toast(err.message); }
 }
 async function aisleSheet(name, after) {
   const key = shopKey(name);
@@ -3510,7 +3569,7 @@ async function aisleSheet(name, after) {
     if (v) map[key] = v; else delete map[key];
     const before = S.shopSections;
     S.shopSections = map; s.close(); if (after) after();
-    try { await store.saveShopSections(S.household.id, map); saveCache(); toast(v ? `${name} staat nu bij ${(AISLES.find((a) => a[0] === v) || [])[1]}` : `${name} gaat weer automatisch`); }
+    try { await store.setProduct(S.household.id, key, name, v); saveCache(); toast(v ? `${name} staat nu bij ${(AISLES.find((a) => a[0] === v) || [])[1]}` : `${name} gaat weer automatisch`); }
     catch (err) { S.shopSections = before; if (after) after(); toast(err.message); }
   };
 }
@@ -3614,6 +3673,9 @@ function qtySheet(ids) {
   const items = ids.map((id) => S.shop.find((x) => x.id === id)).filter(Boolean);
   if (!items.length) return;
   const name = shopName(items);
+  qtyFromItems(items, name);
+}
+function qtyFromItems(items, name) {
   const units = new Set(items.filter((i) => i.amount != null).map((i) => shopUnit(i.unit)));
   let amount = null, unit = "";
   if (units.size === 1) {
@@ -3622,20 +3684,26 @@ function qtySheet(ids) {
     const u = [...units][0]; unit = u === "#" ? (withAmt.some((i) => /stuk/i.test(i.unit || "")) ? "stuk" : "") : (UNIT_NORM[(withAmt[0].unit || "").toLowerCase()] || withAmt[0].unit || "");
   } else if (!units.size) unit = items.find((i) => i.unit)?.unit || "";
   const mixed = units.size > 1;
-  const known = QTY_UNITS.some((u) => u[0] === unit);
+  qtyPicker(name, amount, unit, mixed ? `Staat nu op de lijst als ${shopAmount(items)}. Kies één hoeveelheid.` : "").then((r) => r && saveQty(items, name, r));
+}
+// Hoeveelheid kiezen; geeft { amount, unit } terug of null bij annuleren
+function qtyPicker(name, amount, unit, note) {
+  return new Promise((resolve) => {
+  let result = null;
+  const known = QTY_UNITS.some((u) => u[0] === (unit || ""));
   const num = (v) => v == null ? "" : String(Math.round(v * 100) / 100).replace(".", ",");
   const s = sheet(`<div class="sheet-head"><h2>${esc(name)}</h2></div>
-    ${mixed ? `<p class="muted" style="margin:-6px 0 0;font-size:14px">Staat nu op de lijst als ${esc(shopAmount(items))}. Kies één hoeveelheid.</p>` : ""}
+    ${note ? `<p class="muted" style="margin:-6px 0 0;font-size:14px">${esc(note)}</p>` : ""}
     <form class="stack" id="qty-form" style="gap:16px">
       <div class="qty-row"><button type="button" id="q-min" aria-label="Minder">−</button>
         <input class="input" id="q-amt" inputmode="decimal" autocomplete="off" placeholder="—" value="${num(amount)}" aria-label="Hoeveelheid">
         <button type="button" class="plus" id="q-plus" aria-label="Meer">+</button></div>
       <div class="unit-chips" id="q-units">${QTY_UNITS.map(([k, l]) => `<button type="button" data-u="${k}" aria-pressed="${k === unit ? "true" : "false"}">${l}</button>`).join("")}</div>
-      <label class="field"><span>Of een andere eenheid</span><input class="input" id="q-unit" autocomplete="off" placeholder="bijv. teentjes, potje" value="${known ? "" : esc(unit)}"></label>
+      <label class="field"><span>Of een andere eenheid</span><input class="input" id="q-unit" autocomplete="off" placeholder="bijv. teentjes, potje" value="${known ? "" : esc(unit || "")}"></label>
       <button class="btn primary block">Bewaren</button>
-    </form>`);
+    </form>`, () => resolve(result));
   const el = s.el, amtIn = $("#q-amt", el), unitIn = $("#q-unit", el);
-  let cur = unit;
+  let cur = known ? (unit || "") : "";
   const read = () => { const v = parseFloat(amtIn.value.replace(",", ".")); return isFinite(v) ? v : null; };
   const step = () => { const u = cur || unitIn.value.trim(); return ["g", "ml"].includes(u) ? ((read() || 0) >= 100 ? 50 : 10) : 1; };
   $("#q-plus", el).onclick = () => { amtIn.value = num((read() || 0) + step()); };
@@ -3646,21 +3714,26 @@ function qtySheet(ids) {
     el.querySelectorAll("#q-units button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
   };
   unitIn.oninput = () => { if (unitIn.value.trim()) { cur = ""; el.querySelectorAll("#q-units button").forEach((x) => x.setAttribute("aria-pressed", "false")); } };
-  $("#qty-form", el).onsubmit = async (e) => {
+  $("#qty-form", el).onsubmit = (e) => {
     e.preventDefault();
+    result = { amount: read(), unit: (unitIn.value.trim() || cur || "") || null };
+    s.close();
+  };
+  setTimeout(() => { if (!amtIn.value) amtIn.focus(); }, 250);
+  });
+}
+async function saveQty(items, name, { amount: newAmt, unit: newUnit }) {
     if (isOffline() || items.some((i) => String(i.id).startsWith("tmp-"))) { toast("Even wachten tot je weer online bent"); return; }
-    const newAmt = read(), newUnit = (unitIn.value.trim() || cur || "") || null;
     const keep = items[0], rest = items.slice(1);
     const patch = { amount: newAmt == null ? null : Math.round(newAmt * 1000) / 1000, unit: newUnit, is_manual: true, name };
     const before = S.shop.slice(), old = { ...keep };
     Object.assign(keep, patch); S.shop = S.shop.filter((x) => !rest.includes(x));
-    s.close(); drawShop(); saveCache();
+    drawShop(); saveCache();
     try {
       await store.updateShopping(keep.id, patch);
       if (rest.length) await store.removeShopping(rest.map((x) => x.id));
       toast(`${name}: ${shopAmount([keep]) || "zonder hoeveelheid"}`);
     } catch (err) { Object.assign(keep, old); S.shop = before; drawShop(); toast(err.message); }
-  };
 }
 const LIST_WEEK_KEY = "receptenboek-lijstweek";
 function listWeek() { return shopRange().from; }
@@ -3680,16 +3753,17 @@ function drawShop() {
   const amtOf = (i) => (i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || ""));
   const row = (g) => S.shopEdit
     ? `<div class="shop-item editing${g.first.is_checked ? " done" : ""}"><button class="rm-item" data-del="${g.ids.join(",")}" aria-label="Haal ${esc(g.name)} van de lijst">−</button>
-      ${isAdmin() ? `<button class="shop-name aisle-btn" data-aisle="${esc(g.name)}"><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<button class="amt-btn${g.amt ? "" : " empty"}" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+ aantal"}</button></div>`
+      ${true ? `<button class="shop-name aisle-btn" ${isAdmin() ? `data-aisle="${esc(g.name)}"` : `data-iaisle="${g.ids.join(",")}"`}><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<button class="amt-btn${g.amt ? "" : " empty"}" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+ aantal"}</button></div>`
     : `<label class="shop-item${g.first.is_checked ? " done" : ""}"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""}>
       <span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span></label>`;
   const openG = groupShop(open), doneG = groupShop(done);
   $("#app").innerHTML = `
     <header class="top">
       <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="linkbtn" id="shop-edit">${S.shopEdit ? "Klaar" : "Wijzig"}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
-      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op een hoeveelheid om die aan te passen, of op <b>−</b> om iets weg te halen dat je al in huis hebt.${isAdmin() ? " Tik op een product om de afdeling te kiezen." : ""}</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
+      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op een hoeveelheid om die aan te passen, of op <b>−</b> om iets weg te halen dat je al in huis hebt.${isAdmin() ? " Tik op een product om de afdeling voor iedereen te kiezen." : " Tik op een product om de afdeling te kiezen."}</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
       ${S.shop.length && !S.shopEdit ? `<span class="sbar" role="img" aria-label="${S.shop.length - open.length} van ${S.shop.length} afgevinkt"><i style="width:${Math.round(((S.shop.length - open.length) / S.shop.length) * 100)}%"></i></span>` : ""}
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
+      <div class="add-opts" id="add-opts" hidden><button type="button" class="amt-btn empty" id="add-qty">+ aantal</button><button type="button" class="amt-btn" id="add-aisle"></button></div>
     </header>
     <main class="stack" style="gap:18px">
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op de planning en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
@@ -3704,11 +3778,47 @@ function drawShop() {
     </main>
     ${tabBarHTML("shop")}`;
   bindTabBar();
+  // Optioneel: aantal en afdeling bij zelf toevoegen
+  const draft = S.addDraft = { amount: null, unit: null, aisle: null };
+  const newIn = $("#shop-new"), ao = $("#add-opts");
+  const parseNew = () => { const v = newIn.value.trim(); const a = v.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]{1,6})?\s+(.+)$/); return a ? { name: a[3], amount: parseFloat(a[1].replace(",", ".")), unit: a[2] || null } : { name: v, amount: null, unit: null }; };
+  const paintAdd = () => {
+    const p = parseNew(); ao.hidden = !p.name;
+    if (!p.name) return;
+    const qb = $("#add-qty"), amt = draft.amount != null || draft.unit ? shopAmount([draft]) : (p.amount != null ? shopAmount([p]) : "");
+    qb.textContent = amt || "+ aantal"; qb.classList.toggle("empty", !amt);
+    const ab = $("#add-aisle"), known = aisleKnown(p.name);
+    ab.textContent = draft.aisle ? aisleLabel(draft.aisle) + " ▾" : (known ? aisleLabel(aisleOf(p.name)) + " ▾" : "Afdeling kiezen ▾");
+    ab.classList.toggle("ask", !draft.aisle && !known);
+  };
+  newIn.oninput = paintAdd;
+  $("#add-qty").onclick = async () => {
+    const p = parseNew();
+    const r = await qtyPicker(p.name || "Hoeveelheid", draft.amount != null || draft.unit ? draft.amount : p.amount, draft.unit || (draft.amount == null ? p.unit : null) || "", "");
+    if (r) { draft.amount = r.amount; draft.unit = r.unit; } paintAdd(); newIn.focus();
+  };
+  $("#add-aisle").onclick = async () => {
+    const p = parseNew(), known = aisleKnown(p.name);
+    const v = await aislePicker(p.name, known ? "" : "Nieuw product. Je keuze geldt voortaan voor iedereen.", draft.aisle || "", known ? aisleLabel(aisleOf(p.name)) : null);
+    if (v != null) draft.aisle = v || null; paintAdd(); newIn.focus();
+  };
   $("#shop-add").onsubmit = async (e) => {
     e.preventDefault();
-    const v = $("#shop-new").value.trim(); if (!v) return;
-    const a = v.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]{1,6})?\s+(.+)$/);
-    const item = a ? { name: a[3], amount: parseFloat(a[1].replace(",", ".")), unit: a[2] || null } : { name: v, amount: null, unit: null };
+    const v = newIn.value.trim(); if (!v) return;
+    const p = parseNew();
+    const item = { name: p.name, amount: p.amount, unit: p.unit };
+    if (draft.amount != null || draft.unit) { item.amount = draft.amount; item.unit = draft.unit; }
+    // Onbekend product: meteen vragen waar het ligt, zodat de app het voortaan weet
+    let choice = draft.aisle;
+    if (!choice && !aisleKnown(item.name)) {
+      const r = await aislePicker(item.name, "Nieuw product. In welke afdeling ligt het? Dan weet de app het voortaan voor iedereen.", "", null);
+      if (r) choice = r;
+    }
+    if (choice && !inProducts(item.name) && !aisleKnown(item.name)) {
+      S.shopSections = Object.assign({}, S.shopSections, { [shopKey(item.name)]: choice });
+      if (!isOffline()) store.learnProduct(S.household.id, shopKey(item.name), item.name, choice).catch(() => {});
+    } else if (choice && choice !== aisleOf(item.name)) item.aisle = choice;
+    if (item.amount != null) item.amount = Math.round(item.amount * 1000) / 1000;
     const addOffline = () => {
       const tmp = "tmp-" + Math.random().toString(36).slice(2, 10);
       S.shop.push({ id: tmp, ...item, is_checked: false, is_manual: true, position: 0 });
@@ -3722,6 +3832,7 @@ function drawShop() {
   const se = $("#shop-edit"); if (se) se.onclick = () => { S.shopEdit = !S.shopEdit; drawShop(); };
   $("main").addEventListener("click", async (e) => {
     const ab = e.target.closest("[data-aisle]"); if (ab) return aisleSheet(ab.dataset.aisle, drawShop);
+    const ib = e.target.closest("[data-iaisle]"); if (ib) return itemAisleSheet(ib.dataset.iaisle.split(","));
     const qb = e.target.closest("[data-qty]"); if (qb) return qtySheet(qb.dataset.qty.split(","));
     const b = e.target.closest("[data-del]"); if (!b) return;
     const ids = b.dataset.del.split(",");
