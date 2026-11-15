@@ -792,6 +792,7 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .srow .tx b { font-weight: 600; }
 .srow .tx span { font-size: 14px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .srow.done { color: var(--muted); }
+.srow.next { opacity: .72; }
 .srow.done .n { border: 0; background: var(--herb); color: var(--herb-ink); }
 .srow.done .n svg { width: 15px; height: 15px; }
 .srow.done .tx b { text-decoration: line-through; }
@@ -967,6 +968,9 @@ body.on-hero::before { background: var(--hero); }
 .aisle-head { margin: 0 4px; }
 .amt-btn { border: 1px solid var(--line2); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px; min-height: 36px; font: inherit; font-size: 15px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; flex: none; }
 .amt-btn.empty { color: var(--muted); font-weight: 500; }
+.shop-item.editing.admin { grid-template-columns: 24px minmax(0, 1fr) auto 36px; column-gap: 10px; }
+.jar-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line2); background: var(--surface); color: var(--saffron); display: grid; place-items: center; padding: 0; }
+.jar-btn svg { width: 18px; height: 18px; }
 .qty-row { display: flex; align-items: center; gap: 10px; }
 .qty-row .input { text-align: center; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 0; flex: 1; }
 .qty-row button { width: 48px; height: 48px; flex: none; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--ink); font-size: 24px; line-height: 1; padding: 0; }
@@ -2969,6 +2973,7 @@ function renderDetail() {
         const st = r.steps[i];
         if (i === cur) return `<li class="scur"><div class="hd"><span class="n">${i + 1}</span><h3>${esc(st.title || "Stap " + (i + 1))}</h3></div><p>${esc(st.text)}</p><button class="ok" data-step="${i}">${check}Stap klaar</button></li>`;
         const d = done.has(i);
+        if (!d) return `<li><div class="srow next"><span class="n">${i + 1}</span><span class="tx"><b>${esc(st.title || "Stap " + (i + 1))}</b><span>${esc(st.text)}</span></span></div></li>`;
         return `<li><button class="srow${d ? " done" : ""}" data-step="${i}" aria-label="Stap ${i + 1} ${d ? "weer openzetten" : "klaar"}"><span class="n">${d ? check : i + 1}</span><span class="tx"><b>${esc(st.title || "Stap " + (i + 1))}</b><span>${esc(st.text)}</span></span></button></li>`;
       }).join("")}</ol>
       ${cur === undefined ? `<p class="eat">Smakelijk eten!</p>` : ""}` : `<p class="muted" style="margin:0">Bij dit recept staat geen bereiding.</p>`;
@@ -3870,6 +3875,42 @@ async function makeShoppingList(days, preMeals) {
     go("shop");
   } catch (err) { toast(err.message); }
 }
+// Beheerder: een product van de lijst naar de voorraadkast verplaatsen (groep kiezen)
+function toPantrySheet(ids) {
+  const items = ids.map((id) => S.shop.find((x) => x.id === id)).filter(Boolean); if (!items.length) return;
+  const name = shopName(items);
+  const word = norm(name).replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  const s = sheet(`<div class="sheet-head"><h2>Naar de voorraadkast</h2></div>
+    <p class="muted" style="margin:-6px 0 0;font-size:14px">Dingen uit de voorraadkast komen niet meer vanzelf op de lijst. Je ziet ze wel bij Voorraad checken. Dit geldt voor iedereen.</p>
+    <form class="stack" id="tp-form" style="gap:14px">
+      <label class="field"><span>Woord in de voorraadkast</span><input class="input" id="tp-word" value="${esc(word)}" autocomplete="off" autocapitalize="off"></label>
+      <div class="field"><span>Groep</span><div class="opts" id="tp-groups">${PANTRY_GROUPS.map((g, i) => `<label class="opt"><input type="radio" name="tp-g" value="${i}" ${i === 0 ? "" : ""}><span>${esc(g.group)}</span><span class="n">${g.items.length}</span></label>`).join("")}</div></div>
+      <label class="check-line"><input type="checkbox" id="tp-rm" checked> Ook van de boodschappenlijst halen</label>
+      <button class="btn primary block" id="tp-go" disabled>Kies een groep</button>
+    </form>`);
+  const el = s.el, go = $("#tp-go", el);
+  $("#tp-groups", el).onchange = () => { go.disabled = false; go.textContent = "Naar de voorraadkast"; };
+  $("#tp-form", el).onsubmit = async (e) => {
+    e.preventDefault();
+    const w = norm($("#tp-word", el).value).trim(); const gi = el.querySelector('input[name="tp-g"]:checked');
+    if (!w || !gi) return;
+    const g = PANTRY_GROUPS[+gi.value], before = JSON.parse(JSON.stringify(PANTRY_GROUPS));
+    const exists = PANTRY_GROUPS.some((x) => x.items.some((y) => norm(y) === w));
+    if (!exists) { g.items.push(w); g.items.sort((a, b) => a.localeCompare(b, "nl")); }
+    buildPantryRe(); go.disabled = true; go.textContent = "Bezig…";
+    try {
+      if (!exists) await store.savePantry(S.household.id, PANTRY_GROUPS);
+      // Recepten met dit ingrediënt meteen goed zetten (alleen wat nu door dit woord in de voorraadkast valt)
+      const changes = [];
+      for (const r of S.recipes) for (const i of r.recipe_ingredients) if (!i.is_pantry && isPantry(i.name) && new RegExp("(^|[^a-z])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(norm(i.name))) changes.push({ id: i.id, is_pantry: true, ref: i });
+      if (changes.length) { await store.setPantryFlags(changes); changes.forEach((c) => (c.ref.is_pantry = true)); }
+      if ($("#tp-rm", el).checked) { await store.removeShopping(ids); S.shop = S.shop.filter((x) => !ids.includes(x.id)); }
+      try { await loadPantry(); } catch (_) { /* niet erg */ }
+      s.close(); drawShop(); saveCache();
+      toast(`${w} staat nu bij ${g.group.toLowerCase()}${changes.length ? ` (${changes.length} ${changes.length === 1 ? "ingrediënt" : "ingrediënten"} in recepten bijgewerkt)` : ""}`);
+    } catch (err) { PANTRY_GROUPS = before; buildPantryRe(); go.disabled = false; go.textContent = "Naar de voorraadkast"; toast(err.message); }
+  };
+}
 // Hoeveelheid van een (samengevoegde) regel aanpassen. Daarna is het één regel die je zelf hebt ingesteld,
 // zodat "Lijst maken van planning" hem laat staan en niet nog eens toevoegt.
 const QTY_UNITS = [["", "geen"], ["stuk", "stuks"], ["g", "g"], ["kg", "kg"], ["ml", "ml"], ["l", "l"], ["pak", "pak"], ["blik", "blik"], ["bos", "bos"], ["zak", "zak"]];
@@ -3975,8 +4016,8 @@ function drawShop() {
   const done = S.shop.filter((i) => i.is_checked);
   const amtOf = (i) => (i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || ""));
   const row = (g) => S.shopEdit
-    ? `<div class="shop-item editing${g.first.is_checked ? " done" : ""}"><button class="rm-item" data-del="${g.ids.join(",")}" aria-label="Haal ${esc(g.name)} van de lijst">−</button>
-      ${true ? `<button class="shop-name aisle-btn" ${isAdmin() ? `data-aisle="${esc(g.name)}"` : `data-iaisle="${g.ids.join(",")}"`}><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<button class="amt-btn${g.amt ? "" : " empty"}" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+ aantal"}</button></div>`
+    ? `<div class="shop-item editing${isAdmin() ? " admin" : ""}${g.first.is_checked ? " done" : ""}"><button class="rm-item" data-del="${g.ids.join(",")}" aria-label="Haal ${esc(g.name)} van de lijst">−</button>
+      ${true ? `<button class="shop-name aisle-btn" ${isAdmin() ? `data-aisle="${esc(g.name)}"` : `data-iaisle="${g.ids.join(",")}"`}><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<button class="amt-btn${g.amt ? "" : " empty"}" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+ aantal"}</button>${isAdmin() ? `<button class="jar-btn" data-topantry="${g.ids.join(",")}" aria-label="${esc(g.name)} naar de voorraadkast">${ICON.jar}</button>` : ""}</div>`
     : `<div class="shop-item${g.first.is_checked ? " done" : ""}"><label class="chk"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""} aria-label="${esc(g.name)} afvinken"></label>
       <span class="shop-name">${esc(g.name)}</span>${g.first.is_checked ? `<span class="shop-amt">${esc(g.amt)}</span>` : `<button class="shop-amt amt-link" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+"}</button>`}</div>`;
   const byName = (x, y) => x.name.localeCompare(y.name, "nl", { sensitivity: "base" });
@@ -3984,7 +4025,7 @@ function drawShop() {
   $("#app").innerHTML = `
     <header class="top">
       <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="iconbtn${S.shopEdit ? " on" : ""}" id="shop-edit" aria-pressed="${S.shopEdit}" aria-label="${S.shopEdit ? "Klaar met wijzigen" : "Lijst wijzigen"}">${S.shopEdit ? ICON.check : ICON.pencil}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
-      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op een hoeveelheid om die aan te passen, of op <b>−</b> om iets weg te halen dat je al in huis hebt.${isAdmin() ? " Tik op een product om de afdeling voor iedereen te kiezen." : " Tik op een product om de afdeling te kiezen."}</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
+      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op een hoeveelheid om die aan te passen, of op <b>−</b> om iets weg te halen dat je al in huis hebt.${isAdmin() ? " Tik op een product om de afdeling voor iedereen te kiezen, of op het potje om het naar de voorraadkast te verplaatsen." : " Tik op een product om de afdeling te kiezen."}</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
       ${S.shop.length && !S.shopEdit ? `<span class="sbar" role="img" aria-label="${S.shop.length - open.length} van ${S.shop.length} afgevinkt"><i style="width:${Math.round(((S.shop.length - open.length) / S.shop.length) * 100)}%"></i></span>` : ""}
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
       <div class="add-opts" id="add-opts" hidden><button type="button" class="amt-btn empty" id="add-qty">+ aantal</button><button type="button" class="amt-btn" id="add-aisle"></button></div>
@@ -4056,6 +4097,7 @@ function drawShop() {
   const se = $("#shop-edit"); if (se) se.onclick = () => { S.shopEdit = !S.shopEdit; drawShop(); };
   $("main").addEventListener("click", async (e) => {
     const ab = e.target.closest("[data-aisle]"); if (ab) return aisleSheet(ab.dataset.aisle, drawShop);
+    const tp = e.target.closest("[data-topantry]"); if (tp) return toPantrySheet(tp.dataset.topantry.split(","));
     const ib = e.target.closest("[data-iaisle]"); if (ib) return itemAisleSheet(ib.dataset.iaisle.split(","));
     const qb = e.target.closest("[data-qty]"); if (qb) return qtySheet(qb.dataset.qty.split(","));
     const b = e.target.closest("[data-del]"); if (!b) return;
