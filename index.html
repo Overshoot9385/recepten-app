@@ -856,6 +856,16 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .listbar button { flex: none; height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-size: 14px; font-weight: 700; }
 .listbar button:disabled { opacity: .5; }
 .ld-quick { display: flex; gap: 8px; }
+.sw-list { display: grid; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); padding: 0 12px; }
+.sw-day { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0; border: 0; border-bottom: 1px solid var(--sunk); background: transparent; color: var(--ink); text-align: left; font: inherit; }
+.sw-day:last-child { border-bottom: 0; }
+.sw-d { display: grid; justify-items: center; line-height: 1.1; }
+.sw-d small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.sw-d b { font-size: 18px; }
+.sw-t { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sw-day.empty .sw-t { color: var(--muted); font-weight: 500; }
+.sw-a { font-size: 13px; font-weight: 700; color: var(--herb); border: 1px solid var(--line2); border-radius: 999px; padding: 6px 12px; }
+.sw-day:not(.empty) .sw-a { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
 .ld-quick .amt-btn { font-size: 14px; min-height: 34px; padding: 5px 14px; }
 .ld-day span { display: grid; gap: 2px; min-width: 0; }
 .ld-day small { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3384,7 +3394,7 @@ function drawMenu() {
       if (t.dataset.day) { if (t.dataset.week === "1") S.menuWeek += 1; S.menuSel = t.dataset.day; drawMenu(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
       if (t.dataset.loose) return looseMealSheet(S.meals.find((x) => x.id === t.dataset.loose));
-      if (t.dataset.swap) { S.swapMeal = t.dataset.swap; return pickRecipeSheet(sel.iso); }
+      if (t.dataset.swap) return swapSheet(S.meals.find((x) => x.id === t.dataset.swap));
       if (t.dataset.open) { S.detailList = [...new Set(S.meals.filter((m) => m.plan_date >= today).sort((a, b) => a.plan_date.localeCompare(b.plan_date)).map((m) => m.recipe_id).filter((id) => id && getRecipe(id)))]; return getRecipe(t.dataset.open) && go("detail", t.dataset.open); }
       const id = t.dataset.inc || t.dataset.dec || t.dataset.rm;
       const m = S.meals.find((x) => x.id === id); if (!m) return;
@@ -3441,6 +3451,47 @@ function looseMealSheet(m) {
     s.close();
     S.draft = { ...emptyDraft(), title, ingredients: looseParts(title).map((x) => ({ name: x, amount: null, unit: "", original_text: "", is_pantry: isPantry(x) })), warnings: ["Vul hoeveelheden en de bereiding aan. Het losse gerecht blijft op de planning staan."] };
     S.view = "edit"; render(); window.scrollTo(0, 0);
+  };
+}
+// Wisselen: met een gerecht op een andere dag (of erheen verplaatsen), of een ander gerecht kiezen
+function swapSheet(m) {
+  if (!m) return;
+  const today = isoDate(planToday()), last = isoDate(planRange().to);
+  const titleOf = (x) => (!x.recipe_id && x.title) ? x.title : ((getRecipe(x.recipe_id) || {}).title || "Verwijderd recept");
+  const dayLbl = (iso) => { const d = new Date(iso + "T12:00:00"); return { ab: DAY_NAMES[(d.getDay() + 6) % 7].slice(0, 2).toLowerCase(), n: d.getDate(), full: `${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()} ${fmtDay(d)}` }; };
+  const days = [];
+  for (let d = new Date(today + "T12:00:00"); isoDate(d) <= last; d = addDays(d, 1)) if (isoDate(d) !== m.plan_date) days.push(isoDate(d));
+  const thisWeekEnd = isoDate(addDays(startOfWeek(planToday()), 6));
+  const row = (iso) => {
+    const ms = S.meals.filter((x) => x.plan_date === iso), l = dayLbl(iso);
+    return `<button class="sw-day${ms.length ? "" : " empty"}" data-to="${iso}"><span class="sw-d"><small>${l.ab}</small><b>${l.n}</b></span><span class="sw-t">${ms.length ? esc(ms.map(titleOf).join(" + ")) : "Nog niets gepland"}</span><span class="sw-a">${ms.length ? "Wissel" : "Verplaats"}</span></button>`;
+  };
+  const a = days.filter((d) => d <= thisWeekEnd), b = days.filter((d) => d > thisWeekEnd);
+  const s = sheet(`<div class="sheet-head"><h2>Wisselen</h2></div>
+    <p class="muted" style="margin:-6px 0 0;font-size:14px">${esc(titleOf(m))} · ${esc(dayLbl(m.plan_date).full)}</p>
+    <div class="seg" id="sw-mode"><button data-sw="day" aria-pressed="true">Andere dag</button><button data-sw="dish" aria-pressed="false">Ander gerecht</button></div>
+    <div class="sheet-scroll" id="sw-days">
+      ${a.length ? `<p class="label" style="margin:0">Deze week</p><div class="sw-list">${a.map(row).join("")}</div>` : ""}
+      ${b.length ? `<p class="label" style="margin:0">Volgende week</p><div class="sw-list">${b.map(row).join("")}</div>` : ""}
+    </div>`);
+  $("#sw-mode", s.el).onclick = (e) => {
+    const t = e.target.closest("[data-sw]"); if (!t || t.dataset.sw !== "dish") return;
+    s.close(); S.swapMeal = m.id; pickRecipeSheet(m.plan_date);
+  };
+  $("#sw-days", s.el).onclick = async (e) => {
+    const t = e.target.closest("[data-to]"); if (!t) return;
+    const to = t.dataset.to, from = m.plan_date;
+    const others = S.meals.filter((x) => x.plan_date === to);
+    s.close();
+    const undo = [[m, from], ...others.map((x) => [x, to])];
+    m.plan_date = to; others.forEach((x) => (x.plan_date = from));
+    S.menuSel = from; drawMenu();
+    try {
+      await store.updateMeal(m.id, { plan_date: to });
+      for (const x of others) await store.updateMeal(x.id, { plan_date: from });
+      saveCache();
+      toast(others.length ? `${titleOf(m)} staat nu op ${dayLbl(to).full}, ${others.map(titleOf).join(" + ")} op ${dayLbl(from).full}` : `${titleOf(m)} verplaatst naar ${dayLbl(to).full}`);
+    } catch (err) { undo.forEach(([x, d]) => (x.plan_date = d)); drawMenu(); toast(err.message); }
   };
 }
 function pickRecipeSheet(date) {
