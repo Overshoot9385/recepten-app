@@ -629,13 +629,14 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 
 /* Zwevende tabbalk met ronde plusknop */
 .tabbar {
-  left: max(16px, env(safe-area-inset-left, 0px)); right: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: max(16px, env(safe-area-inset-left, 0px)); right: auto; max-width: calc(100% - 112px); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   display: flex; gap: 2px; align-items: center; height: 64px; box-sizing: border-box; padding: 6px;
   border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: 0 12px 30px rgb(31 58 46 / .18);
 }
 .tab { display: flex; align-items: center; justify-content: center; gap: 6px; height: 52px; min-width: 46px; padding: 0 10px; border-radius: 999px; color: var(--ink); font-size: 13.5px; font-weight: 700; }
-.tab svg { width: 22px; height: 22px; }
+.tab svg { width: 22px; height: 22px; flex: none; }
+@media (max-width: 429px) { .tab.long[aria-current="page"] span:not(.tab-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .tab.long[aria-current="page"] { padding: 0 14px; } }
 .tab span:not(.tab-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tab[aria-current="page"] { background: var(--herb); color: var(--herb-ink); padding: 0 14px 0 12px; }
 .tab[aria-current="page"] span:not(.tab-dot) { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
@@ -681,7 +682,7 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .tile .ico { width: 34px; height: 34px; border-radius: 50%; background: var(--herb); color: var(--herb-ink); display: grid; place-items: center; }
 .tile .ico svg { width: 18px; height: 18px; }
 .tile b { font-size: 13px; font-weight: 600; line-height: 1.2; }
-.chiprow { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
+.chiprow { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--gut)); padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
 .chiprow::-webkit-scrollbar { display: none; }
 .chiprow .chip { flex: none; border-color: var(--line2); background: transparent; height: 44px; }
 .chiprow .chip[aria-pressed="true"] { background: var(--herb); border-color: var(--herb); }
@@ -726,7 +727,7 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .die-ico { font-size: 18px; line-height: 1; }
 
 /* Recept */
-.d-hero { background: var(--hero); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-left, 0px)) 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-height: 270px; box-sizing: border-box; }
+.d-hero { background: var(--hero); margin: 0 calc(-1 * var(--gut)); padding: calc(env(safe-area-inset-top, 0px) + 12px) var(--gut) 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-height: 270px; box-sizing: border-box; }
 .d-hero .hbtn { flex: none; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--hero-btn); color: var(--hero-btn-ink); display: grid; place-items: center; padding: 0; }
 .d-hero .hbtn svg { width: 22px; height: 22px; }
 .d-hero .hbtn.fav[aria-pressed="true"] { background: var(--acc); color: var(--acc-ink); }
@@ -737,17 +738,17 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .d-mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .d-mid .pager { margin: 0; color: var(--hero-btn); opacity: .85; }
 .d-mid .pg-btn { background: transparent; border-color: color-mix(in srgb, var(--hero-btn) 40%, transparent); color: var(--hero-btn); }
-.d-sheet { position: relative; margin: -28px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; padding: 22px max(20px, env(safe-area-inset-left, 0px)) 0; border-radius: 32px 32px 0 0; background: var(--bg); display: flex; flex-direction: column; gap: 14px; }
+.d-sheet { position: relative; margin: -28px calc(-1 * var(--gut)) 0; padding: 22px calc(var(--gut) + 4px) 0; border-radius: 32px 32px 0 0; background: var(--bg); display: flex; flex-direction: column; gap: 14px; }
 .d-sheet .tags .tag:first-child { background: var(--herb); color: var(--herb-ink); }
 .d-sheet .tag { background: transparent; border: 1px solid var(--ink); }
 .d-sheet h1 { font-size: 32px; line-height: 1.06; letter-spacing: -0.02em; }
 .d-sheet .sub { margin: 0; font-size: 15px; color: var(--muted); }
 .d-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 10px; }
 .d-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.d-stat > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.d-stat > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .d-stat small { font-size: 12px; font-weight: 600; color: var(--muted); }
 .d-stat b { font-family: var(--font-display); font-weight: 600; font-size: 22px; line-height: 1.1; white-space: nowrap; }
-.d-stat .pm { display: flex; gap: 6px; }
+.d-stat .pm { flex: none; display: flex; flex-direction: row; align-items: center; gap: 6px; }
 .d-stat .pm button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--ink); font-size: 22px; line-height: 1; padding: 0; }
 .d-stat .pm button.plus { border: 0; background: var(--herb); color: var(--herb-ink); }
 .d-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 999px; background: var(--sunk); }
@@ -864,7 +865,7 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .chip.have { background: var(--herb); }
 
 /* Beheer: tabbladen als chips */
-.tabs.adm-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; background: none; padding: 0; border-radius: 0; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
+.tabs.adm-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; background: none; padding: 0; border-radius: 0; margin: 0 calc(-1 * var(--gut)); padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
 .tabs.adm-tabs::-webkit-scrollbar { display: none; }
 .tabs.adm-tabs button { flex: none; height: 44px; padding: 0 16px; border: 1px solid var(--line2); border-radius: 999px; font-size: 14px; }
 .tabs.adm-tabs button[aria-selected="true"] { border-color: var(--herb); }
@@ -883,6 +884,43 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .pantry-check { border: 0; background: var(--sunk); padding: 10px 14px; min-height: 48px; }
 .pantry-check > svg { color: var(--ink); width: 22px; height: 22px; }
 .fridge-entry { display: none; }
+
+/* ================= Telefoonformaten: niets mag breder worden dan het scherm ================= */
+#app { overflow-x: clip; }
+.wrap { --gut: max(16px, env(safe-area-inset-left, 0px)); }
+.stack { grid-template-columns: minmax(0, 1fr); }
+.stack > *, .grid > *, main > *, header > * { min-width: 0; }
+.tonight h2 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.tonight .arch { width: clamp(88px, 28vw, 124px); }
+.d-sheet h1, .daycard h2, .dmeal .ti, .hello h1 { overflow-wrap: anywhere; }
+.d-stats { align-items: stretch; }
+.d-stat { min-height: 72px; }
+.d-sheet .ing li > span:first-child, .shop-name { min-width: 0; overflow-wrap: anywhere; }
+body.on-hero::before { background: var(--hero); }
+@media (max-width: 389px) {
+  .wrap { --gut: max(14px, env(safe-area-inset-left, 0px)); padding-left: var(--gut); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+  .hello h1 { font-size: 30px; }
+  .top .brand h1, .wk-head h1 { font-size: 32px; }
+  .d-sheet h1 { font-size: 28px; }
+  .tonight { padding: 16px; gap: 12px; min-height: 160px; }
+  .tonight h2 { font-size: 22px; }
+  .tiles { gap: 8px; }
+  .tile { padding: 10px; }
+  .tile .big { font-size: 21px; }
+  .sbtn { width: 34px; }
+  .search-sticky .search { padding-left: 12px; gap: 6px; }
+  .d-stat { padding: 8px 10px; }
+  .d-stat b { font-size: 20px; }
+  .d-stat .pm button { width: 40px; height: 40px; }
+  .strip { gap: 4px; }
+  .strip b { font-size: 17px; }
+  .dmeal .acts button { font-size: 13px; padding: 0 4px; }
+  .tab, .tab[aria-current="page"] { min-width: 48px; padding: 0 12px; }
+  .tab[aria-current="page"] span:not(.tab-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+@media (min-width: 430px) {
+  .hello h1 { font-size: 38px; }
+}
 .strip { touch-action: pan-y; }
 .strip::-webkit-scrollbar { display: none; }
 .strip em { position: absolute; top: -15px; left: 2px; font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
@@ -892,7 +930,7 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .aisle-btn small { font-size: 12.5px; color: var(--acc); font-weight: 600; }
 
 /* Zoekbalk: plakt bovenaan bij scrollen; ster, dobbelsteen en filter in de balk */
-.search-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 14px max(16px, env(safe-area-inset-left, 0px)) 12px; }
+.search-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin: 0 calc(-1 * var(--gut)); padding: 14px var(--gut) 12px; }
 .search-sticky .search { padding: 0 4px 0 14px; gap: 8px; }
 .search-sticky input { min-width: 0; }
 .sbtns { display: flex; align-items: center; gap: 2px; flex: none; }
@@ -2117,6 +2155,7 @@ function go(view, id) {
   render(); if (!back) window.scrollTo(0, 0); applyPendingScroll();
 }
 function render() {
+  document.body.classList.toggle("on-hero", S.view === "detail");
   if (S.view !== "detail") { const db = document.getElementById("d-bar"); if (db) db.remove(); }
   if (S.recovery) return renderNewPassword();
   if (S.view === "detail") return renderDetail();
@@ -2131,7 +2170,7 @@ function render() {
   renderList();
 }
 function tabBarHTML(active) {
-  const tab = (id, label, icon) => `<button class="tab" data-tab="${id}" aria-current="${active === id ? "page" : "false"}" aria-label="${label}">${icon}<span>${label}</span></button>`;
+  const tab = (id, label, icon) => `<button class="tab${label.length > 9 ? " long" : ""}" data-tab="${id}" aria-current="${active === id ? "page" : "false"}" aria-label="${label}">${icon}<span>${label}</span></button>`;
   const fab = active === "list" ? (canEdit() ? ["add", "Recept toevoegen"] : null) : active === "menu" ? ["meal", "Gerecht toevoegen"] : active === "shop" ? ["list", "Lijst maken van planning"] : null;
   return `<nav class="tabbar" aria-label="Hoofdmenu">
     ${tab("list", "Recepten", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>')}
@@ -2509,7 +2548,7 @@ function tilesHTML() {
 function searchBarHTML() {
   const filt = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h8M18 7h2M4 17h2M12 17h8"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>';
   const dice = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="8.8" cy="8.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.2" cy="15.2" r="1.1" fill="currentColor" stroke="none"/></svg>';
-  return `<div class="search-sticky"><div class="search"><span aria-hidden="true" style="display:grid">${ICON.search}</span><input id="q" type="search" aria-label="Zoek op gerecht of ingrediënt" placeholder="Zoek in ${S.recipes.length} recepten" value="${esc(S.query)}" autocomplete="off">
+  return `<div class="search-sticky"><div class="search"><span aria-hidden="true" style="display:grid">${ICON.search}</span><input id="q" type="search" aria-label="Zoek op gerecht of ingrediënt" placeholder="${innerWidth < 390 ? "Zoek recepten" : `Zoek in ${S.recipes.length} recepten`}" value="${esc(S.query)}" autocomplete="off">
     <span class="sbtns"><button class="sbtn fav${S.favOnly ? " on" : ""}" id="fav-btn" aria-pressed="${S.favOnly}" aria-label="Alleen favorieten">${S.favOnly ? ICON.star : ICON.starOff}</button><button class="sbtn" id="dice-btn" aria-label="Verras me met een willekeurig recept">${dice}</button><button class="menu-btn${menuActive() ? " on" : ""}" id="menu-btn" aria-label="Weergave, sorteren en filters" aria-haspopup="dialog">${filt}</button></span></div></div>`;
 }
 function renderList() {
@@ -2550,11 +2589,16 @@ function drawTop() {
 }
 // Menu onder de filterknop: weergave, sorteren en filters op één plek
 function listMenu() {
+  // Eerst de zoekbalk bovenaan zetten (die plakt daar), dan het menu eronder
+  const ss = $(".search-sticky");
+  if (ss) window.scrollTo(0, Math.max(0, ss.getBoundingClientRect().top + window.scrollY - (parseFloat(getComputedStyle(ss).top) || 0)));
   const anchor = $("#menu-btn").getBoundingClientRect();
   const bg = document.createElement("div"); bg.className = "pop-bg";
   const pop = document.createElement("div"); pop.className = "pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Weergave, sorteren en filters");
   const top = Math.round(anchor.bottom + 14);
-  pop.style.top = top + "px"; pop.style.maxHeight = Math.max(320, (window.visualViewport ? visualViewport.height : innerHeight) - top - 16) + "px";
+  const vh = window.visualViewport ? visualViewport.height : innerHeight;
+  if (vh - top - 16 >= 440) { pop.style.top = top + "px"; pop.style.maxHeight = (vh - top - 16) + "px"; }
+  else { pop.style.top = "auto"; pop.style.bottom = "calc(12px + env(safe-area-inset-bottom, 0px))"; pop.style.maxHeight = (vh - 24) + "px"; }
   const fv = (kind) => {
     if (kind === "person") return S.owner === "all" ? "Iedereen" : S.owner === "me" ? "Van mij" : S.owner === "others" ? "Van anderen" : nameOf(S.owner);
     if (kind === "tags") return S.tags.length ? S.tags.join(S.tagMode === "any" ? " of " : ", ") : "Alle";
