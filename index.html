@@ -883,6 +883,10 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .pantry-check { border: 0; background: var(--sunk); padding: 10px 14px; min-height: 48px; }
 .pantry-check > svg { color: var(--ink); width: 22px; height: 22px; }
 .fridge-entry { display: none; }
+.aisle { display: flex; flex-direction: column; gap: 6px; }
+.aisle-head { margin: 0 4px; }
+.aisle-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 0; border: 0; background: none; padding: 4px 0; color: var(--ink); text-align: left; font: inherit; min-height: 44px; justify-content: center; }
+.aisle-btn small { font-size: 12.5px; color: var(--acc); font-weight: 600; }
 
 /* Zoekbalk: plakt bovenaan bij scrollen; ster, dobbelsteen en filter in de balk */
 .search-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 14px max(16px, env(safe-area-inset-left, 0px)) 12px; }
@@ -1500,6 +1504,11 @@ function liveStore() {
     async restoreVersion(logId) { const { error } = await sb.rpc("restore_recipe_version", { p_log: logId }); fail(error); },
     async pantry(hid) { const { data, error } = await sb.from("households").select("pantry").eq("id", hid).single(); fail(error); return data.pantry; },
     async savePantry(hid, groups) { const { error, count } = await sb.from("households").update({ pantry: groups }, { count: "exact" }).eq("id", hid); fail(error); if (!count) throw new Error("Alleen de beheerder kan de voorraadkast aanpassen."); },
+    // Afdelingen op de boodschappenlijst; werkt ook zolang de kolom nog niet bestaat (dan alleen de vaste woordenlijst)
+    async shopSections(hid) { const { data, error } = await sb.from("households").select("shop_sections").eq("id", hid).single(); return error ? null : (data.shop_sections || {}); },
+    async saveShopSections(hid, map) { const { error, count } = await sb.from("households").update({ shop_sections: map }, { count: "exact" }).eq("id", hid);
+      if (error) throw new Error(/shop_sections/.test(error.message) ? "Afdelingen kunnen nog niet bewaard worden: de database-aanvulling ontbreekt nog." : error.message);
+      if (!count) throw new Error("Alleen de beheerder kan afdelingen aanpassen."); },
     async setPantryFlags(changes) {
       for (const v of [true, false]) {
         const ids = changes.filter((c) => c.is_pantry === v).map((c) => c.id);
@@ -1544,6 +1553,7 @@ HelloFresh-URL
 https://www.hellofresh.nl/recipes/bowl-met-orzo-en-kippendijreepjes-628665bf439bffaaa70d603e`;
 
 function demoStore() {
+  let demoSections = {};
   const me = { id: "demo-me", display_name: "Tom" };
   const partner = { id: "demo-2", display_name: "Vriendin", avatar_emoji: "🍓" };
   const mama = { id: "demo-3", display_name: "Mama", avatar_emoji: "🌷" };
@@ -1636,6 +1646,8 @@ function demoStore() {
     subscribe() { return () => {}; },
     async signUp() { toast("Voorbeeld: hier wordt het account gemaakt"); },
     async pantry() { return pantryGroups; },
+    async shopSections() { return demoSections; },
+    async saveShopSections(hid, map) { demoSections = map; },
     async savePantry(hid, groups) { pantryGroups = groups; },
     async setPantryFlags() { /* voorbeeld: alleen in het geheugen */ },
     async removeMeals(ids) { for (const id of ids) { const k = meals.findIndex((m) => m.id === id); if (k >= 0) meals.splice(k, 1); } },
@@ -1835,7 +1847,7 @@ function saveCache() {
   cacheTimer = setTimeout(() => {
     try {
       localStorage.setItem(CACHE_KEY(), JSON.stringify({ at: lastSync, household: S.household, role: S.role, names: S.names, avatars: S.avatars, roles: S.roles,
-        recipes: S.recipes, favs: [...S.favs], shop: S.shop, plan: S.plan, pantry: PANTRY_GROUPS, meals: S.meals, weekStart: isoDate(S.weekStart) }));
+        recipes: S.recipes, favs: [...S.favs], shop: S.shop, plan: S.plan, pantry: PANTRY_GROUPS, shopSections: S.shopSections || {}, meals: S.meals, weekStart: isoDate(S.weekStart) }));
     } catch (_) { /* vol of niet beschikbaar: dan zonder offline-kopie */ }
   }, 300);
 }
@@ -1843,6 +1855,7 @@ function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY())
 function applyCache(c) {
   Object.assign(S, { household: c.household, role: c.role, names: c.names || {}, avatars: c.avatars || {}, roles: c.roles || {}, recipes: c.recipes || [], favs: new Set(c.favs || []), shop: c.shop || [], plan: c.plan });
   if (c.pantry) { PANTRY_GROUPS = c.pantry; buildPantryRe(); }
+  if (c.shopSections) S.shopSections = c.shopSections;
   S.cachedMeals = { week: c.weekStart, meals: c.meals || [] };
   lastSync = c.at || Date.now();
 }
@@ -1975,6 +1988,7 @@ async function loadAll() {
     S.recipes = recipes;
     S.favs = new Set(favs);
     const pg = await store.pantry(S.household.id);
+    try { S.shopSections = (await store.shopSections(S.household.id)) || {}; } catch (_) { S.shopSections = {}; }
     if (pg) { PANTRY_GROUPS = pg; buildPantryRe(); }
     lastSync = Date.now();
     S.fromCache = false; S.offline = false;
@@ -3384,6 +3398,58 @@ async function addRecipeToList(r, servings) {
   return items.length;
 }
 
+/* ================= Afdelingen van de supermarkt ================= */
+const AISLES = [
+  ["groente", "Groente en fruit"], ["brood", "Brood en bakkerij"], ["vlees", "Vlees, vis en vega"],
+  ["zuivel", "Kaas, zuivel en eieren"], ["dkw", "DKW"], ["diepvries", "Diepvries"], ["overig", "Overig"],
+];
+// Eerste regel die past, wint. Specifieke woorden staan daarom vóór algemene (gepelde tomaten vóór tomaat).
+const AISLE_RULES = [
+  ["diepvries", /diepvries|bevroren|\bfriet|frites|ijsblokjes|edamame|\bijs\b/],
+  ["groente", /\bvers(e)?\b|spaanse peper|rode peper|groene peper|lente ?ui|bosui/],
+  ["dkw", /\bblik|gepelde tomat|tomatenblokjes|passata|tomatenpuree|tomatensaus|kokosmelk|bouillon|kidneybonen|bruine bonen|witte bonen|zwarte bonen|kikkererwten|linzen|\bmais\b|tonijn in|pesto|currypasta|curry ?pasta|\bsaus|ketchup|mayonaise|mosterd|sambal|ketjap|sojasaus|sriracha|\bolie|olijfolie|azijn|balsamico|kruiden|specerij|poeder|kerrie|komijn|kaneel|nootmuskaat|oregano|\bzout\b|\bpeper\b|\bbloem\b|suiker|honing|bakpoeder|maizena|paneermeel|\bnoten|pijnboompit|sesamzaad|cashew|pinda|rozijn|cornflakes|muesli|havermout|granola|\bjam\b|hagelslag|pindakaas|koffie|\bthee\b|cola|sap\b|frisdrank|\bbier|\bwijn|spa |\bwater\b|chips|chocola|cracker|beschuit|pasta|spaghetti|penne|macaroni|fusilli|tagliatelle|lasagne|orzo|noedel|\bmie\b|rijst|couscous|bulgur|quinoa|gnocchi|tortilla ?chips|nori|rijstpapier|bloemkoolrijst/],
+  ["vlees", /\bkip|kippen|kalkoen|gehakt|\brund|runder|varken|biefstuk|steak|\bspek|bacon|\bham\b|\bworst|chorizo|salami|\blams?\b|lamsvlees|shoarma|kebab|schnitzel|slavink|saucijs|sucade|riblap|hamburger|\bvis\b|visfilet|zalm|kabeljauw|tonijn|garna|mosselen|pangasius|makreel|forel|scampi|tofu|tempeh|\bvega|seitan/],
+  ["zuivel", /melk|\broom\b|kookroom|slagroom|creme fraiche|zure room|yoghurt|kwark|skyr|\bboter|roomboter|kaas|parmezaan|feta|mozzarella|burrata|ricotta|mascarpone|cheddar|gouda|halloumi|huttenkase|\bei\b|\beieren\b|\beitjes?\b/],
+  ["brood", /brood|desem|ciabatta|\bwraps?\b|tortilla|\bpita|naan|bolletje|croissant|focaccia|bagel|\bbroodje/],
+  ["groente", /tomat|komkommer|\bui\b|\buien\b|sjalot|knoflook|paprika|courgette|aubergine|wortel|broccoli|bloemkool|spinazie|\bsla\b|rucola|ijsberg|andijvie|veldsla|prei|champignon|paddenstoel|aardappel|kriel|pompoen|sperzie|boontjes|citroen|limoen|sinaasappel|mandarijn|\bappel|\bpeer|peren|banaan|bananen|avocado|mango|ananas|aardbei|bessen|framboz|druiven|gember|radijs|biet|venkel|selderij|asperge|\bkool\b|spitskool|rode kool|boerenkool|witlof|taug|paksoi|peterselie|koriander|basilicum|\bmunt\b|dille|bieslook|tijm|rozemarijn|salie|doperwt|peultjes|snijbonen|maiskolf|zoete aardappel|bataat|cherrytomat|vijg|kiwi|meloen|granaatappel|bramen|blauwe bes/],
+];
+function aisleOf(name) {
+  const map = S.shopSections || {};
+  const o = map[shopKey(name)] || map[shopKey(name, true)];
+  if (o && AISLES.some((a) => a[0] === o)) return o;
+  const n = norm(name);
+  for (const [k, re] of AISLE_RULES) if (re.test(n)) return k;
+  return "overig";
+}
+// Afdeling van een samengevoegde regel: een correctie van de beheerder gaat voor, anders de meest specifieke naam (met haakjes)
+function groupAisle(g) {
+  const map = S.shopSections || {};
+  const o = map[shopKey(g.name)] || map[shopKey(g.name, true)];
+  if (o && AISLES.some((a) => a[0] === o)) return o;
+  const found = g.items.map((i) => aisleOf(i.name)).filter((x) => x !== "overig");
+  return found.find((x) => x === "diepvries") || found[0] || "overig";
+}
+async function aisleSheet(name, after) {
+  const key = shopKey(name);
+  const cur = (S.shopSections || {})[key] || "";
+  const auto = (() => { const m = S.shopSections; S.shopSections = {}; const a = aisleOf(name); S.shopSections = m; return a; })();
+  const s = sheet(`<div class="sheet-head"><h2>${esc(name)}</h2></div>
+    <p class="muted" style="margin:-6px 0 0;font-size:14px">In welke afdeling ligt dit? Je keuze geldt voor iedereen die de app gebruikt.</p>
+    <div class="opts" id="ai-opts">
+      <label class="opt"><input type="radio" name="aisle" value="" ${cur ? "" : "checked"}><span>Automatisch <small class="muted">(${esc((AISLES.find((a) => a[0] === auto) || AISLES[6])[1])})</small></span></label>
+      ${AISLES.map(([k, l]) => `<label class="opt"><input type="radio" name="aisle" value="${k}" ${cur === k ? "checked" : ""}><span>${esc(l)}</span></label>`).join("")}
+    </div>`);
+  $("#ai-opts", s.el).onchange = async (e) => {
+    const v = e.target.value;
+    const map = Object.assign({}, S.shopSections || {});
+    if (v) map[key] = v; else delete map[key];
+    const before = S.shopSections;
+    S.shopSections = map; s.close(); if (after) after();
+    try { await store.saveShopSections(S.household.id, map); saveCache(); toast(v ? `${name} staat nu bij ${(AISLES.find((a) => a[0] === v) || [])[1]}` : `${name} gaat weer automatisch`); }
+    catch (err) { S.shopSections = before; if (after) after(); toast(err.message); }
+  };
+}
+
 /* ================= Boodschappen samenvoegen: Ei, Eieren en "Parmezaanse kaas (optioneel)" zijn hetzelfde product ================= */
 const SHOP_IRREG = { eieren: "ei", eitjes: "ei", eitje: "ei" };
 function shopStem(w, keepEn) {
@@ -3496,20 +3562,20 @@ function drawShop() {
   const amtOf = (i) => (i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || ""));
   const row = (g) => S.shopEdit
     ? `<div class="shop-item editing${g.first.is_checked ? " done" : ""}"><button class="rm-item" data-del="${g.ids.join(",")}" aria-label="Haal ${esc(g.name)} van de lijst">−</button>
-      <span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span></div>`
+      ${isAdmin() ? `<button class="shop-name aisle-btn" data-aisle="${esc(g.name)}"><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<span class="shop-amt">${esc(g.amt)}</span></div>`
     : `<label class="shop-item${g.first.is_checked ? " done" : ""}"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""}>
       <span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span></label>`;
   const openG = groupShop(open), doneG = groupShop(done);
   $("#app").innerHTML = `
     <header class="top">
       <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="linkbtn" id="shop-edit">${S.shopEdit ? "Klaar" : "Wijzig"}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
-      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op <b>−</b> om iets weg te halen dat je al in huis hebt.</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
+      ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op <b>−</b> om iets weg te halen dat je al in huis hebt.${isAdmin() ? " Tik op een product om de afdeling te kiezen." : ""}</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${groupShop(open).length} te halen</p>` : "")}
       ${S.shop.length && !S.shopEdit ? `<span class="sbar" role="img" aria-label="${S.shop.length - open.length} van ${S.shop.length} afgevinkt"><i style="width:${Math.round(((S.shop.length - open.length) / S.shop.length) * 100)}%"></i></span>` : ""}
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
     </header>
     <main class="stack" style="gap:18px">
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op je weekmenu en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
-      ${open.length ? `<div class="shop-list">${openG.map(row).join("")}</div>` : ""}
+      ${open.length ? AISLES.map(([k, l]) => { const gs = openG.filter((g) => groupAisle(g) === k); return gs.length ? `<div class="aisle"><p class="label aisle-head">${esc(l)}</p><div class="shop-list">${gs.map(row).join("")}</div></div>` : ""; }).join("") : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${doneG.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${doneG.map(row).join("")}</div></div>` : ""}
       ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast voor week ${weekNumber(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
@@ -3537,6 +3603,7 @@ function drawShop() {
   };
   const se = $("#shop-edit"); if (se) se.onclick = () => { S.shopEdit = !S.shopEdit; drawShop(); };
   $("main").addEventListener("click", async (e) => {
+    const ab = e.target.closest("[data-aisle]"); if (ab) return aisleSheet(ab.dataset.aisle, drawShop);
     const b = e.target.closest("[data-del]"); if (!b) return;
     const ids = b.dataset.del.split(",");
     const gone = S.shop.filter((x) => ids.includes(x.id));
