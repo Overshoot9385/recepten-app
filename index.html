@@ -637,14 +637,14 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 
 /* Zwevende tabbalk met ronde plusknop */
 .tabbar {
-  left: max(16px, env(safe-area-inset-left, 0px)); right: auto; max-width: calc(100% - 112px); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: max(16px, env(safe-area-inset-left, 0px)); right: auto; max-width: calc(100% - 100px); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   display: flex; gap: 2px; align-items: center; height: 64px; box-sizing: border-box; padding: 6px;
   border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: 0 12px 30px rgb(31 58 46 / .18);
 }
 .tab { display: flex; align-items: center; justify-content: center; gap: 6px; height: 52px; min-width: 46px; padding: 0 10px; border-radius: 999px; color: var(--ink); font-size: 13.5px; font-weight: 700; }
 .tab svg { width: 22px; height: 22px; flex: none; }
-@media (max-width: 429px) { .tab.long[aria-current="page"] span:not(.tab-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .tab.long[aria-current="page"] { padding: 0 14px; } }
+@media (max-width: 429px) { .tab { min-width: 40px; padding: 0 7px; } .tab.long[aria-current="page"] { padding: 0 12px 0 10px; gap: 5px; font-size: 13px; letter-spacing: -.1px; } }
 .tab span:not(.tab-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tab[aria-current="page"] { background: var(--herb); color: var(--herb-ink); padding: 0 14px 0 12px; }
 .tab[aria-current="page"] span:not(.tab-dot) { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
@@ -3500,10 +3500,10 @@ const AISLES = [
 const AISLE_RULES = [
   ["diepvries", /diepvries|bevroren|\bfriet|frites|ijsblokjes|edamame|\bijs\b/],
   ["groente", /\bvers(e)?\b|spaanse peper|rode peper|groene peper|lente ?ui|bosui/],
-  ["dkw", /\bblik|gepelde tomat|tomatenblokjes|passata|tomatenpuree|tomatensaus|kokosmelk|bouillon|kidneybonen|bruine bonen|witte bonen|zwarte bonen|kikkererwten|linzen|\bmais\b|tonijn in|pesto|currypasta|curry ?pasta|\bsaus|ketchup|mayonaise|mosterd|sambal|ketjap|sojasaus|sriracha|\bolie|olijfolie|azijn|balsamico|kruiden|specerij|poeder|kerrie|komijn|kaneel|nootmuskaat|oregano|\bzout\b|\bpeper\b|\bbloem\b|suiker|honing|bakpoeder|maizena|paneermeel|\bnoten|pijnboompit|sesamzaad|cashew|pinda|rozijn|cornflakes|muesli|havermout|granola|\bjam\b|hagelslag|pindakaas|koffie|\bthee\b|cola|sap\b|frisdrank|\bbier|\bwijn|spa |\bwater\b|chips|chocola|cracker|beschuit|pasta|spaghetti|penne|macaroni|fusilli|tagliatelle|lasagne|orzo|noedel|\bmie\b|rijst|couscous|bulgur|quinoa|gnocchi|tortilla ?chips|nori|rijstpapier|bloemkoolrijst/],
+  ["dkw", /\bblik|gepelde tomat|tomatenblokjes|passata|tomatenpuree|tomatensaus|kokosmelk|bouillon|kidneybonen|bruine bonen|witte bonen|zwarte bonen|kikkererwten|linzen|\bmais\b|tonijn in|pesto|currypasta|curry ?pasta|\bsaus|ketchup|mayonaise|mosterd|sambal|ketjap|sojasaus|sriracha|\bolie|olijfolie|olijven|kappertjes|augurk|zongedroogde|azijn|balsamico|kruiden|specerij|poeder|kerrie|komijn|kaneel|nootmuskaat|oregano|\bzout\b|\bpeper\b|\bbloem\b|suiker|honing|bakpoeder|maizena|paneermeel|\bnoten|pijnboompit|sesamzaad|cashew|pinda|rozijn|cornflakes|muesli|havermout|granola|\bjam\b|hagelslag|pindakaas|koffie|\bthee\b|cola|sap\b|frisdrank|\bbier|\bwijn|spa |\bwater\b|chips|chocola|cracker|beschuit|pasta|spaghetti|penne|macaroni|fusilli|tagliatelle|lasagne|orzo|noedel|\bmie\b|rijst|couscous|bulgur|quinoa|gnocchi|tortilla ?chips|nori|rijstpapier|bloemkoolrijst/],
   ["vlees", /\bkip|kippen|kalkoen|gehakt|\brund|runder|varken|biefstuk|steak|\bspek|bacon|\bham\b|\bworst|chorizo|salami|\blams?\b|lamsvlees|shoarma|kebab|schnitzel|slavink|saucijs|sucade|riblap|hamburger|\bvis\b|visfilet|zalm|kabeljauw|tonijn|garna|mosselen|pangasius|makreel|forel|scampi|tofu|tempeh|\bvega|seitan/],
   ["zuivel", /melk|\broom\b|kookroom|slagroom|creme fraiche|zure room|yoghurt|kwark|skyr|\bboter|roomboter|kaas|parmezaan|feta|mozzarella|burrata|ricotta|mascarpone|cheddar|gouda|halloumi|huttenkase|\bei\b|\beieren\b|\beitjes?\b/],
-  ["brood", /brood|desem|ciabatta|\bwraps?\b|tortilla|\bpita|naan|bolletje|croissant|focaccia|bagel|\bbroodje/],
+  ["brood", /brood|desem|ciabatta|\bwraps?\b|tortilla|\bpita|\bnaan\b|bolletje|croissant|focaccia|bagel|\bbroodje/],
   ["groente", /tomat|komkommer|\bui\b|\buien\b|sjalot|knoflook|paprika|courgette|aubergine|wortel|broccoli|bloemkool|spinazie|\bsla\b|rucola|ijsberg|andijvie|veldsla|prei|champignon|paddenstoel|aardappel|kriel|pompoen|sperzie|boontjes|citroen|limoen|sinaasappel|mandarijn|\bappel|\bpeer|peren|banaan|bananen|avocado|mango|ananas|aardbei|bessen|framboz|druiven|gember|radijs|biet|venkel|selderij|asperge|\bkool\b|spitskool|rode kool|boerenkool|witlof|taug|paksoi|peterselie|koriander|basilicum|\bmunt\b|dille|bieslook|tijm|rozemarijn|salie|doperwt|peultjes|snijbonen|maiskolf|zoete aardappel|bataat|cherrytomat|vijg|kiwi|meloen|granaatappel|bramen|blauwe bes/],
 ];
 function aisleOf(name) {
@@ -3808,7 +3808,8 @@ function drawShop() {
       ${true ? `<button class="shop-name aisle-btn" ${isAdmin() ? `data-aisle="${esc(g.name)}"` : `data-iaisle="${g.ids.join(",")}"`}><span>${esc(g.name)}</span><small>${esc((AISLES.find((a) => a[0] === groupAisle(g)) || AISLES[6])[1])} ›</small></button>` : `<span class="shop-name">${esc(g.name)}</span>`}<button class="amt-btn${g.amt ? "" : " empty"}" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+ aantal"}</button></div>`
     : `<div class="shop-item${g.first.is_checked ? " done" : ""}"><label class="chk"><input type="checkbox" data-id="${g.ids.join(",")}" ${g.first.is_checked ? "checked" : ""} aria-label="${esc(g.name)} afvinken"></label>
       <span class="shop-name">${esc(g.name)}</span>${g.first.is_checked ? `<span class="shop-amt">${esc(g.amt)}</span>` : `<button class="shop-amt amt-link" data-qty="${g.ids.join(",")}" aria-label="Hoeveelheid van ${esc(g.name)} aanpassen">${g.amt ? esc(g.amt) : "+"}</button>`}</div>`;
-  const openG = groupShop(open), doneG = groupShop(done);
+  const byName = (x, y) => x.name.localeCompare(y.name, "nl", { sensitivity: "base" });
+  const openG = groupShop(open), doneG = groupShop(done).sort(byName);
   $("#app").innerHTML = `
     <header class="top">
       <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="iconbtn${S.shopEdit ? " on" : ""}" id="shop-edit" aria-pressed="${S.shopEdit}" aria-label="${S.shopEdit ? "Klaar met wijzigen" : "Lijst wijzigen"}">${S.shopEdit ? ICON.check : ICON.pencil}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
@@ -3819,7 +3820,7 @@ function drawShop() {
     </header>
     <main class="stack" style="gap:18px">
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op de planning en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
-      ${open.length ? AISLES.map(([k, l]) => { const gs = openG.filter((g) => groupAisle(g) === k); return gs.length ? `<div class="aisle"><p class="label aisle-head">${esc(l)}</p><div class="shop-list">${gs.map(row).join("")}</div></div>` : ""; }).join("") : ""}
+      ${open.length ? AISLES.map(([k, l]) => { const gs = openG.filter((g) => groupAisle(g) === k).sort(byName); return gs.length ? `<div class="aisle"><p class="label aisle-head">${esc(l)}</p><div class="shop-list">${gs.map(row).join("")}</div></div>` : ""; }).join("") : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${doneG.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${doneG.map(row).join("")}</div></div>` : ""}
       ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast vanaf ${fmtDay(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
