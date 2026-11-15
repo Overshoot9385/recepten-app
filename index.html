@@ -3279,6 +3279,8 @@ function sheet(html, onClose) {
   const bg = document.createElement("div");
   bg.className = "sheet-bg";
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grabber" aria-hidden="true"></div>${html}</div>`;
+  // Overschakelen tussen twee pop-ups (bijv. Andere dag / Ander gerecht): zonder opnieuw in te schuiven
+  if (S.sheetQuiet) { S.sheetQuiet = false; bg.style.animation = "none"; bg.firstElementChild.style.animation = "none"; }
   let closed = false;
   const close = () => { if (closed) return; closed = true; document.removeEventListener("keydown", onKey); bg.remove(); if (onClose) onClose(); };
   enableSwipe(bg, close);
@@ -3476,7 +3478,7 @@ function swapSheet(m) {
     </div>`);
   $("#sw-mode", s.el).onclick = (e) => {
     const t = e.target.closest("[data-sw]"); if (!t || t.dataset.sw !== "dish") return;
-    s.close(); S.swapMeal = m.id; pickRecipeSheet(m.plan_date);
+    s.close(); S.swapMeal = m.id; S.sheetQuiet = true; pickRecipeSheet(m.plan_date);
   };
   $("#sw-days", s.el).onclick = async (e) => {
     const t = e.target.closest("[data-to]"); if (!t) return;
@@ -3499,7 +3501,8 @@ function pickRecipeSheet(date) {
   const d = new Date(date + "T12:00:00");
   const sorted = S.recipes.slice().sort((a, b) => (S.favs.has(b.id) - S.favs.has(a.id)) || a.title.localeCompare(b.title, "nl"));
   const s = sheet(`
-    <div class="sheet-head"><h2>${DAY_NAMES[(d.getDay() + 6) % 7]} ${fmtDay(d)}</h2></div>
+    <div class="sheet-head"><h2>${swap ? "Wisselen" : `${DAY_NAMES[(d.getDay() + 6) % 7]} ${fmtDay(d)}`}</h2></div>
+    ${swap ? `<div class="seg" id="sw-mode"><button data-sw="day" aria-pressed="false">Andere dag</button><button data-sw="dish" aria-pressed="true">Ander gerecht</button></div>` : ""}
     <form class="loose" id="loose-form">
       <b style="font-size:15px">Simpel gerecht, zonder recept</b>
       <div class="row2"><input class="input" id="loose-q" placeholder="Bijv. aardappels, kipfilet, broccoli" autocomplete="off" enterkeyhint="done"><button class="btn primary">Zet erop</button></div>
@@ -3508,6 +3511,8 @@ function pickRecipeSheet(date) {
     <p class="label" style="margin:2px 0 -4px">Of kies een recept</p>
     <label class="search">${ICON.search}<input id="pick-q" type="search" placeholder="Zoek een recept" autocomplete="off"></label>
     <div class="opts" id="pick-list"></div>`);
+  const swm = $("#sw-mode", s.el);
+  if (swm) swm.onclick = (e) => { const t = e.target.closest("[data-sw]"); if (!t || t.dataset.sw !== "day") return; s.close(); S.sheetQuiet = true; swapSheet(S.meals.find((x) => x.id === swap)); };
   $("#loose-form", s.el).onsubmit = async (e) => {
     e.preventDefault();
     const title = $("#loose-q", s.el).value.trim().replace(/\s+/g, " ");

@@ -1,6 +1,6 @@
 // Service worker van Tom's Receptenboek: bewaart de app-bestanden op het toestel,
 // zodat de app ook zonder internet opent. Gegevens (recepten, lijst) bewaart de app zelf.
-const CACHE = "receptenboek-v12";
+const CACHE = "receptenboek-v13";
 const PHOTOS = "receptenboek-fotos-v1";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.png", "./icon-512.png"];
 const CDN = ["cdn.jsdelivr.net", "fonts.googleapis.com", "fonts.gstatic.com"];
