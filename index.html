@@ -728,6 +728,7 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .frows span { font-size: 14px; color: var(--muted); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frows span.on { color: var(--acc); font-weight: 700; }
 .frows svg { width: 15px; height: 15px; flex: none; }
+.pop.pop-bottom { top: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); max-height: calc(var(--vvh, 100dvh) - 36px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); animation: rise .22s ease-out; }
 .pop-foot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; position: sticky; bottom: -18px; margin: 0 -18px -18px; padding: 10px 18px 18px; background: var(--bg); }
 .pm-head { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; position: sticky; top: -18px; margin: -18px -18px 0; padding: 14px 18px 8px; background: var(--bg); z-index: 1; }
 .pm-head h2 { margin: 0; font-size: 22px; }
@@ -2637,16 +2638,9 @@ function drawTop() {
 // Menu onder de filterknop: weergave, sorteren en filters op één plek.
 // Alles is eerst een concept: je stelt in (ook in de subschermen) en past pas toe met "Toon X recepten".
 function listMenu() {
-  // Eerst de zoekbalk bovenaan zetten (die plakt daar), dan het menu eronder
-  const ss = $(".search-sticky");
-  if (ss) window.scrollTo(0, Math.max(0, ss.getBoundingClientRect().top + window.scrollY - (parseFloat(getComputedStyle(ss).top) || 0)));
-  const anchor = $("#menu-btn").getBoundingClientRect();
+  // Net als de andere pop-ups: onderaan het scherm, binnen bereik van je duim
   const bg = document.createElement("div"); bg.className = "pop-bg";
-  const pop = document.createElement("div"); pop.className = "pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Weergave, sorteren en filters");
-  const top = Math.round(anchor.bottom + 14);
-  const vh = window.visualViewport ? visualViewport.height : innerHeight;
-  if (vh - top - 16 >= 440) { pop.style.top = top + "px"; pop.style.maxHeight = (vh - top - 16) + "px"; }
-  else { pop.style.top = "auto"; pop.style.bottom = "calc(12px + env(safe-area-inset-bottom, 0px))"; pop.style.maxHeight = (vh - 24) + "px"; }
+  const pop = document.createElement("div"); pop.className = "pop pop-bottom"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Weergave, sorteren en filters");
 
   const f = { query: S.query, favOnly: S.favOnly, owner: S.owner, tags: [...S.tags], tagMode: S.tagMode, time: [...S.time], src: [...S.src], sort: getSort(), mode: getMode() };
   let page = "main", tagQ = "";
