@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Tom's Recepten">
-<meta name="theme-color" content="#F4F6F1">
+<meta name="theme-color" content="#F6ECD9">
 <meta name="robots" content="noindex">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
@@ -17,35 +17,44 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500&display=swap">
 <style>
 /* Layout: één kolom, mobiel eerst; zoekbalk bovenaan, ronde knop rechtsonder om toe te voegen */
+/* Redesign "Boterzacht": 60% Butter Cream, 30% Forest Green, 10% Mandarijn. Donker: Nachtgroen, Butter Cream, Mandarijn. */
 :root {
-  --bg: #F4F6F1;          /* licht, groen getint papier */
-  --surface: #FFFFFF;
-  --sunk: #E8ECE4;
-  --ink: #18241D;
-  --muted: #5F6D63;
-  --line: #D5DCD0;
-  --herb: #2F6B4F;        /* basilicumgroen: hoofdkleur */
-  --herb-ink: #FFFFFF;
-  --saffron: #E3A02F;     /* saffraan: accent voor favorieten en porties */
+  --bg: #F6ECD9;          /* Butter Cream */
+  --surface: #FFFBF2;
+  --sunk: #EADDC3;
+  --ink: #1F3A2E;         /* Forest Green */
+  --muted: #566257;
+  --line: #E3D5B8;
+  --line2: #D8C9A8;
+  --herb: #1F3A2E;        /* sterk vlak: actieve knoppen, "Vanavond"-kaart (donker: crème) */
+  --herb-ink: #F6ECD9;
+  --saffron: #FF7A1A;     /* Mandarijn: accent voor favorieten, vandaag, voortgang */
+  --acc: #FF7A1A;
+  --acc-ink: #14251D;
+  --hero: #1F3A2E;
+  --hero-btn: #F6ECD9;
+  --hero-btn-ink: #1F3A2E;
+  --strong-muted: #C9D3C4;
+  --letter: #A8997A;
   --danger: #B3402E;
-  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --r: 14px;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --r: 22px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #111814; --surface: #19221C; --sunk: #222D26; --ink: #E9EFE9; --muted: #9AAA9F;
-    --line: #2E3A32; --herb: #6FB892; --herb-ink: #0D1611; --saffron: #F0B54E; --danger: #E5765F;
+    --bg: #101F18; --surface: #182C23; --sunk: #1D3328; --ink: #F6ECD9; --muted: #A9B5A6;
+    --line: #2A4335; --line2: #3F5C4C; --herb: #F6ECD9; --herb-ink: #1F3A2E; --hero: #0A1510; --hero-btn: #182C23; --hero-btn-ink: #F6ECD9; --strong-muted: #566257; --letter: #6F8275; --danger: #E5765F;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #111814; --surface: #19221C; --sunk: #222D26; --ink: #E9EFE9; --muted: #9AAA9F;
-  --line: #2E3A32; --herb: #6FB892; --herb-ink: #0D1611; --saffron: #F0B54E; --danger: #E5765F;
-  color-scheme: dark;
+  --bg: #101F18; --surface: #182C23; --sunk: #1D3328; --ink: #F6ECD9; --muted: #A9B5A6;
+    --line: #2A4335; --line2: #3F5C4C; --herb: #F6ECD9; --herb-ink: #1F3A2E; --hero: #0A1510; --hero-btn: #182C23; --hero-btn-ink: #F6ECD9; --strong-muted: #566257; --letter: #6F8275; --danger: #E5765F;
+    color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
@@ -592,6 +601,290 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .update-bar button { border: 0; border-radius: 999px; font-weight: 700; font-size: 14px; }
 .update-bar .go { background: var(--herb); color: var(--herb-ink); padding: 8px 14px; }
 .update-bar .later { background: none; color: var(--bg); opacity: .7; width: 30px; height: 30px; font-size: 18px; padding: 0; }
+
+/* ================= Redesign: vorm en nieuwe onderdelen ================= */
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.015em; }
+.brand h1, .title-block h1, .auth h1 { font-weight: 600; }
+h1 em, h2 em { font-style: italic; font-weight: 500; }
+.uline { text-decoration: underline; text-decoration-color: var(--acc); text-decoration-thickness: 5px; text-underline-offset: 5px; }
+.wrap { padding-block: 8px 190px; }
+:focus-visible { outline-color: var(--acc); }
+.btn { border-radius: 999px; min-height: 48px; }
+.btn.block { width: 100%; }
+.input, textarea.input, select.input { border-radius: 14px; }
+.panel, .shop-list, .day, .tip, .pantry-check, .fridge-entry, .match, .stat, .act, .tip-card { border-radius: var(--r); }
+.iconbtn { width: 44px; height: 44px; }
+.chip, .fbtn, .surprise, .sortbtn { min-height: 44px; }
+.chip { padding: 0 16px; display: inline-flex; align-items: center; }
+.chip[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
+.label { letter-spacing: .08em; }
+.toast { background: var(--herb); color: var(--herb-ink); top: calc(env(safe-area-inset-top, 0px) + 12px); bottom: auto; box-shadow: 0 8px 24px rgb(0 0 0 / .2); text-align: center; }
+.sheet { background: var(--bg); border-radius: 28px 28px 0 0; }
+.sheet-search { background: var(--surface); }
+.tabs { border-radius: 999px; }
+.tabs button { border-radius: 999px; }
+.tabs button[aria-selected="true"] { background: var(--herb); color: var(--herb-ink); }
+.update-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 100px); }
+.update-bar .go { background: var(--acc); color: var(--acc-ink); }
+
+/* Zwevende tabbalk met ronde plusknop */
+.tabbar {
+  left: max(16px, env(safe-area-inset-left, 0px)); right: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex; gap: 2px; align-items: center; height: 64px; box-sizing: border-box; padding: 6px;
+  border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 12px 30px rgb(31 58 46 / .18);
+}
+.tab { display: flex; align-items: center; justify-content: center; gap: 6px; height: 52px; min-width: 46px; padding: 0 10px; border-radius: 999px; color: var(--ink); font-size: 13.5px; font-weight: 700; }
+.tab svg { width: 22px; height: 22px; }
+.tab span:not(.tab-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tab[aria-current="page"] { background: var(--herb); color: var(--herb-ink); padding: 0 14px 0 12px; }
+.tab[aria-current="page"] span:not(.tab-dot) { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+.tab .tab-dot { top: 8px; left: auto; right: 6px; }
+.fab {
+  right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  width: 56px; height: 56px; padding: 0; border-radius: 50%; justify-content: center;
+  background: var(--acc); color: var(--acc-ink); box-shadow: 0 12px 30px rgb(255 122 26 / .35); z-index: 7;
+}
+.fab svg { width: 26px; height: 26px; }
+
+/* Recepten: kop, zoekbalk met menuknop, vanavond, tegels */
+.hello h1 { font-size: 34px; line-height: 1.04; letter-spacing: -0.02em; }
+.greet { font-size: 14px; font-weight: 500; }
+.me-btn { border: 2px solid var(--ink); background: var(--surface); border-radius: 50%; width: 46px; height: 46px; padding: 0; display: grid; place-items: center; flex: none; overflow: hidden; }
+.me-btn .avatar { box-shadow: none; }
+.search { height: 52px; padding: 0 4px 0 16px; }
+.menu-btn { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--herb); color: var(--herb-ink); display: grid; place-items: center; padding: 0; }
+.menu-btn svg { width: 19px; height: 19px; }
+.menu-btn.on::after { content: ""; position: absolute; right: 0; top: 0; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; background: var(--acc); border: 2px solid var(--surface); }
+.search .clear { margin-right: 0; }
+.tonight { display: flex; gap: 14px; min-height: 176px; box-sizing: border-box; padding: 18px; border-radius: 28px; background: var(--herb); color: var(--herb-ink); }
+.tonight .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.tonight .tag-now { background: var(--acc); color: var(--acc-ink); font-size: 11px; font-weight: 700; letter-spacing: .08em; padding: 4px 10px; border-radius: 999px; }
+.tonight h2 { font-size: 25px; line-height: 1.08; letter-spacing: -0.01em; }
+.tonight p { margin: 0; font-size: 13px; color: var(--strong-muted); }
+.tonight .acts { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.tonight .go { height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--bg); color: var(--ink); font-weight: 700; font-size: 14px; }
+.tonight .ghost { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; border: 1px solid var(--strong-muted); border-radius: 999px; background: transparent; color: var(--herb-ink); font-weight: 700; font-size: 14px; }
+.tonight .arch { flex: none; width: 112px; border-radius: 999px 999px 18px 18px; overflow: hidden; background: #E9DBBE; display: grid; place-items: center; }
+.tonight .arch img { width: 100%; height: 100%; object-fit: cover; }
+.tonight .arch b { font-family: var(--font-display); font-size: 54px; color: #A8997A; font-weight: 600; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 12px; height: 98px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; color: var(--ink); text-align: left; }
+.tile small { font-size: 12px; font-weight: 600; color: var(--muted); }
+.tile .big { font-family: var(--font-display); font-weight: 600; font-size: 24px; line-height: 1; }
+.tile .dots { display: flex; gap: 5px; }
+.tile .dots i { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #8A927F; }
+.tile .dots i.on { background: var(--ink); border-color: var(--ink); }
+.tile .dots i.today { border-color: var(--acc); }
+.tile .dots i.today.on { background: var(--acc); }
+.tile .ring { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; line-height: 1.2; }
+.tile .ico { width: 34px; height: 34px; border-radius: 50%; background: var(--herb); color: var(--herb-ink); display: grid; place-items: center; }
+.tile .ico svg { width: 18px; height: 18px; }
+.tile b { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.chiprow { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
+.chiprow::-webkit-scrollbar { display: none; }
+.chiprow .chip { flex: none; border-color: var(--line2); background: transparent; height: 44px; }
+.chiprow .chip[aria-pressed="true"] { background: var(--herb); border-color: var(--herb); }
+.fnote { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.rlist { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.rrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 8px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; }
+.rrow .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rrow b { font-weight: 600; font-size: 16px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rrow small { font-size: 13px; color: var(--muted); }
+.fav-pip { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--acc); color: var(--acc-ink); display: grid; place-items: center; }
+.fav-pip svg { width: 13px; height: 13px; }
+.fav-dot { background: var(--acc); color: var(--acc-ink); width: 28px; height: 28px; }
+.thumb { border-radius: 22px; }
+.thumb .initial { font-family: var(--font-display); font-weight: 600; color: var(--letter); opacity: 1; font-size: 60px; }
+.card .meta span:first-child::before { content: none; }
+.grid { gap: 16px 12px; }
+
+/* Menu onder de filterknop */
+.pop-bg { position: fixed; inset: 0; z-index: 20; background: rgb(20 37 29 / .45); }
+.pop { position: fixed; z-index: 21; left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); max-width: 656px; margin: 0 auto; box-sizing: border-box; padding: 18px; border-radius: 28px; background: var(--bg); box-shadow: 0 20px 50px rgb(0 0 0 / .3); display: flex; flex-direction: column; gap: 14px; max-height: calc(var(--vvh, 100dvh) - 120px); overflow-y: auto; overscroll-behavior: contain; animation: rise .18s ease-out; }
+.pop .lab { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 999px; background: var(--sunk); }
+.seg button { display: flex; align-items: center; justify-content: center; gap: 6px; height: 40px; border: 0; border-radius: 999px; background: transparent; color: var(--ink); font-weight: 600; font-size: 14px; }
+.seg button svg { width: 17px; height: 17px; }
+.seg button[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); font-weight: 700; }
+.sortgrid { display: flex; flex-wrap: wrap; gap: 6px; }
+.sortgrid button { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink); font-size: 13.5px; font-weight: 500; text-align: left; line-height: 1.2; }
+.sortgrid button i { flex: none; width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; border: 2px solid var(--line2); }
+.sortgrid button[aria-checked="true"] { border-color: var(--herb); background: var(--surface); font-weight: 700; }
+.sortgrid button[aria-checked="true"] i { border: 5px solid var(--herb); }
+.frows { padding: 0 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.frows button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 0; border: 0; border-bottom: 1px solid var(--sunk); background: transparent; color: var(--ink); text-align: left; }
+.frows button:last-child { border-bottom: 0; }
+.frows b { flex: 1; font-weight: 600; }
+.frows span { font-size: 14px; color: var(--muted); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frows span.on { color: var(--acc); font-weight: 700; }
+.frows svg { width: 15px; height: 15px; flex: none; }
+.pop-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+.pop-foot button { height: 50px; border-radius: 999px; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pop-foot .ghost { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
+.pop-foot .solid { border: 0; background: var(--herb); color: var(--herb-ink); }
+.die-ico { font-size: 18px; line-height: 1; }
+
+/* Recept */
+.d-hero { background: var(--hero); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-left, 0px)) 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-height: 270px; box-sizing: border-box; }
+.d-hero .hbtn { flex: none; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--hero-btn); color: var(--hero-btn-ink); display: grid; place-items: center; padding: 0; }
+.d-hero .hbtn svg { width: 22px; height: 22px; }
+.d-hero .hbtn.fav[aria-pressed="true"] { background: var(--acc); color: var(--acc-ink); }
+.d-hero .hbtn.fav svg { width: 20px; height: 20px; }
+.d-arch { width: min(220px, 52vw); aspect-ratio: 4 / 5; margin-top: 12px; border-radius: 999px 999px 0 0; overflow: hidden; background: #2A4A3B; display: grid; place-items: center; }
+.d-arch img { width: 100%; height: 100%; object-fit: cover; }
+.d-arch b { font-family: var(--font-display); font-weight: 600; font-size: 96px; color: #C9D3C4; }
+.d-mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.d-mid .pager { margin: 0; color: var(--hero-btn); opacity: .85; }
+.d-mid .pg-btn { background: transparent; border-color: color-mix(in srgb, var(--hero-btn) 40%, transparent); color: var(--hero-btn); }
+.d-sheet { position: relative; margin: -28px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; padding: 22px max(20px, env(safe-area-inset-left, 0px)) 0; border-radius: 32px 32px 0 0; background: var(--bg); display: flex; flex-direction: column; gap: 14px; }
+.d-sheet .tags .tag:first-child { background: var(--herb); color: var(--herb-ink); }
+.d-sheet .tag { background: transparent; border: 1px solid var(--ink); }
+.d-sheet h1 { font-size: 32px; line-height: 1.06; letter-spacing: -0.02em; }
+.d-sheet .sub { margin: 0; font-size: 15px; color: var(--muted); }
+.d-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 10px; }
+.d-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.d-stat > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.d-stat small { font-size: 12px; font-weight: 600; color: var(--muted); }
+.d-stat b { font-family: var(--font-display); font-weight: 600; font-size: 22px; line-height: 1.1; white-space: nowrap; }
+.d-stat .pm { display: flex; gap: 6px; }
+.d-stat .pm button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--ink); font-size: 22px; line-height: 1; padding: 0; }
+.d-stat .pm button.plus { border: 0; background: var(--herb); color: var(--herb-ink); }
+.d-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 999px; background: var(--sunk); }
+.d-tabs button { position: relative; height: 44px; border: 0; border-radius: 999px; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; }
+.d-tabs button[aria-selected="true"] { background: var(--herb); color: var(--herb-ink); font-weight: 700; }
+.d-tabs .pip { position: absolute; top: 9px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
+.d-sheet .ing { border-top: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 0 6px 0 16px; }
+.d-sheet .ing li:last-child { border-bottom: 0; }
+.d-sheet .ing li { border-bottom-color: var(--sunk); }
+.d-sheet .ing .amt.scaled { color: var(--acc); }
+.d-sheet .addbtn { width: 30px; height: 30px; border: 1.5px solid var(--ink); color: var(--ink); position: relative; }
+.d-sheet .addbtn::after { content: ""; position: absolute; inset: -7px; }
+.d-sheet .addbtn[aria-pressed="true"] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); }
+.sprog { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 13px; font-weight: 700; }
+.sprog .track { flex: 1; height: 8px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+.sprog .track i { display: block; height: 100%; border-radius: 4px; background: var(--acc); transition: width .3s ease; }
+.srows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.srow { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 52px; box-sizing: border-box; padding: 11px 16px 11px 12px; border-radius: 18px; border: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; }
+.srow .n { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink); box-sizing: border-box; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.srow .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }
+.srow .tx b { font-weight: 600; }
+.srow .tx span { font-size: 14px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.srow.done { color: var(--muted); }
+.srow.done .n { border: 0; background: var(--herb); color: var(--herb-ink); }
+.srow.done .n svg { width: 15px; height: 15px; }
+.srow.done .tx b { text-decoration: line-through; }
+.srow.done .tx span { display: none; }
+.scur { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 22px; background: var(--surface); border: 1.5px solid var(--ink); }
+.scur .hd { display: flex; align-items: center; gap: 12px; }
+.scur .n { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink); box-sizing: border-box; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.scur h3 { font-size: 20px; line-height: 1.15; }
+.scur p { margin: 0; font-size: 16px; line-height: 1.5; }
+.scur .ok { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px 0 14px; border: 0; border-radius: 999px; background: var(--herb); color: var(--herb-ink); font-size: 14px; font-weight: 700; }
+.scur .ok svg { width: 18px; height: 18px; }
+.eat { text-align: center; font-family: var(--font-display); font-size: 22px; margin: 4px 0; }
+.d-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; display: flex; gap: 10px; box-sizing: border-box; padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); background: var(--bg); border-top: 1px solid var(--line); }
+.d-bar > div { display: flex; gap: 10px; width: 100%; max-width: 648px; margin: 0 auto; }
+.d-bar .main { flex: 1; height: 56px; border: 0; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.d-bar .main svg, .d-bar .side svg { width: 21px; height: 21px; }
+.d-bar .side { flex: none; width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--herb); color: var(--herb-ink); display: grid; place-items: center; padding: 0; }
+.d-sheet .byline { margin-top: 10px; }
+
+/* Weekmenu */
+.wk-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.wk-head h1 { font-size: 36px; line-height: 1.04; letter-spacing: -0.02em; }
+.wk-head p { margin: 2px 0 0; font-size: 14px; font-weight: 500; color: var(--muted); }
+.wk-head .arrows { display: flex; gap: 8px; }
+.wk-head .arrows .iconbtn { border-color: var(--line2); }
+.strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.strip button { height: 66px; border-radius: 18px; box-sizing: border-box; border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; }
+.strip small { font-size: 12px; font-weight: 600; }
+.strip b { font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.strip i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0; }
+.strip button.has i { opacity: 1; }
+.strip button.past { background: transparent; border-color: transparent; color: var(--muted); }
+.strip button.is-today { border: 1.5px solid var(--acc); }
+.strip button.is-today i { background: var(--acc); }
+.strip button[aria-pressed="true"] { background: var(--herb); border-color: var(--herb); color: var(--herb-ink); }
+.strip button[aria-pressed="true"] i { background: currentColor; }
+.daycard { background: var(--surface); border: 1px solid var(--line); border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.daycard .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.daycard h2 { font-size: 22px; line-height: 1.1; }
+.now-badge { flex: none; background: var(--acc); color: var(--acc-ink); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.dmeal { display: flex; flex-direction: column; gap: 10px; }
+.dmeal + .dmeal { padding-top: 14px; border-top: 1px solid var(--sunk); }
+.dmeal .ti { font-size: 19px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.dmeal .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: nowrap; }
+.dmeal .row > * { flex: none; }
+.dmeal .meta-l { font-size: 14px; color: var(--muted); flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.dmeal .stepper { display: flex; align-items: center; border: 1px solid var(--line2); border-radius: 999px; }
+.dmeal .stepper button { width: 40px; height: 44px; border: 0; background: transparent; color: var(--ink); font-size: 20px; line-height: 1; padding: 0; }
+.dmeal .stepper output { font-size: 14px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dmeal .acts { display: flex; gap: 8px; }
+.dmeal .acts button { flex: 1; height: 46px; border-radius: 14px; border: 1px solid var(--line2); background: transparent; color: var(--ink); font-size: 14px; font-weight: 700; padding: 0 6px; }
+.dmeal .acts button.solid { border-color: var(--herb); background: var(--herb); color: var(--herb-ink); }
+.dempty { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); }
+.dempty .btn { min-height: 46px; }
+.more-meal { align-self: flex-start; border: 0; background: none; color: var(--ink); font-weight: 700; font-size: 14px; padding: 0; min-height: 44px; }
+.wrows { display: flex; flex-direction: column; }
+.wrow { display: flex; align-items: center; width: 100%; min-height: 54px; padding: 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; }
+.wrow:last-child { border-bottom: 0; }
+.wrow small { flex: none; width: 44px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.wrow span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.wrow.empty span { font-weight: 700; }
+.listbar { position: fixed; z-index: 6; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 94px); max-width: 648px; margin: 0 auto; height: 60px; box-sizing: border-box; padding: 0 8px 0 18px; border-radius: 22px; background: var(--herb); color: var(--herb-ink); display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 10px 24px rgb(0 0 0 / .18); }
+.listbar span { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.listbar button { flex: none; height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-size: 14px; font-weight: 700; }
+.listbar button:disabled { opacity: .5; }
+.wk-foot { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.wk-foot .linkbtn { align-self: flex-start; color: var(--danger); font-size: 14px; }
+
+/* Boodschappen */
+.sbar { display: flex; height: 8px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+.sbar i { display: block; height: 100%; border-radius: 4px; background: var(--acc); transition: width .3s ease; }
+.shop-list { padding: 0 16px; }
+.shop-item { min-height: 50px; border-bottom-color: var(--sunk); }
+.shop-item input { width: 24px; height: 24px; accent-color: var(--herb); }
+.shop-item input[type=checkbox] { appearance: none; -webkit-appearance: none; border: 2px solid var(--ink); border-radius: 50%; display: grid; place-items: center; margin: 0; background: transparent; }
+.shop-item input[type=checkbox]:checked { background: var(--herb); border-color: var(--herb); }
+.shop-item input[type=checkbox]:checked::after { content: ""; width: 6px; height: 11px; border: solid var(--herb-ink); border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
+.pantry-row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 50px; padding: 0; border: 0; border-top: 1px solid var(--sunk); background: transparent; color: var(--ink); text-align: left; font-size: 14px; font-weight: 700; }
+.pantry-row svg { width: 22px; height: 22px; flex: none; }
+.pantry-row span { flex: 1; }
+.pantry-row small { font-weight: 500; color: var(--muted); font-size: 14px; }
+
+/* Wat kan ik maken? */
+.match { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+.match .mini { display: none; }
+.match .bar { height: 8px; border-radius: 4px; }
+.match .bar i { background: var(--ink); }
+.match.full .bar i { background: var(--acc); }
+.match.full { border-color: var(--line); }
+.badge { background: var(--acc); color: var(--acc-ink); text-transform: none; letter-spacing: 0; font-size: 12px; padding: 3px 10px; }
+.chip.have { background: var(--herb); }
+
+/* Beheer: tabbladen als chips */
+.tabs.adm-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; background: none; padding: 0; border-radius: 0; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
+.tabs.adm-tabs::-webkit-scrollbar { display: none; }
+.tabs.adm-tabs button { flex: none; height: 44px; padding: 0 16px; border: 1px solid var(--line2); border-radius: 999px; font-size: 14px; }
+.tabs.adm-tabs button[aria-selected="true"] { border-color: var(--herb); }
+.metric { border-radius: 16px; background: transparent; }
+.metric[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); box-shadow: none; }
+.metric[aria-pressed="true"] span { color: var(--strong-muted); }
+.colchart i { background: var(--ink); opacity: 1; }
+.colchart i:last-child { background: var(--acc); }
+.bar-row .track i { background: var(--ink); }
+
+/* Kop met terugknop (Instellingen, toevoegen, enz.) */
+.back .iconbtn { border-color: var(--line); }
+.auth h1 { font-size: 40px; }
+.top .brand h1 { font-size: 36px; letter-spacing: -0.02em; }
+.d-hero { margin-top: -8px; }
+.pantry-check { border: 0; background: var(--sunk); padding: 10px 14px; min-height: 48px; }
+.pantry-check > svg { color: var(--ink); width: 22px; height: 22px; }
+.fridge-entry { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabbar { box-shadow: 0 12px 30px rgb(0 0 0 / .45); } }
+:root[data-theme="dark"] .tabbar { box-shadow: 0 12px 30px rgb(0 0 0 / .45); }
 </style>
 
 </head>
@@ -1511,7 +1804,7 @@ function applyTheme(t) {
   else if (themeForced) { root.removeAttribute("data-theme"); themeForced = false; }
   const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", dark ? "#111814" : "#F4F6F1");
+  if (meta) meta.setAttribute("content", dark ? "#101F18" : "#F6ECD9");
 }
 function setTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) { /* alleen voor deze sessie */ } applyTheme(t); }
 applyTheme(getTheme());
@@ -1661,6 +1954,7 @@ async function loadAll() {
     S.household = m.household; S.role = m.role;
     const [profiles, recipes, favs, members, shop] = await Promise.all([store.profiles(), store.recipes(), store.favorites(), store.members(), store.shopping()]);
     S.shop = shop;
+    try { const ws = startOfWeek(new Date()); S.weekMeals = await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))); } catch (_) { /* weekmenu laadt later */ }
     S.plan = await store.planInfo(S.user.id);
     S.names = Object.fromEntries(profiles.map((p) => [p.id, p.display_name]));
     S.avatars = Object.fromEntries(profiles.map((p) => [p.id, { emoji: p.avatar_emoji || null }]));
@@ -1793,6 +2087,7 @@ function go(view, id) {
   render(); if (!back) window.scrollTo(0, 0); applyPendingScroll();
 }
 function render() {
+  if (S.view !== "detail") { const db = document.getElementById("d-bar"); if (db) db.remove(); }
   if (S.recovery) return renderNewPassword();
   if (S.view === "detail") return renderDetail();
   if (S.view === "edit") return canEdit() ? renderEdit() : go("list");
@@ -1806,13 +2101,14 @@ function render() {
   renderList();
 }
 function tabBarHTML(active) {
-  const tab = (id, label, icon) => `<button class="tab" data-tab="${id}" aria-current="${active === id ? "page" : "false"}">${icon}<span>${label}</span></button>`;
-  return `<nav class="tabbar" aria-label="Hoofdmenu" style="--tabs:${isAdmin() ? 4 : 3}">
+  const tab = (id, label, icon) => `<button class="tab" data-tab="${id}" aria-current="${active === id ? "page" : "false"}" aria-label="${label}">${icon}<span>${label}</span></button>`;
+  const fab = active === "list" ? (canEdit() ? ["add", "Recept toevoegen"] : null) : active === "menu" ? ["meal", "Gerecht toevoegen"] : active === "shop" ? ["list", "Lijst maken van weekmenu"] : null;
+  return `<nav class="tabbar" aria-label="Hoofdmenu">
     ${tab("list", "Recepten", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>')}
     ${tab("menu", "Weekmenu", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>')}
     ${tab("shop", "Boodschappen", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16l-1.5 9.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M9 6V5a3 3 0 0 1 6 0v1"/></svg>')}
     ${isAdmin() ? tab("admin", "Beheer", ICON.chart).replace("</button>", S.newTips ? `<span class="tab-dot" aria-label="${S.newTips} nieuwe tips"></span></button>` : "</button>") : ""}
-  </nav>`;
+  </nav>${fab ? `<button class="fab" id="fab" data-fab="${fab[0]}" aria-label="${fab[1]}">${ICON.plus}</button>` : ""}`;
 }
 function bindTabBar() {
   const bar = $(".tabbar"); if (!bar) return;
@@ -1821,6 +2117,12 @@ function bindTabBar() {
     // Tik op de tab waar je al bent: niet herladen, alleen terug naar boven (verversen = omlaag trekken)
     if (b.dataset.tab === S.view) { window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); return; }
     go(b.dataset.tab);
+  };
+  const fab = $("#fab"); if (fab) fab.onclick = () => {
+    const k = fab.dataset.fab;
+    if (k === "add") { S.draft = null; go("paste"); }
+    else if (k === "meal") pickRecipeSheet(S.menuSel || isoDate(new Date()));
+    else if (k === "list") { const fm = $("#from-menu"); if (fm) fm.click(); }
   };
 }
 function renderError(e) {
@@ -2105,7 +2407,7 @@ function openFilterSheet(kind) {
     if (kind === "person") f.owner = "all"; else if (kind === "time") f.time = []; else if (kind === "source") f.src = []; else f.tags = [];
     $("#sheet-opts", bg).innerHTML = optionsHTML(); if (qInput) qInput.value = ""; refreshCount();
   };
-  apply.onclick = () => { if (f.tagMode !== S.tagMode) saveTagMode(f.tagMode); Object.assign(S, { owner: f.owner, tags: f.tags, tagMode: f.tagMode, time: f.time, src: f.src }); close(); $("#filters").innerHTML = filterBarHTML(); drawList(); };
+  apply.onclick = () => { if (f.tagMode !== S.tagMode) saveTagMode(f.tagMode); Object.assign(S, { owner: f.owner, tags: f.tags, tagMode: f.tagMode, time: f.time, src: f.src }); close(); refreshFilters(); drawList(); };
   bg.addEventListener("click", (e) => { if (e.target === bg) close(); });
   document.addEventListener("keydown", onKey);
   enableSwipe(bg, close);
@@ -2118,31 +2420,157 @@ function thumbHTML(r, cls) {
   const owner = cls === "thumb" && r.id && ownerOf(r) ? `<span class="owner-dot" title="Recept van ${esc(nameOf(ownerOf(r)))}">${avatarHTML(ownerOf(r), 26)}</span>` : "";
   return `<div class="${cls}">${inner}${cls === "thumb" && S.favs.has(r.id) ? `<span class="fav-dot" aria-label="Favoriet">${ICON.star}</span>` : ""}${owner}</div>`;
 }
+const VIEW_KEY = "receptenboek-weergave";
+function getMode() { try { return localStorage.getItem(VIEW_KEY) === "raster" ? "raster" : "lijst"; } catch (_) { return "lijst"; } }
+function setMode(v) { try { localStorage.setItem(VIEW_KEY, v); } catch (_) { /* alleen nu */ } }
+function menuActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || getSort() !== "az"; }
+function quickChips() {
+  // Snelle keuzes: favorieten, de drie meest gebruikte tags en "onder 30 minuten"
+  const count = {};
+  for (const r of S.recipes) for (const t of r.tags || []) count[t] = (count[t] || 0) + 1;
+  const top = Object.keys(count).sort((a, b) => count[b] - count[a] || a.localeCompare(b, "nl")).slice(0, 3);
+  return [["all", `Alles · ${S.recipes.length}`], ["fav", "Favorieten"], ...top.map((t) => ["tag:" + t, t[0].toUpperCase() + t.slice(1)]), ["quick", "Onder 30 min"]];
+}
+function chipOn(k) {
+  const quick = S.time.length === 2 && S.time.includes("snel") && S.time.includes("20-30");
+  if (k === "all") return !S.favOnly && !S.tags.length && !S.time.length && S.owner === "all" && !S.src.length;
+  if (k === "fav") return S.favOnly;
+  if (k === "quick") return quick;
+  return S.tags.length === 1 && S.tags[0] === k.slice(4);
+}
+function chipsHTML() { return quickChips().map(([k, l]) => `<button class="chip" data-chip="${esc(k)}" aria-pressed="${chipOn(k)}">${esc(l)}</button>`).join(""); }
+function filterNote() {
+  const parts = [];
+  if (S.owner !== "all") parts.push(S.owner === "me" ? "van mij" : S.owner === "others" ? "van anderen" : "van " + nameOf(S.owner));
+  if (S.tags.length && !chipOn("tag:" + S.tags[0])) parts.push(S.tags.join(S.tagMode === "any" ? " of " : " + "));
+  if (S.time.length && !chipOn("quick")) parts.push(TIME_BLOCKS.filter((b) => S.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", "));
+  if (S.src.length) parts.push(S.src.join(", "));
+  if (getSort() !== "az") parts.push("sortering " + (SORTS.find((x) => x[0] === getSort()) || SORTS[0])[1].toLowerCase());
+  return parts.length ? "Ook: " + parts.join(" · ") : "";
+}
+function refreshFilters() {
+  const c = $("#chips"); if (c) c.innerHTML = chipsHTML();
+  const m = $("#menu-btn"); if (m) m.classList.toggle("on", menuActive());
+}
+function thisWeekMeals() {
+  const cur = isoDate(startOfWeek(new Date()));
+  return S.mealsLoaded === cur && isoDate(S.weekStart) === cur ? S.meals : (S.weekMeals || []);
+}
+// Een nieuw gerecht op het weekmenu: bijwerken wat op het scherm staat (en bij "Wisselen" het oude weghalen)
+async function noteMeal(m, swap) {
+  if (swap) {
+    try { await store.removeMeal(swap); } catch (_) { /* blijft staan */ }
+    S.meals = S.meals.filter((x) => x.id !== swap);
+    if (S.weekMeals) S.weekMeals = S.weekMeals.filter((x) => x.id !== swap);
+  }
+  const ws = isoDate(S.weekStart), we = isoDate(addDays(S.weekStart, 6));
+  if (S.mealsLoaded === ws && m.plan_date >= ws && m.plan_date <= we && !S.meals.some((x) => x.id === m.id)) S.meals.push(m);
+  const cs = startOfWeek(new Date());
+  if (m.plan_date >= isoDate(cs) && m.plan_date <= isoDate(addDays(cs, 6))) {
+    S.weekMeals = S.weekMeals || [];
+    if (S.weekMeals !== S.meals && !S.weekMeals.some((x) => x.id === m.id)) S.weekMeals.push(m);
+  }
+  if (S.view === "menu") drawMenu(); else if (S.view === "list") drawList();
+}
+function todayHTML() {
+  const today = isoDate(new Date());
+  const meals = thisWeekMeals().filter((m) => m.plan_date === today);
+  const m = meals[0], r = m && m.recipe_id ? getRecipe(m.recipe_id) : null;
+  const arch = r && r.photo_url ? `<img src="${esc(r.photo_url)}" alt="">` : `<b aria-hidden="true">${esc(((r && r.title) || (m && m.title) || "?")[0])}</b>`;
+  if (!m) return `<section class="tonight" aria-label="Vanavond"><div class="txt"><span class="tag-now">VANAVOND</span><h2>Nog niets gepland</h2>
+      <p>Kies iets uit jullie recepten, of laat het lot beslissen.</p>
+      <div class="acts"><button class="go" id="today-pick">Kies een gerecht</button>${S.recipes.length > 1 ? `<button class="ghost" id="today-surprise"><span class="die-ico" aria-hidden="true">🎲</span>Verras me</button>` : ""}</div></div></section>`;
+  const title = r ? r.title : m.title;
+  const more = meals.length > 1 ? ` · +${meals.length - 1}` : "";
+  return `<section class="tonight" aria-label="Vanavond"><div class="txt"><span class="tag-now">VANAVOND</span><h2>${esc(title)}</h2>
+      <p>${r ? (r.prep_time_minutes ? timeText(r) + " · " : "") : "zonder recept · "}${m.servings} personen${more}</p>
+      <div class="acts">${r ? `<button class="go" id="today-open" data-id="${r.id}">Bekijk recept</button>` : `<button class="go" id="today-week">Naar weekmenu</button>`}</div></div>
+      <div class="arch" role="img" aria-label="${esc(title)}">${arch}</div></section>`;
+}
+function tilesHTML() {
+  const ws = startOfWeek(new Date()), today = isoDate(new Date());
+  const meals = thisWeekMeals();
+  let planned = 0;
+  const dots = Array.from({ length: 7 }, (_, i) => { const iso = isoDate(addDays(ws, i)); const on = meals.some((m) => m.plan_date === iso); if (on) planned++; return `<i class="${on ? "on" : ""}${iso === today ? " today" : ""}"></i>`; }).join("");
+  const open = S.shop.filter((i) => !i.is_checked).length, done = S.shop.length - open;
+  const frac = S.shop.length ? done / S.shop.length : 0;
+  return `<div class="tiles">
+    <button class="tile" id="tile-week"><small>Weekmenu</small><span class="big">${planned} van 7</span><span class="dots" aria-hidden="true">${dots}</span></button>
+    <button class="tile" id="tile-shop"><small>Boodschappen</small><span class="ring"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke-width="5"><circle cx="20" cy="20" r="16" stroke="var(--line)"/><circle cx="20" cy="20" r="16" stroke="var(--acc)" stroke-linecap="round" stroke-dasharray="${(100.5 * frac).toFixed(1)} 100.5" transform="rotate(-90 20 20)"/></svg><span>${open} te<br>halen</span></span></button>
+    <button class="tile" id="tile-fridge"><span class="ico">${ICON.fridge}</span><b>Wat kan ik maken?</b></button>
+  </div>`;
+}
 function renderList() {
   $("#app").innerHTML = `
-    <header class="top">
+    <header class="stack" style="gap:14px;padding-top:12px">
       ${store.demo ? `<div class="demo-banner">Voorbeeldweergave met voorbeeldrecepten. Wat je hier wijzigt, wordt niet opgeslagen.</div>` : ""}
-      <div class="brand"><div class="hello"><p class="greet">${esc(greeting())}, ${esc(firstName(nameOf(S.user.id)))} 👋</p><h1>Wat koken we?</h1></div>
-        <span class="hdr-actions"><button class="iconbtn" id="to-tip" aria-label="Geef een tip">${ICON.tip}</button><button class="iconbtn" id="to-settings" aria-label="Instellingen">${ICON.gear}</button></span></div>
-      <label class="search">${ICON.search}<input id="q" type="search" placeholder="Zoek op gerecht of ingrediënt" value="${esc(S.query)}" autocomplete="off"></label>
-      <div class="filterbar" id="filters" role="group" aria-label="Filters">${filterBarHTML()}</div>
+      <div class="brand" style="align-items:flex-start"><div class="hello"><p class="greet">${esc(greeting())}, ${esc(firstName(nameOf(S.user.id)))}</p><h1>Wat koken we <em class="uline">vanavond?</em></h1></div>
+        <span class="hdr-actions"><button class="iconbtn" id="to-tip" aria-label="Geef een tip">${ICON.tip}</button><button class="me-btn" id="to-settings" aria-label="Instellingen">${avatarHTML(S.user.id, 42)}</button></span></div>
+      <div class="search"><span aria-hidden="true" style="display:grid">${ICON.search}</span><input id="q" type="search" aria-label="Zoek op gerecht of ingrediënt" placeholder="Zoek op gerecht of ingrediënt" value="${esc(S.query)}" autocomplete="off">
+        <button class="menu-btn${menuActive() ? " on" : ""}" id="menu-btn" aria-label="Weergave, sorteren en filters" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h8M18 7h2M4 17h2M12 17h8"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg></button></div>
     </header>
-    <main id="list"></main>
-    ${canEdit() ? `<button class="fab" id="add">${ICON.plus}Recept</button>` : ""}
+    <main id="list" class="stack" style="gap:14px;margin-top:14px"></main>
     ${tabBarHTML("list")}`;
   bindTabBar();
   drawList();
   ptrHintMaybe();
   $("#q").oninput = (e) => { S.query = e.target.value; drawList(); };
   addClear($("#q"));
-  $("#filters").onclick = (e) => {
-    const b = e.target.closest("button"); if (!b) return;
-    if (b.hasAttribute("data-fav")) { S.favOnly = !S.favOnly; $("#filters").innerHTML = filterBarHTML(); drawList(); return; }
-    openFilterSheet(b.dataset.sheet);
-  };
-  if ($("#add")) $("#add").onclick = () => { S.draft = null; go("paste"); };
+  $("#menu-btn").onclick = listMenu;
   $("#to-settings").onclick = () => go("settings");
   $("#to-tip").onclick = tipSheet;
+}
+// Menu onder de filterknop: weergave, sorteren, filters en "Verras me" op één plek
+function listMenu() {
+  window.scrollTo(0, 0);
+  const anchor = $("#menu-btn").getBoundingClientRect();
+  const bg = document.createElement("div"); bg.className = "pop-bg";
+  const pop = document.createElement("div"); pop.className = "pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Weergave, sorteren en filters");
+  const top = Math.round(anchor.bottom + 14);
+  pop.style.top = top + "px"; pop.style.maxHeight = Math.max(320, (window.visualViewport ? visualViewport.height : innerHeight) - top - 16) + "px";
+  const fv = (kind) => {
+    if (kind === "person") return S.owner === "all" ? "Iedereen" : S.owner === "me" ? "Van mij" : S.owner === "others" ? "Van anderen" : nameOf(S.owner);
+    if (kind === "tags") return S.tags.length ? S.tags.join(S.tagMode === "any" ? " of " : ", ") : "Alle";
+    if (kind === "time") return S.time.length ? TIME_BLOCKS.filter((b) => S.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", ") : "Alle";
+    return S.src.length ? S.src.join(", ") : "Alle";
+  };
+  const on = (kind) => kind === "person" ? S.owner !== "all" : kind === "tags" ? S.tags.length > 0 : kind === "time" ? S.time.length > 0 : S.src.length > 0;
+  const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
+  const draw = () => {
+    const n = filtered().length, mode = getMode(), cur = getSort();
+    pop.innerHTML = `
+      <div class="lab"><span>Weergave</span>${menuActive() ? `<button class="linkbtn" id="pm-clear" style="font-size:14px">Alles wissen</button>` : ""}</div>
+      <div class="seg"><button data-mode="lijst" aria-pressed="${mode === "lijst"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg>Lijst</button><button data-mode="raster" aria-pressed="${mode === "raster"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.5"/></svg>Raster</button></div>
+      <div class="lab"><span>Sorteren</span></div>
+      <div class="sortgrid" role="radiogroup" aria-label="Sorteren">${SORTS.map(([k, l]) => `<button role="radio" data-sort="${k}" aria-checked="${k === cur}"><i aria-hidden="true"></i>${esc(l)}</button>`).join("")}</div>
+      <div class="lab"><span>Filteren</span></div>
+      <div class="frows">${[["person", "Van wie"], ["tags", "Tags"], ["time", "Tijd"], ["source", "Bron"]].map(([k, l]) => `<button data-f="${k}"><b>${l}</b><span class="${on(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
+      <div class="pop-foot">${n > 1 ? `<button class="ghost" id="pm-surprise"><span class="die-ico" aria-hidden="true">🎲</span>Verras me</button>` : `<span></span>`}<button class="solid" id="pm-done">Toon ${n} ${n === 1 ? "recept" : "recepten"}</button></div>`;
+  };
+  const close = () => { bg.remove(); pop.remove(); document.removeEventListener("keydown", onKey); syncScrollLock(); refreshFilters(); drawList(); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  pop.onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.mode) { setMode(b.dataset.mode); draw(); }
+    else if (b.dataset.sort) { setSort(b.dataset.sort); draw(); }
+    else if (b.dataset.f) { close(); openFilterSheet(b.dataset.f); }
+    else if (b.id === "pm-clear") { Object.assign(S, { owner: "all", tags: [], time: [], src: [] }); setSort("az"); draw(); }
+    else if (b.id === "pm-surprise") { close(); surpriseMe(); }
+    else if (b.id === "pm-done") close();
+  };
+  bg.onclick = close;
+  document.addEventListener("keydown", onKey);
+  draw();
+  document.body.append(bg, pop);
+  syncScrollLock();
+}
+function surpriseMe() {
+  const list = filtered().length > 1 ? filtered() : S.recipes;
+  if (!list.length) return;
+  const pool = list.length > 1 ? list.filter((r) => r.id !== S.lastSurprise) : list;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  S.lastSurprise = pick.id; S.surprisePool = list.map((r) => r.id); S.detailList = list.map((r) => r.id);
+  go("detail", pick.id);
 }
 // Sorteren (keuze onthouden op dit toestel)
 const SORT_KEY = "receptenboek-sortering";
@@ -2173,41 +2601,44 @@ function sortSheet() {
 function drawList() {
   const list = sortRecipes(filtered());
   const el = $("#list");
-  if (!S.recipes.length) {
-    el.innerHTML = `<div class="empty"><h2>Nog geen recepten</h2><p class="muted" style="margin:0">${canEdit() ? "Tik op <b>Recept</b> en plak een link of de tekst uit Notes." : "Zodra iemand een recept toevoegt, zie je het hier."}</p></div>`;
-    return;
-  }
-  if (!list.length && S.owner !== "all" && !S.query && !S.tags.length && !S.time.length && !S.src.length && !S.favOnly) { el.innerHTML = `<div class="empty"><h2>${S.owner === "me" ? "Er staan nog geen recepten van jou in" : S.owner === "others" ? "Er staan nog geen recepten van anderen in" : "Er staan nog geen recepten van " + esc(nameOf(S.owner)) + " in"}</h2><p class="muted" style="margin:0">Kies <b>Iedereen</b> om alle recepten te zien.</p></div>`; return; }
-  const clearBtn = filtersActive() || getSort() !== "az" ? `<button class="linkbtn" id="clear-filters" title="Filters en sortering wissen">Wissen</button>` : "";
-  const fridge = `<button class="fridge-entry" id="to-fridge"><span class="ico" aria-hidden="true">${ICON.fridge}</span><span><b>Wat kan ik maken?</b><small class="muted">${(S.fridge || []).length ? `Je hebt ${S.fridge.length} ${S.fridge.length === 1 ? "ding" : "dingen"} gekozen` : "Kies wat je in de koelkast hebt"}</small></span><span class="chev">›</span></button>`;
-  if (!list.length) { el.innerHTML = `${fridge}<div class="empty"><h2>Niets gevonden</h2><p class="muted" style="margin:0">Probeer een ander woord, of zet de filters uit.</p>${clearBtn}</div>`; }
-  else el.innerHTML = `${fridge}<div class="results"><span class="results-left"><button class="sortbtn" id="sort" aria-pressed="${getSort() !== "az"}" aria-label="Sorteren: ${esc((SORTS.find((x) => x[0] === getSort()) || SORTS[0])[1])}" title="Sorteren: ${esc((SORTS.find((x) => x[0] === getSort()) || SORTS[0])[1])}">${ICON.sort}</button><p class="label" style="margin:0">${list.length} ${list.length === 1 ? "recept" : "recepten"}</p></span><div class="results-actions">${clearBtn}${list.length > 1 ? `<button class="surprise" id="surprise" title="Kies een willekeurig recept${filtersActive() || S.query ? " binnen je filters" : ""}"><span class="die" aria-hidden="true">🎲</span>Verras me</button>` : ""}</div></div><div class="grid">${list.map((r) => `
+  if (!el) return;
+  const showToday = !S.query.trim();
+  const top = showToday ? todayHTML() + tilesHTML() : "";
+  const chips = `<div class="chiprow" id="chips" role="group" aria-label="Snelle filters">${chipsHTML()}</div>`;
+  const note = filterNote();
+  const noteHTML = note ? `<div class="fnote"><span>${esc(note)}</span><button class="linkbtn" id="clear-filters">Wissen</button></div>` : "";
+  let body;
+  if (!S.recipes.length) body = `<div class="empty"><h2>Nog geen recepten</h2><p class="muted" style="margin:0">${canEdit() ? "Tik op de plusknop en plak een link of de tekst uit Notes." : "Zodra iemand een recept toevoegt, zie je het hier."}</p></div>`;
+  else if (!list.length) body = `<div class="empty"><h2>${S.favOnly && !S.query ? "Nog geen favorieten" : "Niets gevonden"}</h2><p class="muted" style="margin:0">${S.favOnly && !S.query ? "Tik bij een recept op de ster om het hier te bewaren." : "Probeer een ander woord, of zet de filters uit."}</p></div>`;
+  else if (getMode() === "raster") body = `<div class="grid">${list.map((r) => `
     <button class="card" data-id="${r.id}">
       ${thumbHTML(r, "thumb")}
       <h3>${esc(r.title)}</h3>
-      <div class="meta">${r.prep_time_minutes ? `<span>${timeText(r)}</span>` : ""}<span>${r.servings} pers.</span><span>${r.recipe_ingredients.length} ingr.</span></div>
-    </button>`).join("")}</div>${updatedHTML()}`;
+      <div class="meta">${r.prep_time_minutes ? `<span>${timeText(r)}</span>` : ""}<span>${r.servings} pers.</span></div>
+    </button>`).join("")}</div>`;
+  else body = `<div class="rlist">${list.map((r) => {
+    const own = ownerOf(r) && ownerOf(r) !== S.user.id ? ` · van ${esc(nameOf(ownerOf(r)))}` : "";
+    return `<button class="rrow card" data-id="${r.id}"><span class="t"><b>${esc(r.title)}</b><small>${r.prep_time_minutes ? timeText(r) + " · " : ""}${r.servings} pers.${own}</small></span>${S.favs.has(r.id) ? `<span class="fav-pip" role="img" aria-label="Favoriet">${ICON.star}</span>` : ""}</button>`;
+  }).join("")}</div>`;
+  el.innerHTML = `${top}${chips}${noteHTML}${body}${S.recipes.length ? updatedHTML() : ""}`;
   el.onclick = (e) => {
-    if (e.target.closest("#to-fridge")) return go("fridge");
-    if (e.target.closest("#sort")) return sortSheet();
-    if (e.target.closest("#clear-filters")) {
-      Object.assign(S, { owner: "all", tags: [], time: [], src: [], favOnly: false });
-      setSort("az");
-      $("#filters").innerHTML = filterBarHTML(); drawList(); return;
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.chip) {
+      const k = b.dataset.chip;
+      if (k === "all") Object.assign(S, { favOnly: false, tags: [], time: [], owner: "all", src: [] });
+      else if (k === "fav") S.favOnly = !S.favOnly;
+      else if (k === "quick") S.time = chipOn("quick") ? [] : ["snel", "20-30"];
+      else S.tags = chipOn(k) ? [] : [k.slice(4)];
+      refreshFilters(); drawList(); return;
     }
-    const s = e.target.closest("#surprise");
-    if (s) {
-      // Willekeurig recept binnen de huidige zoekopdracht en filters; niet twee keer achter elkaar hetzelfde
-      const pool = list.length > 1 ? list.filter((r) => r.id !== S.lastSurprise) : list;
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      S.lastSurprise = pick.id; S.surprisePool = list.map((r) => r.id);
-      s.classList.add("rolling"); s.disabled = true;
-      const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-      S.detailList = list.map((r) => r.id);
-      setTimeout(() => go("detail", pick.id), reduce ? 0 : 450);
-      return;
-    }
-    const c = e.target.closest(".card"); if (c) { S.surprisePool = null; S.detailList = list.map((r) => r.id); go("detail", c.dataset.id); }
+    if (b.id === "clear-filters") { Object.assign(S, { owner: "all", tags: [], time: [], src: [] }); setSort("az"); refreshFilters(); drawList(); return; }
+    if (b.id === "today-open") { S.surprisePool = null; S.detailList = null; return go("detail", b.dataset.id); }
+    if (b.id === "today-week" || b.id === "tile-week") return go("menu");
+    if (b.id === "today-pick") return pickRecipeSheet(isoDate(new Date()));
+    if (b.id === "today-surprise") return surpriseMe();
+    if (b.id === "tile-shop") return go("shop");
+    if (b.id === "tile-fridge") return go("fridge");
+    const c = b.closest(".card"); if (c) { S.surprisePool = null; S.detailList = list.map((r) => r.id); go("detail", c.dataset.id); }
   };
 }
 // Nog een keer gooien vanaf een verrassingsrecept (zelfde zoekopdracht en filters)
@@ -2267,7 +2698,7 @@ function drawFridge() {
   const sugg = fridgeSuggestions();
   const names = (arr, n = 4) => esc(arr.slice(0, n).map((i) => i.name.toLowerCase()).join(", ")) + (arr.length > n ? ` +${arr.length - n}` : "");
   box.innerHTML = `
-    <div class="stack" style="gap:6px"><h1 style="font-size:28px">Wat heb je in huis?</h1>
+    <div class="stack" style="gap:6px"><h1 style="font-size:32px">Wat heb je <em class="uline">in huis?</em></h1>
       <p class="muted" style="margin:0">Typ of tik aan wat er in je koelkast ligt. Dingen uit de voorraadkast tellen we al als in huis.</p></div>
     <form class="search" id="fr-add"><input id="fr-new" placeholder="Bijv. kip, courgette, rijst" autocomplete="off" autocapitalize="off" enterkeyhint="done"><button class="linkbtn">Toevoegen</button></form>
     ${S.fridge.length ? `<div class="stack" style="gap:8px"><div class="section-head"><p class="label" style="margin:0">In huis (${S.fridge.length})</p><button class="linkbtn" id="fr-clear">Alles wissen</button></div>
@@ -2316,69 +2747,95 @@ function renderDetail() {
   if (S.current && S.loggedOpen !== S.current && !isOffline()) { S.loggedOpen = S.current; store.logOpen(S.household && S.household.id, S.current); }
   const r = getRecipe(S.current);
   if (!r) return go("list");
+  if (S.dtabFor !== r.id) { S.dtabFor = r.id; S.dtab = "ingr"; }
   const base = r.servings || 2;
   const n = S.scale || base;
   const f = n / base;
+  const pos = detailPos(r.id);
+  const fav = S.favs.has(r.id);
+  const ingLi = (i, idx, pantry) => {
+    const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
+    const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
+    return `<li><span>${esc(i.name)}</span><span class="amt${pantry ? " muted-amt" : f !== 1 && i.amount != null ? " scaled" : ""}">${amt}</span><button class="addbtn" data-ing="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} ${onList ? "staat op je lijst" : "op boodschappenlijst"}">${onList ? "✓" : "+"}</button></li>`;
+  };
+  const all = r.recipe_ingredients.map((i, idx) => ({ i, idx }));
+  const main = all.filter(({ i }) => !i.is_pantry), pantry = all.filter(({ i }) => i.is_pantry);
+  const order = stepOrder(r), done = stepsDone(r.id);
+  const cur = order.find((i) => !done.has(i));
+  const check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  const hasNotes = (r.import_notes || []).length > 0;
+  const tab = S.dtab;
+  let body = "";
+  if (tab === "ingr") body = `
+      ${f !== 1 ? `<p style="margin:0;font-size:13px;font-weight:600;color:var(--acc)">Omgerekend van ${base} naar ${n} personen</p>` : ""}
+      <ul class="ing addable" id="ings-main">${main.map(({ i, idx }) => ingLi(i, idx, false)).join("")}</ul>
+      ${pantry.length ? `<p class="label" style="margin:4px 0 -6px">Uit de voorraadkast</p><ul class="ing addable pantry" id="pantry">${pantry.map(({ i, idx }) => ingLi(i, idx, true)).join("")}</ul>` : ""}`;
+  else if (tab === "steps") body = (r.steps || []).length ? `
+      <div class="sprog"><span>${done.size} van ${order.length} klaar</span><span class="track" aria-hidden="true"><i style="width:${Math.round((done.size / order.length) * 100)}%"></i></span>${done.size ? `<button class="linkbtn" id="steps-reset" style="color:var(--ink)">Opnieuw</button>` : ""}</div>
+      <ol class="srows" id="steps">${order.map((i) => {
+        const st = r.steps[i];
+        if (i === cur) return `<li class="scur"><div class="hd"><span class="n">${i + 1}</span><h3>${esc(st.title || "Stap " + (i + 1))}</h3></div><p>${esc(st.text)}</p><button class="ok" data-step="${i}">${check}Stap klaar</button></li>`;
+        const d = done.has(i);
+        return `<li><button class="srow${d ? " done" : ""}" data-step="${i}" aria-label="Stap ${i + 1} ${d ? "weer openzetten" : "klaar"}"><span class="n">${d ? check : i + 1}</span><span class="tx"><b>${esc(st.title || "Stap " + (i + 1))}</b><span>${esc(st.text)}</span></span></button></li>`;
+      }).join("")}</ol>
+      ${cur === undefined ? `<p class="eat">Smakelijk eten!</p>` : ""}` : `<p class="muted" style="margin:0">Bij dit recept staat geen bereiding.</p>`;
+  else body = `
+      ${hasNotes ? `<div class="ai-note"><b>Aangevuld bij het importeren</b>
+        <p class="muted" style="margin:0 0 6px;font-size:14px">Deze punten stonden niet (zo) in het originele recept. Het zijn aannames of schattingen; controleer ze bij het koken.</p>
+        <ul>${r.import_notes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+        ${canEdit() ? `<button class="linkbtn" id="ai-ok">Klopt, melding weghalen</button>` : ""}</div>` : ""}
+      ${(r.tips || []).length ? r.tips.map((t) => `<div class="tip">${t.title ? `<b>${esc(t.title)}</b>` : ""}${esc(t.text)}</div>`).join("") : hasNotes ? "" : `<p class="muted" style="margin:0">Bij dit recept staan nog geen kooktips.</p>`}`;
   $("#app").innerHTML = `
-    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button>
-      ${detailPos(r.id) ? `<span class="pager" aria-live="polite"><button class="pg-btn" id="pg-prev" aria-label="Vorig recept" ${detailPos(r.id).i === 0 ? "disabled" : ""}>‹</button><span>${detailPos(r.id).i + 1} van ${detailPos(r.id).n}</span><button class="pg-btn" id="pg-next" aria-label="Volgend recept" ${detailPos(r.id).i === detailPos(r.id).n - 1 ? "disabled" : ""}>›</button></span>` : ""}
-      ${S.surprisePool && S.lastSurprise === r.id && S.surprisePool.length > 1 ? `<button class="surprise" id="reroll"><span class="die" aria-hidden="true">🎲</span>Nog een keer</button>` : ""}
-      <button class="iconbtn" id="fav" aria-label="${S.favs.has(r.id) ? "Geen favoriet meer" : "Maak favoriet"}" aria-pressed="${S.favs.has(r.id)}" style="color:var(--saffron)">${S.favs.has(r.id) ? ICON.star : ICON.starOff}</button></div>
-    ${thumbHTML(r, "hero")}
-    <div class="title-block">
-      <h1>${esc(r.title)}</h1>
-      ${r.subtitle ? `<p class="sub" style="margin:0">${esc(r.subtitle)}</p>` : ""}
-      <div class="meta">${r.prep_time_minutes ? `<span${r.prep_time_estimated ? ' title="Bereidingstijd is geschat"' : ""}>${timeText(r, true)}</span>` : ""}${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--herb)">Bron bekijken</a>` : ""}</div>
-      ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
-      <div class="actions-row">
-        <button class="btn primary" id="to-menu">${ICON.cal}<span>Op mijn weekmenu</span></button>
-        <button class="btn" id="to-menu-list">${ICON.bag}<span>Weekmenu + boodschappenlijst</span></button>
+    <div class="d-hero">
+      <button class="hbtn" id="back" aria-label="Terug">${ICON.back}</button>
+      <div class="d-mid">
+        <div class="d-arch" role="img" aria-label="${esc(r.title)}">${r.photo_url ? `<img src="${esc(r.photo_url)}" alt="">` : `<b aria-hidden="true">${esc((r.title || "?")[0])}</b>`}</div>
       </div>
+      <button class="hbtn fav" id="fav" aria-label="${fav ? "Geen favoriet meer" : "Maak favoriet"}" aria-pressed="${fav}">${fav ? ICON.star : ICON.starOff}</button>
     </div>
-    <section class="section">
-      <div class="section-head"><h2>Ingrediënten</h2>
-        <div class="servings" aria-label="Aantal personen"><button id="minus" aria-label="Minder personen">−</button><output id="pp">${n} pers.</output><button id="plus" aria-label="Meer personen">+</button></div></div>
-      <ul class="ing addable" id="ings-main">${r.recipe_ingredients.map((i, idx) => ({ i, idx })).filter(({ i }) => !i.is_pantry).map(({ i, idx }) => {
-        const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
-        const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
-        return `<li><span>${esc(i.name)}</span><span class="amt${f !== 1 && i.amount != null ? " scaled" : ""}">${amt}</span><button class="addbtn" data-ing="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
-      }).join("")}</ul>
-      ${f !== 1 ? `<p class="muted" style="margin:0;font-size:14px">Omgerekend van ${base} naar ${n} personen.</p>` : ""}
-    </section>
-    ${r.recipe_ingredients.some((i) => i.is_pantry) ? `<section class="section">
-      <div class="section-head"><h2>Uit de voorraadkast</h2></div>
-      <p class="muted" style="margin:-6px 0 0;font-size:14px">Heb je meestal in huis. Iets op? Tik op + om het op je lijst te zetten.</p>
-      <ul class="ing addable pantry" id="pantry">${r.recipe_ingredients.map((i, idx) => ({ i, idx })).filter(({ i }) => i.is_pantry).map(({ i, idx }) => {
-        const amt = i.amount == null ? esc(i.original_text || "") : `${fmtAmount(i.amount * f, i.unit)}${i.unit ? " " + esc(i.unit) : ""}`;
-        const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
-        return `<li><span>${esc(i.name)}</span><span class="amt muted-amt">${amt}</span><button class="addbtn" data-ing="${idx}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op boodschappenlijst">${onList ? "✓" : "+"}</button></li>`;
-      }).join("")}</ul></section>` : ""}
-    ${(r.steps || []).length ? `<section class="section">
-      <div class="section-head"><h2>Bereiding</h2>${stepsDone(r.id).size ? `<button class="linkbtn" id="steps-reset">Opnieuw beginnen</button>` : `<span class="muted" style="font-size:14px">Tik een stap af als je klaar bent</span>`}</div>
-      <ol class="steps check" id="steps">${stepOrder(r).map((i) => { const s = r.steps[i], done = stepsDone(r.id).has(i); return `<li class="${done ? "done" : ""}" data-step="${i}" style="--n:'${i + 1}'"><button class="step-check" aria-pressed="${done}" aria-label="${done ? "Stap " + (i + 1) + " nog niet klaar" : "Stap " + (i + 1) + " klaar"}">${done ? "✓" : i + 1}</button><div>${s.title ? `<b>${esc(s.title)}</b>` : ""}${esc(s.text)}</div></li>`; }).join("")}</ol></section>` : ""}
-    ${(r.tips || []).length ? `<section class="section"><h2>Kooktips</h2>${r.tips.map((t) => `<div class="tip">${t.title ? `<b>${esc(t.title)}</b>` : ""}${esc(t.text)}</div>`).join("")}</section>` : ""}
-    ${(r.import_notes || []).length ? `<section class="section"><div class="ai-note"><b>Aangevuld bij het importeren</b>
-      <p class="muted" style="margin:0 0 6px;font-size:14px">Deze punten stonden niet (zo) in het originele recept. Het zijn aannames of schattingen; controleer ze bij het koken.</p>
-      <ul>${r.import_notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
-      ${canEdit() ? `<button class="linkbtn" id="ai-ok">Klopt, melding weghalen</button>` : ""}</div></section>` : ""}
-    <div class="byline">
-      <div class="byline-owner">${avatarHTML(ownerOf(r), 40)}<div><span class="label" style="display:block">Recept van</span><b style="color:var(--ink);font-size:16px">${esc(nameOf(ownerOf(r)))}</b></div></div>
-      <span>Toegevoegd door ${esc(nameOf(r.created_by))} op ${fmtDate(r.created_at)}</span>
-      <span>Laatst gewijzigd door ${esc(nameOf(r.updated_by || r.created_by))} op ${fmtDate(r.updated_at)}</span></div>
-    ${canEdit() ? `<div class="actions"><button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>` : ""}
-    <div style="height:24px"></div>`;
+    <div class="d-sheet">
+      ${pos || (S.surprisePool && S.lastSurprise === r.id && S.surprisePool.length > 1) ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:-4px">
+        ${pos ? `<span class="pager" aria-live="polite" style="margin:0"><button class="pg-btn" id="pg-prev" aria-label="Vorig recept" ${pos.i === 0 ? "disabled" : ""}>‹</button><span>${pos.i + 1} van ${pos.n}</span><button class="pg-btn" id="pg-next" aria-label="Volgend recept" ${pos.i === pos.n - 1 ? "disabled" : ""}>›</button></span>` : "<span></span>"}
+        ${S.surprisePool && S.lastSurprise === r.id && S.surprisePool.length > 1 ? `<button class="surprise" id="reroll"><span class="die" aria-hidden="true">🎲</span>Nog een keer</button>` : ""}</div>` : ""}
+      <div class="stack" style="gap:6px">
+        ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+        <h1>${esc(r.title)}</h1>
+        ${r.subtitle ? `<p class="sub">${esc(r.subtitle)}</p>` : ""}
+        ${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--ink);font-size:14px;font-weight:600;align-self:flex-start;min-height:32px;display:inline-flex;align-items:center">Bron bekijken ›</a>` : ""}
+      </div>
+      <div class="d-stats">
+        <div class="d-stat"><span><small>Klaar in</small><b${r.prep_time_estimated ? ' title="Bereidingstijd is geschat"' : ""}>${r.prep_time_minutes ? timeText(r) : "–"}</b></span></div>
+        <div class="d-stat" aria-label="Aantal personen"><span><small>Personen</small><b id="pp">${n}</b></span><span class="pm"><button id="minus" aria-label="Minder personen">−</button><button class="plus" id="plus" aria-label="Meer personen">+</button></span></div>
+      </div>
+      <div class="d-tabs" role="tablist" aria-label="Onderdelen van het recept">
+        ${[["ingr", "Ingrediënten"], ["steps", "Bereiding"], ["tips", "Tips"]].map(([k, l]) => `<button role="tab" data-dtab="${k}" aria-selected="${tab === k}">${l}${k === "tips" && hasNotes ? '<span class="pip" aria-label="met melding"></span>' : ""}</button>`).join("")}
+      </div>
+      <div class="stack" style="gap:12px">${body}</div>
+      <div class="byline">
+        <div class="byline-owner">${avatarHTML(ownerOf(r), 40)}<div><span class="label" style="display:block">Recept van</span><b style="color:var(--ink);font-size:16px">${esc(nameOf(ownerOf(r)))}</b></div></div>
+        <span>Toegevoegd door ${esc(nameOf(r.created_by))} op ${fmtDate(r.created_at)}</span>
+        <span>Laatst gewijzigd door ${esc(nameOf(r.updated_by || r.created_by))} op ${fmtDate(r.updated_at)}</span></div>
+      ${canEdit() ? `<div class="actions"><button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>` : ""}
+      <div style="height:110px"></div>
+    </div>`;
+  const old = document.getElementById("d-bar"); if (old) old.remove();
+  const bar = document.createElement("div"); bar.id = "d-bar"; bar.className = "d-bar";
+  bar.innerHTML = `<div><button class="main" id="to-menu">${ICON.cal}<span>Op mijn weekmenu</span></button><button class="side" id="to-menu-list" aria-label="Op weekmenu en boodschappenlijst">${ICON.bag}</button></div>`;
+  document.body.appendChild(bar);
   $("#back").onclick = () => go(S.from || "list");
   bindRecipeSwipe(r.id);
+  const rerender = () => { const y = window.scrollY; renderDetail(); window.scrollTo(0, y); };
+  $(".d-tabs").onclick = (e) => { const b = e.target.closest("[data-dtab]"); if (!b || b.dataset.dtab === S.dtab) return; S.dtab = b.dataset.dtab; rerender(); };
   const st = $("#steps");
   if (st) st.onclick = (e) => {
-    const li = e.target.closest("[data-step]"); if (!li) return;
-    const i = +li.dataset.step, set = stepsDone(r.id);
+    const b = e.target.closest("[data-step]"); if (!b) return;
+    const i = +b.dataset.step, set = stepsDone(r.id);
     if (set.has(i)) set.delete(i); else set.add(i);
-    saveStepsDone(); const y = window.scrollY; renderDetail(); window.scrollTo(0, y);
+    saveStepsDone(); rerender();
   };
-  const sr = $("#steps-reset"); if (sr) sr.onclick = () => { stepsDone(r.id).clear(); saveStepsDone(); renderDetail(); };
+  const sr = $("#steps-reset"); if (sr) sr.onclick = () => { stepsDone(r.id).clear(); saveStepsDone(); rerender(); };
   const ai = $("#ai-ok"); if (ai) ai.onclick = async () => {
-    try { await store.clearImportNotes(r.id); r.import_notes = []; renderDetail(); toast("Melding weggehaald"); } catch (err) { toast(err.message); }
+    try { await store.clearImportNotes(r.id); r.import_notes = []; rerender(); toast("Melding weggehaald"); } catch (err) { toast(err.message); }
   };
   $("#to-menu").onclick = () => addToMenuSheet(r, false);
   $("#to-menu-list").onclick = () => addToMenuSheet(r, true);
@@ -2393,10 +2850,10 @@ function renderDetail() {
       toast(`${i.name} staat op je boodschappenlijst`);
     } catch (err) { b.disabled = false; toast(err.message); }
   };
-  $("#ings-main").onclick = addIng;
+  if ($("#ings-main")) $("#ings-main").onclick = addIng;
   if ($("#pantry")) $("#pantry").onclick = addIng;
-  $("#minus").onclick = () => { if (n > 1) { S.scale = n - 1; renderDetail(); } };
-  $("#plus").onclick = () => { if (n < 20) { S.scale = n + 1; renderDetail(); } };
+  $("#minus").onclick = () => { if (n > 1) { S.scale = n - 1; rerender(); } };
+  $("#plus").onclick = () => { if (n < 20) { S.scale = n + 1; rerender(); } };
   if ($("#reroll")) $("#reroll").onclick = (e) => {
     const b = e.currentTarget; b.classList.add("rolling"); b.disabled = true;
     const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2404,7 +2861,7 @@ function renderDetail() {
   };
   $("#fav").onclick = async () => {
     const on = !S.favs.has(r.id);
-    try { await store.setFavorite(r.id, on); if (on) S.favs.add(r.id); else S.favs.delete(r.id); renderDetail(); }
+    try { await store.setFavorite(r.id, on); if (on) S.favs.add(r.id); else S.favs.delete(r.id); rerender(); toast(on ? "Bewaard bij je favorieten" : "Uit je favorieten gehaald"); }
     catch (e) { toast(e.message); }
   };
   if (!canEdit()) return;
@@ -2676,7 +3133,7 @@ function miniThumb(r) {
 function minWeek() { return addDays(startOfWeek(new Date()), -7); }
 async function loadWeek() {
   const from = isoDate(S.weekStart), to = isoDate(addDays(S.weekStart, 6));
-  try { S.meals = await store.mealPlan(from, to); if (isoDate(S.weekStart) === isoDate(startOfWeek(new Date()))) saveCache(); }
+  try { S.meals = await store.mealPlan(from, to); S.mealsLoaded = from; if (isoDate(S.weekStart) === isoDate(startOfWeek(new Date()))) { S.weekMeals = S.meals; saveCache(); } }
   catch (e) {
     if (!isNetErr(e)) throw e;
     goOffline();
@@ -2694,67 +3151,74 @@ function drawMenu() {
   const ws = S.weekStart, we = addDays(ws, 6);
   const thisWeek = isoDate(startOfWeek(new Date())) === isoDate(ws);
   const today = isoDate(new Date());
+  const days = Array.from({ length: 7 }, (_, i) => { const d = addDays(ws, i); return { d, iso: isoDate(d), name: DAY_NAMES[i], ab: DAY_NAMES[i].slice(0, 2).toLowerCase() }; });
+  if (!S.menuSel || !days.some((x) => x.iso === S.menuSel)) S.menuSel = thisWeek ? today : days[0].iso;
+  const sel = days.find((x) => x.iso === S.menuSel);
+  const mealsOf = (iso) => S.meals.filter((m) => m.plan_date === iso);
   const total = S.meals.length;
+  const titleOf = (m) => { if (!m.recipe_id && m.title) return m.title; const r = getRecipe(m.recipe_id); return r ? r.title : "Verwijderd recept"; };
+  const selMeals = mealsOf(sel.iso);
+  const longDate = sel.d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+  const mealHTML = (m) => {
+    const r = m.recipe_id ? getRecipe(m.recipe_id) : null;
+    const loose = !m.recipe_id && m.title;
+    const by = planPartners().length && m.user_id && m.user_id !== S.user.id ? `<span title="Gepland door ${esc(nameOf(m.user_id))}" style="display:inline-grid">${avatarHTML(m.user_id, 22)}</span>` : "";
+    return `<div class="dmeal" data-meal="${m.id}">
+      <span class="ti">${esc(titleOf(m))}</span>
+      <div class="row"><span class="meta-l">${by}<span>${loose ? "zonder recept" : r && r.prep_time_minutes ? timeText(r) : ""}</span></span>
+        ${loose ? "" : `<span class="stepper" aria-label="Personen"><button data-dec="${m.id}" aria-label="Minder personen">−</button><output>${m.servings} pers.</output><button data-inc="${m.id}" aria-label="Meer personen">+</button></span>`}</div>
+      <div class="acts">${loose ? `<button class="solid" data-loose="${m.id}">Bekijken</button>` : r ? `<button class="solid" data-open="${m.recipe_id}">Openen</button>` : ""}<button data-swap="${m.id}">Wisselen</button><button data-rm="${m.id}">Verwijderen</button></div>
+    </div>`;
+  };
+  const rows = days.filter((x) => x.iso !== sel.iso && (!thisWeek || x.iso >= today));
   $("#app").innerHTML = `
-    <header class="top">
-      <div class="brand"><h1>Weekmenu</h1><div class="brand-actions">${thisWeek ? "" : `<button class="linkbtn" id="to-today">Deze week</button>`}${total ? `<button class="iconbtn trash" id="menu-clear" aria-label="Weekmenu leegmaken">${ICON.trash}</button>` : ""}</div></div>
+    <header class="stack" style="gap:14px;padding-top:12px">
+      <div class="wk-head"><div><h1>Week ${weekNumber(ws)}</h1><p>${fmtDay(ws)} – ${fmtDay(we)}${thisWeek ? " · deze week" : ""}</p></div>
+        <div class="arrows"><button class="iconbtn" id="prev-week" aria-label="Vorige week" ${addDays(ws, -7) < minWeek() ? "disabled" : ""}>${ICON.back}</button><button class="iconbtn flip" id="next-week" aria-label="Volgende week">${ICON.back}</button></div></div>
       ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 26)).join("")}<span>${esc(planWithText())}</span></div>` : ""}
       <div id="plan-banners">${planRequestBanner()}</div>
-      <div class="weeknav">
-        <button class="iconbtn" id="prev-week" aria-label="Vorige week" ${addDays(ws, -7) < minWeek() ? "disabled" : ""}>${ICON.back}</button>
-        <div class="weeklabel"><b>Week ${weekNumber(ws)}</b><span class="muted">${fmtDay(ws)} – ${fmtDay(we)}</span></div>
-        <button class="iconbtn flip" id="next-week" aria-label="Volgende week">${ICON.back}</button>
-      </div>
+      <div class="strip" role="group" aria-label="Dagen">${days.map((x) => `<button data-day="${x.iso}" aria-pressed="${x.iso === sel.iso}" aria-label="${x.name} ${fmtDay(x.d)}" class="${mealsOf(x.iso).length ? "has" : ""}${x.iso < today ? " past" : ""}${x.iso === today ? " is-today" : ""}"><small>${x.ab}</small><b>${x.d.getDate()}</b><i aria-hidden="true"></i></button>`).join("")}</div>
+      ${thisWeek ? "" : `<button class="more-meal" id="to-today" style="margin:-8px 0">Terug naar deze week</button>`}
     </header>
-    <main class="days">
-      ${DAY_NAMES.map((dn, i) => {
-        const d = addDays(ws, i), iso = isoDate(d);
-        const meals = S.meals.filter((m) => m.plan_date === iso);
-        return `<section class="day${iso === today ? " today" : ""}">
-          <div class="day-head"><h2>${dn}</h2><span class="muted">${fmtDay(d)}${iso === today ? " · vandaag" : ""}</span></div>
-          ${meals.map((m) => { if (!m.recipe_id && m.title) return `
-            <div class="meal loose-meal" data-meal="${m.id}">
-              <button class="meal-open" data-loose="${m.id}"><span class="mini plate" aria-hidden="true">🍽️</span><span class="loose-text"><span class="meal-title loose-title">${esc(m.title)}</span><span class="meal-sub">Zonder recept · tik voor meer</span></span></button>
-              <span></span>
-              ${planPartners().length && m.user_id && m.user_id !== S.user.id ? `<span class="added-by" title="Gepland door ${esc(nameOf(m.user_id))}">${avatarHTML(m.user_id, 22)}</span>` : `<span></span>`}
-              <button class="x" data-rm="${m.id}" aria-label="Haal van weekmenu">×</button>
-            </div>`;
-            const r = getRecipe(m.recipe_id); return `
-            <div class="meal" data-meal="${m.id}">
-              <button class="meal-open" data-open="${m.recipe_id}">${miniThumb(r)}<span class="meal-title">${esc(r ? r.title : "Verwijderd recept")}</span></button>
-              <div class="servings small" aria-label="Personen"><button data-dec="${m.id}" aria-label="Minder personen">−</button><output>${m.servings}p</output><button data-inc="${m.id}" aria-label="Meer personen">+</button></div>
-              ${planPartners().length && m.user_id && m.user_id !== S.user.id ? `<span class="added-by" title="Gepland door ${esc(nameOf(m.user_id))}">${avatarHTML(m.user_id, 22)}</span>` : `<span></span>`}
-              <button class="x" data-rm="${m.id}" aria-label="Haal van weekmenu">×</button>
-            </div>`; }).join("")}
-          <button class="add-meal" data-add="${iso}">+ Gerecht</button>
-        </section>`;
-      }).join("")}
-      <div class="menu-foot">
-        <button class="btn primary block" id="make-list" ${total ? "" : "disabled"}>Boodschappenlijst maken${total ? ` (${total} ${total === 1 ? "gerecht" : "gerechten"})` : ""}</button>
+    <main class="stack days" style="gap:14px;margin-top:14px">
+      <section class="daycard">
+        <div class="hd"><h2>${esc(longDate[0].toUpperCase() + longDate.slice(1))}</h2>${sel.iso === today ? `<span class="now-badge">Vandaag</span>` : ""}</div>
+        ${selMeals.length ? selMeals.map(mealHTML).join("") + `<button class="more-meal" data-add="${sel.iso}">+ Nog een gerecht</button>`
+          : `<div class="dempty"><span>Nog niets gepland.</span><button class="btn primary" data-add="${sel.iso}">Kies een gerecht</button></div>`}
+      </section>
+      ${rows.length ? `<div class="wrows">${rows.map((x) => { const ms = mealsOf(x.iso); return `<button class="wrow${ms.length ? "" : " empty"}" data-day="${x.iso}"><small>${x.ab}</small><span>${ms.length ? esc(ms.map(titleOf).join(" + ")) : "+ Gerecht kiezen"}</span></button>`; }).join("")}</div>`
+        : `<p class="muted" style="margin:0;font-size:14px">Dit is de laatste dag van deze week. Met › zie je volgende week.</p>`}
+      <div class="wk-foot">
         ${updatedHTML()}
-        <p class="muted" style="margin:0;font-size:14px">${planPartners().length ? `Dit weekmenu, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je weekmenu is van jou alleen. Een huishouden vormen doe je bij Instellingen."}</p>
+        <span>${planPartners().length ? `Dit weekmenu, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je weekmenu is van jou alleen. Een huishouden vormen doe je bij Instellingen."}</span>
+        ${total ? `<button class="linkbtn" id="menu-clear">Week ${weekNumber(ws)} leegmaken</button>` : ""}
       </div>
+      <div style="height:80px"></div>
     </main>
+    <div class="listbar"><span>${total} ${total === 1 ? "gerecht" : "gerechten"} deze week</span><button id="make-list" ${total ? "" : "disabled"}>Maak boodschappenlijst</button></div>
     ${tabBarHTML("menu")}`;
   bindTabBar();
   const shift = async (n) => {
     const next = addDays(S.weekStart, n);
     if (next < minWeek()) return;
-    S.weekStart = next; await loadWeek(); drawMenu();
+    S.weekStart = next; S.menuSel = null; await loadWeek(); drawMenu();
   };
   $("#prev-week").onclick = () => shift(-7);
   $("#next-week").onclick = () => shift(7);
-  const tt = $("#to-today"); if (tt) tt.onclick = async () => { S.weekStart = startOfWeek(new Date()); await loadWeek(); drawMenu(); };
+  const tt = $("#to-today"); if (tt) tt.onclick = async () => { S.weekStart = startOfWeek(new Date()); S.menuSel = null; await loadWeek(); drawMenu(); };
   $("#plan-banners").onclick = (e) => handlePlanBanner(e, async () => { await loadWeek(); drawMenu(); });
+  $(".strip").onclick = (e) => { const b = e.target.closest("[data-day]"); if (!b) return; S.menuSel = b.dataset.day; drawMenu(); };
   $(".days").onclick = async (e) => {
     const t = e.target.closest("button"); if (!t) return;
     try {
+      if (t.dataset.day) { S.menuSel = t.dataset.day; drawMenu(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
       if (t.dataset.loose) return looseMealSheet(S.meals.find((x) => x.id === t.dataset.loose));
+      if (t.dataset.swap) { S.swapMeal = t.dataset.swap; return pickRecipeSheet(sel.iso); }
       if (t.dataset.open) { S.detailList = [...new Set(S.meals.slice().sort((a, b) => a.plan_date.localeCompare(b.plan_date)).map((m) => m.recipe_id).filter((id) => id && getRecipe(id)))]; return getRecipe(t.dataset.open) && go("detail", t.dataset.open); }
       const id = t.dataset.inc || t.dataset.dec || t.dataset.rm;
       const m = S.meals.find((x) => x.id === id); if (!m) return;
-      if (t.dataset.rm) { await store.removeMeal(id); S.meals = S.meals.filter((x) => x.id !== id); }
+      if (t.dataset.rm) { await store.removeMeal(id); S.meals = S.meals.filter((x) => x.id !== id); toast("Van het weekmenu gehaald"); }
       else { const v = Math.min(20, Math.max(1, m.servings + (t.dataset.inc ? 1 : -1))); if (v === m.servings) return; m.servings = v; await store.updateMeal(id, { servings: v }); }
       drawMenu();
     } catch (err) { toast(err.message); }
@@ -2810,6 +3274,7 @@ function looseMealSheet(m) {
   };
 }
 function pickRecipeSheet(date) {
+  const swap = S.swapMeal; S.swapMeal = null;
   const d = new Date(date + "T12:00:00");
   const sorted = S.recipes.slice().sort((a, b) => (S.favs.has(b.id) - S.favs.has(a.id)) || a.title.localeCompare(b.title, "nl"));
   const s = sheet(`
@@ -2838,7 +3303,7 @@ function pickRecipeSheet(date) {
         added = fresh.length;
       }
       s.close();
-      if (S.view === "menu") { S.meals.push(m); drawMenu(); }
+      await noteMeal(m, swap);
       const dn = DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase();
       toast(added ? `Op ${dn} gezet, ${added} ${added === 1 ? "ding" : "dingen"} op je lijst` : `Op ${dn} gezet`);
     } catch (err) { toast(err.message); }
@@ -2858,7 +3323,7 @@ function pickRecipeSheet(date) {
     try {
       const m = await store.addMeal(S.household.id, date, r.id, r.servings || 2);
       s.close();
-      if (S.view === "menu") { S.meals.push(m); drawMenu(); }
+      await noteMeal(m, swap);
       toast(`${r.title} staat op ${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()}`);
     } catch (err) { toast(err.message); }
   };
@@ -2886,7 +3351,8 @@ function addToMenuSheet(r, withList = false) {
   $("#m-plus", s.el).onclick = () => { if (servings < 20) { servings++; upd(); } };
   $("#m-add", s.el).onclick = async () => {
     try {
-      await store.addMeal(S.household.id, chosen, r.id, servings);
+      const m = await store.addMeal(S.household.id, chosen, r.id, servings);
+      if (m) await noteMeal(m);
       let added = 0;
       if (withList) added = await addRecipeToList(r, servings);
       s.close();
@@ -2981,6 +3447,7 @@ function drawShop() {
     <header class="top">
       <div class="brand"><h1>Boodschappen</h1>${S.shop.length ? `<div class="brand-actions"><button class="linkbtn" id="shop-edit">${S.shopEdit ? "Klaar" : "Wijzig"}</button><button class="iconbtn trash" id="shop-clear" aria-label="Lijst legen">${ICON.trash}</button></div>` : ""}</div>
       ${S.shopEdit ? `<p class="notice" style="margin:0">Tik op <b>−</b> om iets weg te halen dat je al in huis hebt.</p>` : (S.shop.length ? `<p class="muted" style="margin:0">${open.length} te halen</p>` : "")}
+      ${S.shop.length && !S.shopEdit ? `<span class="sbar" role="img" aria-label="${S.shop.length - open.length} van ${S.shop.length} afgevinkt"><i style="width:${Math.round(((S.shop.length - open.length) / S.shop.length) * 100)}%"></i></span>` : ""}
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
     </header>
     <main class="stack" style="gap:18px">
