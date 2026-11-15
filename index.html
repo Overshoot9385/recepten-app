@@ -2121,7 +2121,7 @@ async function refreshData(opts = {}) {
     if (S.roles[S.user.id] !== S.role) { S.role = S.roles[S.user.id]; roleMsg = `Je rechten zijn aangepast: je bent nu ${ROLE_LABEL[S.role].toLowerCase()}`; }
     S.recipes = recipes; S.favs = new Set(favs); S.shop = shop; S.plan = plan;
     if (S.view === "menu") await loadWeek();
-    if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(shopRange().to)), true); S.shopPantryWeek = ws; }
+    if (S.view === "shop") await loadPantry();
     lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache(); updateTipDot(); checkForUpdate();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
@@ -3704,7 +3704,7 @@ async function makeShoppingList(days, preMeals) {
     const meals = preMeals || (await store.mealPlan(days[0], days[days.length - 1])).filter((m) => days.includes(m.plan_date));
     if (!meals.length) { toast("Op die dagen staat niets op de planning"); return; }
     const items = aggregate(meals);
-    try { localStorage.setItem(LIST_WEEK_KEY, days[0]); } catch (_) { /* niet erg */ }
+    try { localStorage.setItem(LIST_DAYS_KEY, JSON.stringify(days)); } catch (_) { /* niet erg */ }
     const current = await store.shopping();
     await store.removeShopping(current.filter((x) => !x.is_manual).map((x) => x.id));
     // Wat je zelf al op de lijst zette (bijv. met +) niet nog een keer toevoegen
@@ -3714,6 +3714,7 @@ async function makeShoppingList(days, preMeals) {
     items.splice(0, items.length, ...items.filter((i) => !manual.has(k(i.name))));
     if (skipped) setTimeout(() => toast(`${skipped} ${skipped === 1 ? "product stond" : "producten stonden"} er al op en ${skipped === 1 ? "is" : "zijn"} niet dubbel toegevoegd`), 2700);
     await store.addShopping(S.household.id, items.map((i, k) => ({ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: false, position: k + 1 })));
+    try { await loadPantry(); } catch (_) { /* niet erg */ }
     toast(`Lijst gemaakt: ${items.length} producten uit ${meals.length} ${meals.length === 1 ? "gerecht" : "gerechten"}`);
     go("shop");
   } catch (err) { toast(err.message); }
@@ -3787,15 +3788,34 @@ async function saveQty(items, name, { amount: newAmt, unit: newUnit }) {
       toast(`${name}: ${shopAmount([keep]) || "zonder hoeveelheid"}`);
     } catch (err) { Object.assign(keep, old); S.shop = before; drawShop(); toast(err.message); }
 }
-const LIST_WEEK_KEY = "receptenboek-lijstweek";
-function listWeek() { return shopRange().from; }
+// De voorraadcheck volgt de dagen die je voor je lijst koos; nog niets gekozen? Dan vandaag plus de boodschappenweek.
+const LIST_DAYS_KEY = "receptenboek-lijstdagen";
+function listDays() {
+  const today = isoDate(planToday());
+  let d = [];
+  try { d = (JSON.parse(localStorage.getItem(LIST_DAYS_KEY) || "[]") || []).filter((x) => x >= today); } catch (_) { d = []; }
+  if (d.length) return d.sort();
+  const sr = shopRange(), out = [today];
+  for (let x = sr.from; x <= sr.to; x = addDays(x, 1)) if (isoDate(x) !== today) out.push(isoDate(x));
+  return out;
+}
+async function loadPantry() {
+  const days = listDays();
+  const meals = (await store.mealPlan(days[0], days[days.length - 1])).filter((m) => days.includes(m.plan_date));
+  S.shopPantry = aggregate(meals, true);
+  S.shopPantryDays = [...new Set(meals.map((m) => m.plan_date))].sort();
+}
+function pantryDaysLabel() {
+  const d = S.shopPantryDays || []; if (!d.length) return "";
+  const f = (x) => { const t = new Date(x + "T12:00:00"); return `${DAY_NAMES[(t.getDay() + 6) % 7].slice(0, 2).toLowerCase()} ${fmtDay(t)}`; };
+  return d.length === 1 ? f(d[0]) : `${f(d[0])} t/m ${f(d[d.length - 1])}`;
+}
 async function renderShop() {
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Boodschappen</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("shop")}`;
   bindTabBar();
   try {
-    const ws = listWeek();
-    const [shop, meals] = await Promise.all([store.shopping(), store.mealPlan(isoDate(ws), isoDate(shopRange().to))]);
-    S.shop = shop; S.shopPantry = aggregate(meals, true); S.shopPantryWeek = ws;
+    const [shop] = await Promise.all([store.shopping(), loadPantry()]);
+    S.shop = shop;
   } catch (e) { toast(e.message); S.shop = S.shop || []; S.shopPantry = []; }
   drawShop();
 }
@@ -3822,7 +3842,7 @@ function drawShop() {
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op de planning en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
       ${open.length ? AISLES.map(([k, l]) => { const gs = openG.filter((g) => groupAisle(g) === k).sort(byName); return gs.length ? `<div class="aisle"><p class="label aisle-head">${esc(l)}</p><div class="shop-list">${gs.map(row).join("")}</div></div>` : ""; }).join("") : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${doneG.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${doneG.map(row).join("")}</div></div>` : ""}
-      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast vanaf ${fmtDay(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
+      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast · ${pantryDaysLabel()}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
         <button class="btn block" id="from-menu">Lijst maken van planning</button>
         <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je planning. Dingen uit de voorraadkast komen er niet automatisch op. Wat je zelf hebt toegevoegd blijft staan.</p>
@@ -3932,7 +3952,7 @@ function drawShop() {
       return `<div class="row-item"><span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amt}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op de lijst">${onList ? "✓" : "+"}</button></div>`;
     }).join("");
     const sh = sheet(`<div class="sheet-head"><h2>Voorraad checken</h2></div>
-      <p class="muted" style="margin:-6px 0 0;font-size:14px">Dit heb je nodig voor je planning vanaf ${fmtDay(S.shopPantryWeek)}, maar meestal heb je het in huis. Iets op? Tik op +.</p>
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">Dit heb je nodig voor de dagen van je lijst (${pantryDaysLabel()}), maar meestal heb je het in huis. Iets op? Tik op +.</p>
       <div class="opts shop-list" id="sp-list">${rows()}</div>
       <button class="btn primary block" id="sp-done">Klaar</button>`);
     $("#sp-done", sh.el).onclick = () => { sh.close(); drawShop(); };
