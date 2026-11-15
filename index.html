@@ -350,6 +350,8 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .notice.error { color: var(--danger); }
 
 /* Detail */
+.save-top { flex: none; height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--herb); color: var(--herb-ink); font: inherit; font-size: 15px; font-weight: 700; }
+.save-top:disabled { opacity: .6; }
 .back { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-block: 12px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 5; }
 .hero { aspect-ratio: 16 / 10; width: 100%; max-width: 100%; border-radius: var(--r); overflow: hidden; background: var(--sunk); display: grid; place-items: center; }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
@@ -3202,7 +3204,7 @@ function renderEdit() {
       <button type="button" data-rm-${kind}="${k}" aria-label="Verwijderen">×</button></div>
       <textarea class="input" id="${kind}-text-${k}" rows="3">${esc(s.text)}</textarea></div>`;
   $("#app").innerHTML = `
-    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">${d.id ? "Recept bewerken" : "Controleer en bewaar"}</span><span style="width:40px"></span></div>
+    <div class="back"><button class="iconbtn" id="back" aria-label="Terug">${ICON.back}</button><span class="label">${d.id ? "Recept bewerken" : "Controleer en bewaar"}</span><button type="submit" form="edit-form" class="save-top" id="save-top">Bewaren</button></div>
     <form id="edit-form" class="stack">
       ${(d.warnings || []).map((w) => `<p class="notice warn" style="margin:0">${esc(w)}</p>`).join("")}
       <label class="field"><span>Naam van het gerecht</span><input class="input" id="e-title" value="${esc(d.title)}" required></label>
@@ -3297,12 +3299,13 @@ function renderEdit() {
     if (!d.title) { toast("Geef het gerecht een naam"); return; }
     const ingredients = d.ingredients.filter((i) => i.name);
     const steps = d.steps.filter((s) => s.text || s.title), tips = d.tips.filter((s) => s.text || s.title);
-    const btn = $("#save"); btn.disabled = true; btn.textContent = "Bewaren…";
+    const btns = [$("#save"), $("#save-top")].filter(Boolean);
+    btns.forEach((b) => { b.disabled = true; b.textContent = "Bewaren…"; });
     try {
       const id = await store.saveRecipe(S.household.id, { ...d, steps, tips }, ingredients, d.newPhoto || null, !!(d.removePhoto && d.photo_path));
       S.recipes = await store.recipes();
       S.draft = null; go("detail", id); toast("Recept bewaard");
-    } catch (err) { btn.disabled = false; btn.textContent = "Bewaren"; toast(err.message); }
+    } catch (err) { btns.forEach((b) => { b.disabled = false; b.textContent = "Bewaren"; }); toast(err.message); }
   };
 }
 
