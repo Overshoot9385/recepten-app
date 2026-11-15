@@ -883,6 +883,10 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .pantry-check { border: 0; background: var(--sunk); padding: 10px 14px; min-height: 48px; }
 .pantry-check > svg { color: var(--ink); width: 22px; height: 22px; }
 .fridge-entry { display: none; }
+.strip { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; position: relative; padding-top: 14px; margin-top: -14px; }
+.strip::-webkit-scrollbar { display: none; }
+.strip button { flex: 0 0 calc((100% - 36px) / 7); scroll-snap-align: start; position: relative; }
+.strip em { position: absolute; top: -15px; left: 2px; font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .aisle { display: flex; flex-direction: column; gap: 6px; }
 .aisle-head { margin: 0 4px; }
 .aisle-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 0; border: 0; background: none; padding: 4px 0; color: var(--ink); text-align: left; font: inherit; min-height: 44px; justify-content: center; }
@@ -1766,7 +1770,7 @@ function planPartners() { return ((S.plan && S.plan.members) || []).filter((id) 
 function planWithText() { const p = planPartners().map(nameOf); return p.length ? "Samen met " + (p.length > 1 ? p.slice(0, -1).join(", ") + " en " + p[p.length - 1] : p[0]) : ""; }
 function planRequestBanner() {
   const inc = (S.plan && S.plan.incoming) || [];
-  return inc.map((id) => `<div class="plan-banner">${avatarHTML(id, 34)}<span><b>${esc(nameOf(id))}</b> wil een huishouden met je vormen: samen het weekmenu, de boodschappenlijst en favorieten.</span>
+  return inc.map((id) => `<div class="plan-banner">${avatarHTML(id, 34)}<span><b>${esc(nameOf(id))}</b> wil een huishouden met je vormen: samen de planning, de boodschappenlijst en favorieten.</span>
     <span class="plan-banner-actions"><button class="btn primary" data-accept="${esc(id)}">Ja, samen</button><button class="btn" data-decline="${esc(id)}">Nee, bedankt</button></span></div>`).join("");
 }
 async function handlePlanBanner(e, after) {
@@ -1980,7 +1984,7 @@ async function loadAll() {
     S.household = m.household; S.role = m.role;
     const [profiles, recipes, favs, members, shop] = await Promise.all([store.profiles(), store.recipes(), store.favorites(), store.members(), store.shopping()]);
     S.shop = shop;
-    try { const ws = startOfWeek(new Date()); S.weekMeals = await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))); } catch (_) { /* weekmenu laadt later */ }
+    try { const pr = planRange(); S.meals = await store.mealPlan(isoDate(pr.from), isoDate(pr.to)); S.mealsLoaded = true; } catch (_) { /* planning laadt later */ }
     S.plan = await store.planInfo(S.user.id);
     S.names = Object.fromEntries(profiles.map((p) => [p.id, p.display_name]));
     S.avatars = Object.fromEntries(profiles.map((p) => [p.id, { emoji: p.avatar_emoji || null }]));
@@ -2129,10 +2133,10 @@ function render() {
 }
 function tabBarHTML(active) {
   const tab = (id, label, icon) => `<button class="tab" data-tab="${id}" aria-current="${active === id ? "page" : "false"}" aria-label="${label}">${icon}<span>${label}</span></button>`;
-  const fab = active === "list" ? (canEdit() ? ["add", "Recept toevoegen"] : null) : active === "menu" ? ["meal", "Gerecht toevoegen"] : active === "shop" ? ["list", "Lijst maken van weekmenu"] : null;
+  const fab = active === "list" ? (canEdit() ? ["add", "Recept toevoegen"] : null) : active === "menu" ? ["meal", "Gerecht toevoegen"] : active === "shop" ? ["list", "Lijst maken van planning"] : null;
   return `<nav class="tabbar" aria-label="Hoofdmenu">
     ${tab("list", "Recepten", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>')}
-    ${tab("menu", "Weekmenu", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>')}
+    ${tab("menu", "Planning", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>')}
     ${tab("shop", "Boodschappen", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16l-1.5 9.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M9 6V5a3 3 0 0 1 6 0v1"/></svg>')}
     ${isAdmin() ? tab("admin", "Beheer", ICON.chart).replace("</button>", S.newTips ? `<span class="tab-dot" aria-label="${S.newTips} nieuwe tips"></span></button>` : "</button>") : ""}
   </nav>${fab ? `<button class="fab" id="fab" data-fab="${fab[0]}" aria-label="${fab[1]}">${ICON.plus}</button>` : ""}`;
@@ -2464,24 +2468,15 @@ function refreshFilters() {
   const m = $("#menu-btn"); if (m) m.classList.toggle("on", menuActive());
   const f = $("#fav-btn"); if (f) { f.classList.toggle("on", S.favOnly); f.setAttribute("aria-pressed", S.favOnly); f.innerHTML = S.favOnly ? ICON.star : ICON.starOff; }
 }
-function thisWeekMeals() {
-  const cur = isoDate(startOfWeek(new Date()));
-  return S.mealsLoaded === cur && isoDate(S.weekStart) === cur ? S.meals : (S.weekMeals || []);
-}
+function thisWeekMeals() { return S.meals || []; }
 // Een nieuw gerecht op het weekmenu: bijwerken wat op het scherm staat (en bij "Wisselen" het oude weghalen)
 async function noteMeal(m, swap) {
   if (swap) {
     try { await store.removeMeal(swap); } catch (_) { /* blijft staan */ }
     S.meals = S.meals.filter((x) => x.id !== swap);
-    if (S.weekMeals) S.weekMeals = S.weekMeals.filter((x) => x.id !== swap);
   }
-  const ws = isoDate(S.weekStart), we = isoDate(addDays(S.weekStart, 6));
-  if (S.mealsLoaded === ws && m.plan_date >= ws && m.plan_date <= we && !S.meals.some((x) => x.id === m.id)) S.meals.push(m);
-  const cs = startOfWeek(new Date());
-  if (m.plan_date >= isoDate(cs) && m.plan_date <= isoDate(addDays(cs, 6))) {
-    S.weekMeals = S.weekMeals || [];
-    if (S.weekMeals !== S.meals && !S.weekMeals.some((x) => x.id === m.id)) S.weekMeals.push(m);
-  }
+  const pr = planRange();
+  if (m.plan_date >= isoDate(pr.from) && m.plan_date <= isoDate(pr.to) && !S.meals.some((x) => x.id === m.id)) S.meals.push(m);
   if (S.view === "menu") drawMenu(); else if (S.view === "list") drawTop();
 }
 function todayHTML() {
@@ -2496,18 +2491,18 @@ function todayHTML() {
   const more = meals.length > 1 ? ` · +${meals.length - 1}` : "";
   return `<section class="tonight" aria-label="Vanavond"><div class="txt"><span class="tag-now">VANAVOND</span><h2>${esc(title)}</h2>
       <p>${r ? (r.prep_time_minutes ? timeText(r) + " · " : "") : "zonder recept · "}${m.servings} personen${more}</p>
-      <div class="acts">${r ? `<button class="go" id="today-open" data-id="${r.id}">Bekijk recept</button>` : `<button class="go" id="today-week">Naar weekmenu</button>`}</div></div>
+      <div class="acts">${r ? `<button class="go" id="today-open" data-id="${r.id}">Bekijk recept</button>` : `<button class="go" id="today-week">Naar planning</button>`}</div></div>
       <div class="arch" role="img" aria-label="${esc(title)}">${arch}</div></section>`;
 }
 function tilesHTML() {
-  const ws = startOfWeek(new Date()), today = isoDate(new Date());
+  const ws = planToday(), today = isoDate(new Date());
   const meals = thisWeekMeals();
   let planned = 0;
   const dots = Array.from({ length: 7 }, (_, i) => { const iso = isoDate(addDays(ws, i)); const on = meals.some((m) => m.plan_date === iso); if (on) planned++; return `<i class="${on ? "on" : ""}${iso === today ? " today" : ""}"></i>`; }).join("");
   const open = S.shop.filter((i) => !i.is_checked).length, done = S.shop.length - open;
   const frac = S.shop.length ? done / S.shop.length : 0;
   return `<div class="tiles">
-    <button class="tile" id="tile-week"><small>Weekmenu</small><span class="big">${planned} van 7</span><span class="dots" aria-hidden="true">${dots}</span></button>
+    <button class="tile" id="tile-week"><small>Planning</small><span class="big">${planned} van 7</span><span class="dots" aria-hidden="true">${dots}</span></button>
     <button class="tile" id="tile-shop"><small>Boodschappen</small><span class="ring"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke-width="5"><circle cx="20" cy="20" r="16" stroke="var(--line)"/><circle cx="20" cy="20" r="16" stroke="var(--acc)" stroke-linecap="round" stroke-dasharray="${(100.5 * frac).toFixed(1)} 100.5" transform="rotate(-90 20 20)"/></svg><span>${open} te<br>halen</span></span></button>
     <button class="tile" id="tile-fridge"><span class="ico">${ICON.fridge}</span><b>Wat kan ik maken?</b></button>
   </div>`;
@@ -2837,7 +2832,7 @@ function renderDetail() {
     </div>`;
   const old = document.getElementById("d-bar"); if (old) old.remove();
   const bar = document.createElement("div"); bar.id = "d-bar"; bar.className = "d-bar";
-  bar.innerHTML = `<div><button class="main" id="to-menu">${ICON.cal}<span>Op mijn weekmenu</span></button><button class="side" id="to-menu-list" aria-label="Op weekmenu en boodschappenlijst">${ICON.bag}</button></div>`;
+  bar.innerHTML = `<div><button class="main" id="to-menu">${ICON.cal}<span>Op de planning</span></button><button class="side" id="to-menu-list" aria-label="Op de planning en boodschappenlijst">${ICON.bag}</button></div>`;
   document.body.appendChild(bar);
   $("#back").onclick = () => go(S.from || "list");
   bindRecipeSwipe(r.id);
@@ -3147,35 +3142,40 @@ function miniThumb(r) {
   return r && r.photo_url ? `<span class="mini"><img src="${esc(r.photo_url)}" alt=""></span>` : `<span class="mini"><b>${esc(((r && r.title) || "?")[0])}</b></span>`;
 }
 // Je kunt een week terugkijken; oudere weken worden elke nacht opgeruimd
-function minWeek() { return addDays(startOfWeek(new Date()), -7); }
+const PLAN_BACK = 7, PLAN_AHEAD = 14;
+function planToday() { return startDay(new Date()); }
+function planRange() { const t = planToday(); return { from: addDays(t, -PLAN_BACK), to: addDays(t, PLAN_AHEAD - 1) }; }
+function minWeek() { return planRange().from; }
 async function loadWeek() {
-  const from = isoDate(S.weekStart), to = isoDate(addDays(S.weekStart, 6));
-  try { S.meals = await store.mealPlan(from, to); S.mealsLoaded = from; if (isoDate(S.weekStart) === isoDate(startOfWeek(new Date()))) { S.weekMeals = S.meals; saveCache(); } }
+  const { from: f, to: t } = planRange(), from = isoDate(f), to = isoDate(t);
+  try { S.meals = await store.mealPlan(from, to); S.mealsLoaded = true; saveCache(); }
   catch (e) {
     if (!isNetErr(e)) throw e;
     goOffline();
     const c = S.cachedMeals || (loadCache() || {});
-    S.meals = (c.week || c.weekStart) === from ? (c.meals || []) : [];
+    S.meals = c.meals || [];
   }
 }
 async function renderMenu() {
-  $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Weekmenu</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("menu")}`;
+  $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Planning</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("menu")}`;
   bindTabBar();
   try { await loadWeek(); } catch (e) { toast(e.message); }
   drawMenu();
 }
 function drawMenu() {
-  const ws = S.weekStart, we = addDays(ws, 6);
-  const thisWeek = isoDate(startOfWeek(new Date())) === isoDate(ws);
+  const { from, to } = planRange();
   const today = isoDate(new Date());
-  const days = Array.from({ length: 7 }, (_, i) => { const d = addDays(ws, i); return { d, iso: isoDate(d), name: DAY_NAMES[i], ab: DAY_NAMES[i].slice(0, 2).toLowerCase() }; });
-  if (!S.menuSel || !days.some((x) => x.iso === S.menuSel)) S.menuSel = thisWeek ? today : days[0].iso;
+  const N = PLAN_BACK + PLAN_AHEAD;
+  const days = Array.from({ length: N }, (_, i) => { const d = addDays(from, i); const wd = (d.getDay() + 6) % 7; return { d, iso: isoDate(d), name: DAY_NAMES[wd], ab: DAY_NAMES[wd].slice(0, 2).toLowerCase(), monday: wd === 0 }; });
+  if (!S.menuSel || !days.some((x) => x.iso === S.menuSel)) S.menuSel = today;
   const sel = days.find((x) => x.iso === S.menuSel);
   const mealsOf = (iso) => S.meals.filter((m) => m.plan_date === iso);
-  const total = S.meals.length;
   const titleOf = (m) => { if (!m.recipe_id && m.title) return m.title; const r = getRecipe(m.recipe_id); return r ? r.title : "Verwijderd recept"; };
   const selMeals = mealsOf(sel.iso);
   const longDate = sel.d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+  const next7 = days.filter((x) => x.iso >= today).slice(0, 7);
+  const count7 = S.meals.filter((m) => m.plan_date >= today && m.plan_date <= next7[next7.length - 1].iso).length;
+  const future = S.meals.filter((m) => m.plan_date >= today);
   const mealHTML = (m) => {
     const r = m.recipe_id ? getRecipe(m.recipe_id) : null;
     const loose = !m.recipe_id && m.title;
@@ -3187,67 +3187,69 @@ function drawMenu() {
       <div class="acts">${loose ? `<button class="solid" data-loose="${m.id}">Bekijken</button>` : r ? `<button class="solid" data-open="${m.recipe_id}">Openen</button>` : ""}<button data-swap="${m.id}">Wisselen</button><button data-rm="${m.id}">Verwijderen</button></div>
     </div>`;
   };
-  const rows = days.filter((x) => x.iso !== sel.iso && (!thisWeek || x.iso >= today));
+  const rows = next7.filter((x) => x.iso !== sel.iso);
   $("#app").innerHTML = `
     <header class="stack" style="gap:14px;padding-top:12px">
-      <div class="wk-head"><div><h1>Week ${weekNumber(ws)}</h1><p>${fmtDay(ws)} – ${fmtDay(we)}${thisWeek ? " · deze week" : ""}</p></div>
-        <div class="arrows"><button class="iconbtn" id="prev-week" aria-label="Vorige week" ${addDays(ws, -7) < minWeek() ? "disabled" : ""}>${ICON.back}</button><button class="iconbtn flip" id="next-week" aria-label="Volgende week">${ICON.back}</button></div></div>
+      <div class="wk-head"><div><h1>Planning</h1><p>Vandaag t/m ${fmtDay(next7[next7.length - 1].d)} · veeg voor eerder of later</p></div>
+        <div class="arrows"><button class="iconbtn" id="prev-week" aria-label="Eerder">${ICON.back}</button><button class="iconbtn flip" id="next-week" aria-label="Later">${ICON.back}</button></div></div>
       ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 26)).join("")}<span>${esc(planWithText())}</span></div>` : ""}
       <div id="plan-banners">${planRequestBanner()}</div>
-      <div class="strip" role="group" aria-label="Dagen">${days.map((x) => `<button data-day="${x.iso}" aria-pressed="${x.iso === sel.iso}" aria-label="${x.name} ${fmtDay(x.d)}" class="${mealsOf(x.iso).length ? "has" : ""}${x.iso < today ? " past" : ""}${x.iso === today ? " is-today" : ""}"><small>${x.ab}</small><b>${x.d.getDate()}</b><i aria-hidden="true"></i></button>`).join("")}</div>
-      ${thisWeek ? "" : `<button class="more-meal" id="to-today" style="margin:-8px 0">Terug naar deze week</button>`}
+      <div class="strip" id="strip" role="group" aria-label="Dagen">${days.map((x) => `<button data-day="${x.iso}" aria-pressed="${x.iso === sel.iso}" aria-label="${x.name} ${fmtDay(x.d)}" class="${mealsOf(x.iso).length ? "has" : ""}${x.iso < today ? " past" : ""}${x.iso === today ? " is-today" : ""}">${x.monday ? `<em>wk ${weekNumber(x.d)}</em>` : ""}<small>${x.iso === today ? "vand." : x.ab}</small><b>${x.d.getDate()}</b><i aria-hidden="true"></i></button>`).join("")}</div>
+      ${sel.iso !== today ? `<button class="more-meal" id="to-today" style="margin:-8px 0">Terug naar vandaag</button>` : ""}
     </header>
     <main class="stack days" style="gap:14px;margin-top:14px">
       <section class="daycard">
-        <div class="hd"><h2>${esc(longDate[0].toUpperCase() + longDate.slice(1))}</h2>${sel.iso === today ? `<span class="now-badge">Vandaag</span>` : ""}</div>
+        <div class="hd"><h2>${esc(longDate[0].toUpperCase() + longDate.slice(1))}</h2>${sel.iso === today ? `<span class="now-badge">Vandaag</span>` : sel.iso < today ? `<span class="muted" style="font-size:13px;font-weight:600">Geweest</span>` : ""}</div>
         ${selMeals.length ? selMeals.map(mealHTML).join("") + `<button class="more-meal" data-add="${sel.iso}">+ Nog een gerecht</button>`
           : `<div class="dempty"><span>Nog niets gepland.</span><button class="btn primary" data-add="${sel.iso}">Kies een gerecht</button></div>`}
       </section>
-      ${rows.length ? `<div class="wrows">${rows.map((x) => { const ms = mealsOf(x.iso); return `<button class="wrow${ms.length ? "" : " empty"}" data-day="${x.iso}"><small>${x.ab}</small><span>${ms.length ? esc(ms.map(titleOf).join(" + ")) : "+ Gerecht kiezen"}</span></button>`; }).join("")}</div>`
-        : `<p class="muted" style="margin:0;font-size:14px">Dit is de laatste dag van deze week. Met › zie je volgende week.</p>`}
+      <div class="wrows">${rows.map((x) => { const ms = mealsOf(x.iso); return `<button class="wrow${ms.length ? "" : " empty"}" data-day="${x.iso}"><small>${x.iso === today ? "vand." : x.ab}</small><span>${ms.length ? esc(ms.map(titleOf).join(" + ")) : "+ Gerecht kiezen"}</span></button>`; }).join("")}</div>
       <div class="wk-foot">
         ${updatedHTML()}
-        <span>${planPartners().length ? `Dit weekmenu, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je weekmenu is van jou alleen. Een huishouden vormen doe je bij Instellingen."}</span>
-        ${total ? `<button class="linkbtn" id="menu-clear">Week ${weekNumber(ws)} leegmaken</button>` : ""}
+        <span>${planPartners().length ? `Deze planning, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je planning is van jou alleen. Een huishouden vormen doe je bij Instellingen."} Je ziet de afgelopen week en de komende twee weken.</span>
+        ${future.length ? `<button class="linkbtn" id="menu-clear">Alles vanaf vandaag leegmaken</button>` : ""}
       </div>
       <div style="height:80px"></div>
     </main>
-    <div class="listbar"><span>${total} ${total === 1 ? "gerecht" : "gerechten"} deze week</span><button id="make-list" ${total ? "" : "disabled"}>Maak boodschappenlijst</button></div>
+    <div class="listbar"><span>${count7} ${count7 === 1 ? "gerecht" : "gerechten"} de komende 7 dagen</span><button id="make-list" ${count7 ? "" : "disabled"}>Maak boodschappenlijst</button></div>
     ${tabBarHTML("menu")}`;
   bindTabBar();
-  const shift = async (n) => {
-    const next = addDays(S.weekStart, n);
-    if (next < minWeek()) return;
-    S.weekStart = next; S.menuSel = null; await loadWeek(); drawMenu();
-  };
-  $("#prev-week").onclick = () => shift(-7);
-  $("#next-week").onclick = () => shift(7);
-  const tt = $("#to-today"); if (tt) tt.onclick = async () => { S.weekStart = startOfWeek(new Date()); S.menuSel = null; await loadWeek(); drawMenu(); };
+  // Strook: standaard staat vandaag helemaal links; daarna blijft de positie bewaard
+  const strip = $("#strip");
+  const btnAt = (iso) => strip.querySelector(`[data-day="${iso}"]`);
+  const left = (iso) => { const b = btnAt(iso); return b ? b.offsetLeft - strip.offsetLeft : 0; };
+  strip.scrollLeft = S.stripScroll != null ? S.stripScroll : left(today);
+  if (S.stripScroll == null) S.stripScroll = strip.scrollLeft;
+  strip.addEventListener("scroll", () => { S.stripScroll = strip.scrollLeft; }, { passive: true });
+  const page = (dir) => { const w = strip.clientWidth + 6; strip.scrollBy({ left: dir * w, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+  $("#prev-week").onclick = () => page(-1);
+  $("#next-week").onclick = () => page(1);
+  const tt = $("#to-today"); if (tt) tt.onclick = () => { S.menuSel = today; S.stripScroll = null; drawMenu(); };
   $("#plan-banners").onclick = (e) => handlePlanBanner(e, async () => { await loadWeek(); drawMenu(); });
-  $(".strip").onclick = (e) => { const b = e.target.closest("[data-day]"); if (!b) return; S.menuSel = b.dataset.day; drawMenu(); };
+  strip.onclick = (e) => { const b = e.target.closest("[data-day]"); if (!b) return; S.menuSel = b.dataset.day; drawMenu(); };
   $(".days").onclick = async (e) => {
     const t = e.target.closest("button"); if (!t) return;
     try {
-      if (t.dataset.day) { S.menuSel = t.dataset.day; drawMenu(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+      if (t.dataset.day) { S.menuSel = t.dataset.day; S.stripScroll = null; drawMenu(); const st = $("#strip"); const b = st.querySelector(`[data-day="${t.dataset.day}"]`); if (b && (b.offsetLeft - st.offsetLeft < st.scrollLeft || b.offsetLeft - st.offsetLeft > st.scrollLeft + st.clientWidth - b.offsetWidth)) st.scrollLeft = left(today); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
       if (t.dataset.loose) return looseMealSheet(S.meals.find((x) => x.id === t.dataset.loose));
       if (t.dataset.swap) { S.swapMeal = t.dataset.swap; return pickRecipeSheet(sel.iso); }
-      if (t.dataset.open) { S.detailList = [...new Set(S.meals.slice().sort((a, b) => a.plan_date.localeCompare(b.plan_date)).map((m) => m.recipe_id).filter((id) => id && getRecipe(id)))]; return getRecipe(t.dataset.open) && go("detail", t.dataset.open); }
+      if (t.dataset.open) { S.detailList = [...new Set(S.meals.filter((m) => m.plan_date >= today).sort((a, b) => a.plan_date.localeCompare(b.plan_date)).map((m) => m.recipe_id).filter((id) => id && getRecipe(id)))]; return getRecipe(t.dataset.open) && go("detail", t.dataset.open); }
       const id = t.dataset.inc || t.dataset.dec || t.dataset.rm;
       const m = S.meals.find((x) => x.id === id); if (!m) return;
-      if (t.dataset.rm) { await store.removeMeal(id); S.meals = S.meals.filter((x) => x.id !== id); toast("Van het weekmenu gehaald"); }
+      if (t.dataset.rm) { await store.removeMeal(id); S.meals = S.meals.filter((x) => x.id !== id); toast("Van de planning gehaald"); }
       else { const v = Math.min(20, Math.max(1, m.servings + (t.dataset.inc ? 1 : -1))); if (v === m.servings) return; m.servings = v; await store.updateMeal(id, { servings: v }); }
       drawMenu();
     } catch (err) { toast(err.message); }
   };
-  $("#make-list").onclick = () => makeShoppingList();
+  $("#make-list").onclick = () => makeShoppingList(planToday());
   const mc = $("#menu-clear"); if (mc) mc.onclick = async () => {
-    const others = [...new Set(S.meals.filter((m) => m.user_id && m.user_id !== S.user.id).map((m) => nameOf(m.user_id)))];
-    const v = await choiceSheet(`Week ${weekNumber(ws)} leegmaken?`,
-      `Alle ${total} ${total === 1 ? "gerecht" : "gerechten"} van ${fmtDay(ws)} t/m ${fmtDay(we)} gaan van het weekmenu${others.length ? `, ook wat ${others.join(" en ")} heeft gepland` : ""}. Je boodschappenlijst blijft staan.`,
-      [{ value: "week", label: `Week ${weekNumber(ws)} leegmaken`, sub: `${total} ${total === 1 ? "gerecht" : "gerechten"}`, danger: true }]);
-    if (v !== "week") return;
-    try { await store.removeMeals(S.meals.map((m) => m.id)); S.meals = []; drawMenu(); toast(`Week ${weekNumber(ws)} is leeggemaakt`); }
+    const others = [...new Set(future.filter((m) => m.user_id && m.user_id !== S.user.id).map((m) => nameOf(m.user_id)))];
+    const v = await choiceSheet("Planning leegmaken?",
+      `Alle ${future.length} ${future.length === 1 ? "gerecht" : "gerechten"} vanaf vandaag gaan van de planning${others.length ? `, ook wat ${others.join(" en ")} heeft gepland` : ""}. Wat al geweest is en je boodschappenlijst blijven staan.`,
+      [{ value: "all", label: "Alles vanaf vandaag leegmaken", sub: `${future.length} ${future.length === 1 ? "gerecht" : "gerechten"}`, danger: true }]);
+    if (v !== "all") return;
+    try { const ids = future.map((m) => m.id); await store.removeMeals(ids); S.meals = S.meals.filter((m) => !ids.includes(m.id)); drawMenu(); toast("Planning vanaf vandaag is leeggemaakt"); }
     catch (err) { toast(err.message); }
   };
 }
@@ -3286,7 +3288,7 @@ function looseMealSheet(m) {
   if (mk) mk.onclick = () => {
     const title = $("#lm-title", s.el).value.trim();
     s.close();
-    S.draft = { ...emptyDraft(), title, ingredients: looseParts(title).map((x) => ({ name: x, amount: null, unit: "", original_text: "", is_pantry: isPantry(x) })), warnings: ["Vul hoeveelheden en de bereiding aan. Het losse gerecht blijft op je weekmenu staan."] };
+    S.draft = { ...emptyDraft(), title, ingredients: looseParts(title).map((x) => ({ name: x, amount: null, unit: "", original_text: "", is_pantry: isPantry(x) })), warnings: ["Vul hoeveelheden en de bereiding aan. Het losse gerecht blijft op de planning staan."] };
     S.view = "edit"; render(); window.scrollTo(0, 0);
   };
 }
@@ -3351,13 +3353,13 @@ function addToMenuSheet(r, withList = false) {
   let servings = r.servings || 2;
   let chosen = isoDate(days[0]);
   const s = sheet(`
-    <div class="sheet-head"><h2>${withList ? "Op weekmenu en boodschappenlijst" : "Op je weekmenu"}</h2></div>
+    <div class="sheet-head"><h2>${withList ? "Op de planning en boodschappenlijst" : "Op de planning"}</h2></div>
     <p class="muted" style="margin:-6px 0 0">${esc(r.title)}</p>
     <div class="daygrid" id="daygrid">${days.map((d, i) => `<button data-day="${isoDate(d)}" aria-pressed="${i === 0}"><small>${i === 0 ? "Vandaag" : i === 1 ? "Morgen" : DAY_NAMES[(d.getDay() + 6) % 7].slice(0, 2)}</small><b>${d.getDate()}</b></button>`).join("")}</div>
     <div class="section-head"><span style="font-weight:600">Personen</span>
       <div class="servings"><button id="m-minus" aria-label="Minder personen">−</button><output id="m-pp">${servings} pers.</output><button id="m-plus" aria-label="Meer personen">+</button></div></div>
     ${withList ? `<p class="muted" style="margin:0;font-size:14px">De ingrediënten komen omgerekend op je boodschappenlijst. Dingen uit de voorraadkast niet: die kun je los toevoegen.</p>` : ""}
-    <button class="btn primary block" id="m-add">${withList ? "Zet op weekmenu en lijst" : "Zet op weekmenu"}</button>`);
+    <button class="btn primary block" id="m-add">${withList ? "Zet op de planning en lijst" : "Zet op de planning"}</button>`);
   $("#daygrid", s.el).onclick = (e) => {
     const b = e.target.closest("[data-day]"); if (!b) return;
     chosen = b.dataset.day;
@@ -3375,7 +3377,7 @@ function addToMenuSheet(r, withList = false) {
       s.close();
       const d = new Date(chosen + "T12:00:00");
       const day = `${DAY_NAMES[(d.getDay() + 6) % 7].toLowerCase()} ${d.getDate()}`;
-      toast(withList ? `Op je weekmenu voor ${day}, ${added} ${added === 1 ? "product" : "producten"} op je lijst` : `Op je weekmenu voor ${day}`);
+      toast(withList ? `Op de planning voor ${day}, ${added} ${added === 1 ? "product" : "producten"} op je lijst` : `Op de planning voor ${day}`);
     } catch (err) { toast(err.message); }
   };
 }
@@ -3522,10 +3524,10 @@ function aggregate(meals, pantry = false) {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
-async function makeShoppingList(weekStart = S.weekStart) {
+async function makeShoppingList(weekStart = planToday()) {
   try {
     const meals = await store.mealPlan(isoDate(weekStart), isoDate(addDays(weekStart, 6)));
-    if (!meals.length) { toast("Er staat nog niets op het weekmenu van die week"); return; }
+    if (!meals.length) { toast("Er staat voor die dagen nog niets op de planning"); return; }
     const items = aggregate(meals);
     try { localStorage.setItem(LIST_WEEK_KEY, isoDate(weekStart)); } catch (_) { /* niet erg */ }
     const current = await store.shopping();
@@ -3544,7 +3546,7 @@ async function makeShoppingList(weekStart = S.weekStart) {
 const LIST_WEEK_KEY = "receptenboek-lijstweek";
 function listWeek() {
   try { const v = localStorage.getItem(LIST_WEEK_KEY); if (v) return new Date(v + "T12:00:00"); } catch (_) { /* standaard */ }
-  return startOfWeek(new Date());
+  return planToday();
 }
 async function renderShop() {
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Boodschappen</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("shop")}`;
@@ -3574,13 +3576,13 @@ function drawShop() {
       <form class="search" id="shop-add" ${S.shopEdit ? "hidden" : ""}><input id="shop-new" placeholder="Iets toevoegen, bijv. koffie" autocomplete="off" enterkeyhint="done"><button class="linkbtn" aria-label="Toevoegen">Toevoegen</button></form>
     </header>
     <main class="stack" style="gap:18px">
-      ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op je weekmenu en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
+      ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op de planning en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
       ${open.length ? AISLES.map(([k, l]) => { const gs = openG.filter((g) => groupAisle(g) === k); return gs.length ? `<div class="aisle"><p class="label aisle-head">${esc(l)}</p><div class="shop-list">${gs.map(row).join("")}</div></div>` : ""; }).join("") : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${doneG.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${doneG.map(row).join("")}</div></div>` : ""}
-      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast voor week ${weekNumber(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
+      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast vanaf ${fmtDay(S.shopPantryWeek)}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
-        <button class="btn block" id="from-menu">Lijst maken van weekmenu</button>
-        <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je weekmenu. Dingen uit de voorraadkast komen er niet automatisch op. Wat je zelf hebt toegevoegd blijft staan.</p>
+        <button class="btn block" id="from-menu">Lijst maken van planning</button>
+        <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je planning. Dingen uit de voorraadkast komen er niet automatisch op. Wat je zelf hebt toegevoegd blijft staan.</p>
       </div>
       ${updatedHTML()}
     </main>
@@ -3649,7 +3651,7 @@ function drawShop() {
       return `<div class="row-item"><span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amt}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op de lijst">${onList ? "✓" : "+"}</button></div>`;
     }).join("");
     const sh = sheet(`<div class="sheet-head"><h2>Voorraad checken</h2></div>
-      <p class="muted" style="margin:-6px 0 0;font-size:14px">Dit heb je nodig voor je weekmenu van week ${weekNumber(S.shopPantryWeek)}, maar meestal heb je het in huis. Iets op? Tik op +.</p>
+      <p class="muted" style="margin:-6px 0 0;font-size:14px">Dit heb je nodig voor je planning vanaf ${fmtDay(S.shopPantryWeek)}, maar meestal heb je het in huis. Iets op? Tik op +.</p>
       <div class="opts shop-list" id="sp-list">${rows()}</div>
       <button class="btn primary block" id="sp-done">Klaar</button>`);
     $("#sp-done", sh.el).onclick = () => { sh.close(); drawShop(); };
@@ -3663,11 +3665,11 @@ function drawShop() {
     };
   };
   $("#from-menu").onclick = () => {
-    const ws = startOfWeek(new Date());
-    const s = sheet(`<div class="sheet-head"><h2>Lijst maken van</h2></div>
-      <button class="btn block" data-w="0">Deze week · week ${weekNumber(ws)}</button>
-      <button class="btn block" data-w="7">Volgende week · week ${weekNumber(addDays(ws, 7))}</button>
-      <p class="muted" style="margin:0;font-size:14px">Een eerder gemaakte lijst uit het weekmenu wordt vervangen.</p>`);
+    const ws = planToday();
+    const s = sheet(`<div class="sheet-head"><h2>Lijst maken voor</h2></div>
+      <button class="btn block" data-w="0">De komende 7 dagen · t/m ${fmtDay(addDays(ws, 6))}</button>
+      <button class="btn block" data-w="7">De 7 dagen daarna · ${fmtDay(addDays(ws, 7))} t/m ${fmtDay(addDays(ws, 13))}</button>
+      <p class="muted" style="margin:0;font-size:14px">Een eerder gemaakte lijst uit de planning wordt vervangen.</p>`);
     s.el.addEventListener("click", async (e) => { const b = e.target.closest("[data-w]"); if (!b) return; s.close(); await makeShoppingList(addDays(ws, +b.dataset.w)); });
   };
 }
@@ -4095,7 +4097,7 @@ function drawAdmin() {
   drawActivity(box);
 }
 const STAT_RANGES = [[7, "7 dagen"], [30, "30 dagen"], [90, "3 maanden"]];
-const STAT_METRICS = [["opens", "recepten geopend", "📖"], ["meals", "op het weekmenu", "🗓️"], ["items", "boodschappen", "🛒"]];
+const STAT_METRICS = [["opens", "recepten geopend", "📖"], ["meals", "op de planning", "🗓️"], ["items", "boodschappen", "🛒"]];
 async function loadStats() {
   S.statDays = S.statDays || 30;
   const days = S.statDays;
@@ -4134,8 +4136,8 @@ function drawUsage(box) {
       ${statChart(st.series, S.statMetric)}</div>
     <div class="panel"><p class="label" style="margin:0">Per persoon · afgelopen ${esc(rangeLabel)}</p>
       <ul class="top-list person-stats">${people.map((q) => `<li>${avatarHTML(q.user_id, 32)}<span>${esc(nameOf(q.user_id))}<small class="muted">${lastActive[q.user_id] ? "actief " + relTime(lastActive[q.user_id]) : "nog niet actief"} · op ${q.active_days} ${q.active_days === 1 ? "dag" : "dagen"} gebruikt</small>
-        <span class="pnums"><span title="Recepten geopend">📖 ${q.opens}</span><span title="Op het weekmenu gezet">🗓️ ${q.meals}</span><span title="Boodschappen erbij">🛒 ${q.items_added}</span><span title="Boodschappen afgevinkt">✓ ${q.items_checked}</span></span></span></li>`).join("")}</ul>
-      <p class="muted" style="margin:0;font-size:13px">📖 recepten geopend · 🗓️ op het weekmenu gezet · 🛒 boodschappen erbij · ✓ afgevinkt</p></div>
+        <span class="pnums"><span title="Recepten geopend">📖 ${q.opens}</span><span title="Op de planning gezet">🗓️ ${q.meals}</span><span title="Boodschappen erbij">🛒 ${q.items_added}</span><span title="Boodschappen afgevinkt">✓ ${q.items_checked}</span></span></span></li>`).join("")}</ul>
+      <p class="muted" style="margin:0;font-size:13px">📖 recepten geopend · 🗓️ op de planning gezet · 🛒 boodschappen erbij · ✓ afgevinkt</p></div>
     ${(st.top_opened || []).length ? `<div class="panel"><p class="label" style="margin:0">Meest bekeken recepten</p>
       <ul class="top-list">${st.top_opened.map((t, k) => `<li><span class="muted" style="width:18px">${k + 1}</span><span>${esc(t.title)}</span><span class="n">${t.n}×</span></li>`).join("")}</ul></div>` : ""}`
     : `<p class="notice">Gebruikscijfers zijn nog niet beschikbaar.</p>`}
@@ -4145,7 +4147,7 @@ function drawUsage(box) {
     </div>
     <div class="panel"><p class="label" style="margin:0">Recepten per persoon</p>
       <div class="bars">${ownerRows.map(([id, n]) => `<div class="bar-row">${avatarHTML(id, 26)}<span class="track"><i style="width:${Math.round((n / max) * 100)}%"></i></span><span class="v">${n}</span></div>`).join("")}</div></div>
-    ${(u.top_planned || []).length ? `<div class="panel"><p class="label" style="margin:0">Vaakst op het weekmenu gezet</p>
+    ${(u.top_planned || []).length ? `<div class="panel"><p class="label" style="margin:0">Vaakst op de planning gezet</p>
       <ul class="top-list">${u.top_planned.map((t, k) => `<li><span class="muted" style="width:18px">${k + 1}</span><span>${esc(t.title)}</span><span class="n">${t.n}×</span></li>`).join("")}</ul></div>` : ""}
     <p class="muted" style="margin:0;font-size:13px">Alleen jij als beheerder ziet dit. Je ziet per persoon alleen aantallen, niet welke recepten iemand bekeek of wat er op een lijstje staat. Cijfers worden 3 maanden bewaard; de leden zien dit ook staan bij hun Instellingen.</p>
   </div>`;
@@ -4296,9 +4298,9 @@ function renderSettings() {
       <div class="panel" id="plan-panel"><p class="label" style="margin:0">Jouw huishouden</p>
         ${planRequestBanner()}
         ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 30)).join("")}<span>${esc(planWithText())}</span></div>
-          <p class="muted" style="margin:0;font-size:14px">Jullie delen het weekmenu, de boodschappenlijst en favorieten, zolang jullie samen een huishouden zijn. Recepten zijn voor het hele receptenboek.</p>
+          <p class="muted" style="margin:0;font-size:14px">Jullie delen de planning, de boodschappenlijst en favorieten, zolang jullie samen een huishouden zijn. Recepten zijn voor het hele receptenboek.</p>
           <button class="btn" id="plan-leave">Huishouden verlaten</button>`
-        : `<p class="muted" style="margin:0;font-size:14px">Woon je samen? Vorm een huishouden met iemand uit het receptenboek. Jullie delen dan voor altijd één weekmenu, boodschappenlijst en favorieten. Die persoon moet het eerst accepteren.</p>`}
+        : `<p class="muted" style="margin:0;font-size:14px">Woon je samen? Vorm een huishouden met iemand uit het receptenboek. Jullie delen dan voor altijd één planning, boodschappenlijst en favorieten. Die persoon moet het eerst accepteren.</p>`}
         <ul class="members">${Object.keys(S.names).filter((id) => id !== S.user.id && S.roles[id] && !planPartners().includes(id) && !((S.plan && S.plan.incoming) || []).includes(id)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "nl")).map((id) => {
           const pending = ((S.plan && S.plan.outgoing) || []).includes(id);
           return `<li>${avatarHTML(id, 32)}<span>${esc(nameOf(id))}</span><span class="n">${pending ? `<span class="muted">Gevraagd</span> · <button class="linkbtn danger-text" data-cancel="${esc(id)}">Intrekken</button>` : `<button class="linkbtn" data-ask="${esc(id)}">Vraag voor huishouden</button>`}</span></li>`;
@@ -4307,7 +4309,7 @@ function renderSettings() {
         <label class="check-line"><input type="checkbox" id="sim-off" ${S.simOffline ? "checked" : ""}> Doe alsof ik offline ben (bijv. in de supermarkt)</label>
         <p class="muted" style="margin:0;font-size:13px">Vink daarna dingen af op de boodschappenlijst en zet het vinkje hier weer uit.</p>
         <button class="btn" id="sim-update">Toon de melding 'nieuwe versie'</button></div>` : ""}
-      ${isAdmin() ? "" : `<p class="muted" style="margin:0 4px;font-size:13px">De beheerder ziet per persoon hoe vaak de app gebruikt wordt: hoeveel recepten je opent en hoeveel je op het weekmenu en de boodschappenlijst zet. Niet welke recepten je bekijkt of wat er op je lijstje staat.</p>`}
+      ${isAdmin() ? "" : `<p class="muted" style="margin:0 4px;font-size:13px">De beheerder ziet per persoon hoe vaak de app gebruikt wordt: hoeveel recepten je opent en hoeveel je op de planning en de boodschappenlijst zet. Niet welke recepten je bekijkt of wat er op je lijstje staat.</p>`}
       <button class="btn" id="chpw">Wachtwoord wijzigen</button>
       <button class="btn" id="logout">Uitloggen</button>
     </div>`;
