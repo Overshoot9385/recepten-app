@@ -883,9 +883,8 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .pantry-check { border: 0; background: var(--sunk); padding: 10px 14px; min-height: 48px; }
 .pantry-check > svg { color: var(--ink); width: 22px; height: 22px; }
 .fridge-entry { display: none; }
-.strip { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; position: relative; padding-top: 14px; margin-top: -14px; }
+.strip { touch-action: pan-y; }
 .strip::-webkit-scrollbar { display: none; }
-.strip button { flex: 0 0 calc((100% - 36px) / 7); scroll-snap-align: start; position: relative; }
 .strip em { position: absolute; top: -15px; left: 2px; font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .aisle { display: flex; flex-direction: column; gap: 6px; }
 .aisle-head { margin: 0 4px; }
@@ -2047,7 +2046,7 @@ async function refreshData(opts = {}) {
     if (S.roles[S.user.id] !== S.role) { S.role = S.roles[S.user.id]; roleMsg = `Je rechten zijn aangepast: je bent nu ${ROLE_LABEL[S.role].toLowerCase()}`; }
     S.recipes = recipes; S.favs = new Set(favs); S.shop = shop; S.plan = plan;
     if (S.view === "menu") await loadWeek();
-    if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6))), true); S.shopPantryWeek = ws; }
+    if (S.view === "shop") { const ws = listWeek(); S.shopPantry = aggregate(await store.mealPlan(isoDate(ws), isoDate(shopRange().to)), true); S.shopPantryWeek = ws; }
     lastSync = Date.now(); S.offline = false; updateNetBar(); saveCache(); updateTipDot(); checkForUpdate();
     if (document.querySelector(".sheet-bg") || ["edit", "paste", "members"].includes(S.view)) return true;
     const y = window.scrollY;
@@ -3142,10 +3141,14 @@ function miniThumb(r) {
   return r && r.photo_url ? `<span class="mini"><img src="${esc(r.photo_url)}" alt=""></span>` : `<span class="mini"><b>${esc(((r && r.title) || "?")[0])}</b></span>`;
 }
 // Je kunt een week terugkijken; oudere weken worden elke nacht opgeruimd
-const PLAN_BACK = 7, PLAN_AHEAD = 14;
 function planToday() { return startDay(new Date()); }
-function planRange() { const t = planToday(); return { from: addDays(t, -PLAN_BACK), to: addDays(t, PLAN_AHEAD - 1) }; }
+function planRange() { const ws = startOfWeek(new Date()); return { from: addDays(ws, -7), to: addDays(ws, 13) }; }
 function minWeek() { return planRange().from; }
+// Boodschappen doen jullie op zondag voor de week erna: op zondag geldt de lijst voor volgende week, anders voor de rest van deze week
+function shopRange() {
+  const t = planToday(), ws = startOfWeek(t);
+  return t.getDay() === 0 ? { from: addDays(ws, 7), to: addDays(ws, 13) } : { from: t, to: addDays(ws, 6) };
+}
 async function loadWeek() {
   const { from: f, to: t } = planRange(), from = isoDate(f), to = isoDate(t);
   try { S.meals = await store.mealPlan(from, to); S.mealsLoaded = true; saveCache(); }
@@ -3157,24 +3160,25 @@ async function loadWeek() {
   }
 }
 async function renderMenu() {
+  S.menuWeek = 0; S.menuSel = null;
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Planning</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("menu")}`;
   bindTabBar();
   try { await loadWeek(); } catch (e) { toast(e.message); }
   drawMenu();
 }
 function drawMenu() {
-  const { from, to } = planRange();
   const today = isoDate(new Date());
-  const N = PLAN_BACK + PLAN_AHEAD;
-  const days = Array.from({ length: N }, (_, i) => { const d = addDays(from, i); const wd = (d.getDay() + 6) % 7; return { d, iso: isoDate(d), name: DAY_NAMES[wd], ab: DAY_NAMES[wd].slice(0, 2).toLowerCase(), monday: wd === 0 }; });
-  if (!S.menuSel || !days.some((x) => x.iso === S.menuSel)) S.menuSel = today;
+  S.menuWeek = Math.max(-1, Math.min(1, S.menuWeek || 0));
+  const ws = addDays(startOfWeek(new Date()), S.menuWeek * 7), we = addDays(ws, 6);
+  const mkDays = (start) => Array.from({ length: 7 }, (_, i) => { const d = addDays(start, i); return { d, iso: isoDate(d), name: DAY_NAMES[i], ab: DAY_NAMES[i].slice(0, 2).toLowerCase() }; });
+  const days = mkDays(ws);
+  if (!S.menuSel || !days.some((x) => x.iso === S.menuSel)) S.menuSel = S.menuWeek === 0 ? today : days[0].iso;
   const sel = days.find((x) => x.iso === S.menuSel);
   const mealsOf = (iso) => S.meals.filter((m) => m.plan_date === iso);
   const titleOf = (m) => { if (!m.recipe_id && m.title) return m.title; const r = getRecipe(m.recipe_id); return r ? r.title : "Verwijderd recept"; };
   const selMeals = mealsOf(sel.iso);
   const longDate = sel.d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
-  const next7 = days.filter((x) => x.iso >= today).slice(0, 7);
-  const count7 = S.meals.filter((m) => m.plan_date >= today && m.plan_date <= next7[next7.length - 1].iso).length;
+  const label = S.menuWeek === 0 ? "deze week" : S.menuWeek < 0 ? "vorige week" : "volgende week";
   const future = S.meals.filter((m) => m.plan_date >= today);
   const mealHTML = (m) => {
     const r = m.recipe_id ? getRecipe(m.recipe_id) : null;
@@ -3187,15 +3191,22 @@ function drawMenu() {
       <div class="acts">${loose ? `<button class="solid" data-loose="${m.id}">Bekijken</button>` : r ? `<button class="solid" data-open="${m.recipe_id}">Openen</button>` : ""}<button data-swap="${m.id}">Wisselen</button><button data-rm="${m.id}">Verwijderen</button></div>
     </div>`;
   };
-  const rows = next7.filter((x) => x.iso !== sel.iso);
+  // Lijst onder de dagkaart: de overige dagen van deze week vanaf vandaag; is de week (bijna) om, dan volgende week erbij
+  let rows = days.filter((x) => x.iso !== sel.iso && (S.menuWeek !== 0 || x.iso >= today));
+  let nextRows = [];
+  if (S.menuWeek === 0 && rows.length === 0) nextRows = mkDays(addDays(ws, 7));
+  const rowHTML = (x) => { const ms = mealsOf(x.iso); return `<button class="wrow${ms.length ? "" : " empty"}" data-day="${x.iso}" data-week="${x.iso > isoDate(we) ? 1 : 0}"><small>${x.ab}</small><span>${ms.length ? esc(ms.map(titleOf).join(" + ")) : "+ Gerecht kiezen"}</span></button>`; };
+  const sr = shopRange();
+  const listCount = S.meals.filter((m) => m.plan_date >= isoDate(sr.from) && m.plan_date <= isoDate(sr.to)).length;
+  const listLabel = planToday().getDay() === 0 ? `voor week ${weekNumber(sr.from)}` : "de rest van deze week";
   $("#app").innerHTML = `
     <header class="stack" style="gap:14px;padding-top:12px">
-      <div class="wk-head"><div><h1>Planning</h1><p>Vandaag t/m ${fmtDay(next7[next7.length - 1].d)} · veeg voor eerder of later</p></div>
-        <div class="arrows"><button class="iconbtn" id="prev-week" aria-label="Eerder">${ICON.back}</button><button class="iconbtn flip" id="next-week" aria-label="Later">${ICON.back}</button></div></div>
+      <div class="wk-head"><div><h1>Planning</h1><p>Week ${weekNumber(ws)} · ${label} · ${fmtDay(ws)} – ${fmtDay(we)}</p></div>
+        <div class="arrows"><button class="iconbtn" id="prev-week" aria-label="Vorige week" ${S.menuWeek <= -1 ? "disabled" : ""}>${ICON.back}</button><button class="iconbtn flip" id="next-week" aria-label="Volgende week" ${S.menuWeek >= 1 ? "disabled" : ""}>${ICON.back}</button></div></div>
       ${planPartners().length ? `<div class="plan-with">${[S.user.id, ...planPartners()].map((id) => avatarHTML(id, 26)).join("")}<span>${esc(planWithText())}</span></div>` : ""}
       <div id="plan-banners">${planRequestBanner()}</div>
-      <div class="strip" id="strip" role="group" aria-label="Dagen">${days.map((x) => `<button data-day="${x.iso}" aria-pressed="${x.iso === sel.iso}" aria-label="${x.name} ${fmtDay(x.d)}" class="${mealsOf(x.iso).length ? "has" : ""}${x.iso < today ? " past" : ""}${x.iso === today ? " is-today" : ""}">${x.monday ? `<em>wk ${weekNumber(x.d)}</em>` : ""}<small>${x.iso === today ? "vand." : x.ab}</small><b>${x.d.getDate()}</b><i aria-hidden="true"></i></button>`).join("")}</div>
-      ${sel.iso !== today ? `<button class="more-meal" id="to-today" style="margin:-8px 0">Terug naar vandaag</button>` : ""}
+      <div class="strip" id="strip" role="group" aria-label="Dagen van week ${weekNumber(ws)}">${days.map((x) => `<button data-day="${x.iso}" aria-pressed="${x.iso === sel.iso}" aria-label="${x.name} ${fmtDay(x.d)}" class="${mealsOf(x.iso).length ? "has" : ""}${x.iso < today ? " past" : ""}${x.iso === today ? " is-today" : ""}"><small>${x.ab}</small><b>${x.d.getDate()}</b><i aria-hidden="true"></i></button>`).join("")}</div>
+      ${S.menuWeek !== 0 ? `<button class="more-meal" id="to-today" style="margin:-8px 0">Terug naar deze week</button>` : ""}
     </header>
     <main class="stack days" style="gap:14px;margin-top:14px">
       <section class="daycard">
@@ -3203,34 +3214,33 @@ function drawMenu() {
         ${selMeals.length ? selMeals.map(mealHTML).join("") + `<button class="more-meal" data-add="${sel.iso}">+ Nog een gerecht</button>`
           : `<div class="dempty"><span>Nog niets gepland.</span><button class="btn primary" data-add="${sel.iso}">Kies een gerecht</button></div>`}
       </section>
-      <div class="wrows">${rows.map((x) => { const ms = mealsOf(x.iso); return `<button class="wrow${ms.length ? "" : " empty"}" data-day="${x.iso}"><small>${x.iso === today ? "vand." : x.ab}</small><span>${ms.length ? esc(ms.map(titleOf).join(" + ")) : "+ Gerecht kiezen"}</span></button>`; }).join("")}</div>
+      ${rows.length ? `<div class="wrows">${rows.map(rowHTML).join("")}</div>` : ""}
+      ${nextRows.length ? `<p class="label" style="margin:4px 0 -8px">Volgende week · week ${weekNumber(addDays(ws, 7))}</p><div class="wrows">${nextRows.map(rowHTML).join("")}</div>` : ""}
       <div class="wk-foot">
         ${updatedHTML()}
-        <span>${planPartners().length ? `Deze planning, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je planning is van jou alleen. Een huishouden vormen doe je bij Instellingen."} Je ziet de afgelopen week en de komende twee weken.</span>
+        <span>${planPartners().length ? `Deze planning, de boodschappenlijst en de favorieten deel je met ${esc(planPartners().map(nameOf).join(", "))}.` : "Je planning is van jou alleen. Een huishouden vormen doe je bij Instellingen."} Je ziet vorige week, deze week en volgende week.</span>
         ${future.length ? `<button class="linkbtn" id="menu-clear">Alles vanaf vandaag leegmaken</button>` : ""}
       </div>
       <div style="height:80px"></div>
     </main>
-    <div class="listbar"><span>${count7} ${count7 === 1 ? "gerecht" : "gerechten"} de komende 7 dagen</span><button id="make-list" ${count7 ? "" : "disabled"}>Maak boodschappenlijst</button></div>
+    <div class="listbar"><span>${listCount} ${listCount === 1 ? "gerecht" : "gerechten"} ${listLabel}</span><button id="make-list" ${listCount ? "" : "disabled"}>Maak boodschappenlijst</button></div>
     ${tabBarHTML("menu")}`;
   bindTabBar();
-  // Strook: standaard staat vandaag helemaal links; daarna blijft de positie bewaard
+  const shift = (n) => { const w = Math.max(-1, Math.min(1, S.menuWeek + n)); if (w === S.menuWeek) return; S.menuWeek = w; S.menuSel = null; drawMenu(); };
+  $("#prev-week").onclick = () => shift(-1);
+  $("#next-week").onclick = () => shift(1);
+  // Vegen over de dagen: naar een andere week
   const strip = $("#strip");
-  const btnAt = (iso) => strip.querySelector(`[data-day="${iso}"]`);
-  const left = (iso) => { const b = btnAt(iso); return b ? b.offsetLeft - strip.offsetLeft : 0; };
-  strip.scrollLeft = S.stripScroll != null ? S.stripScroll : left(today);
-  if (S.stripScroll == null) S.stripScroll = strip.scrollLeft;
-  strip.addEventListener("scroll", () => { S.stripScroll = strip.scrollLeft; }, { passive: true });
-  const page = (dir) => { const w = strip.clientWidth + 6; strip.scrollBy({ left: dir * w, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
-  $("#prev-week").onclick = () => page(-1);
-  $("#next-week").onclick = () => page(1);
-  const tt = $("#to-today"); if (tt) tt.onclick = () => { S.menuSel = today; S.stripScroll = null; drawMenu(); };
+  let x0 = null;
+  strip.addEventListener("touchstart", (e) => { x0 = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+  strip.addEventListener("touchend", (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) shift(dx < 0 ? 1 : -1); });
+  const tt = $("#to-today"); if (tt) tt.onclick = () => { S.menuWeek = 0; S.menuSel = today; drawMenu(); };
   $("#plan-banners").onclick = (e) => handlePlanBanner(e, async () => { await loadWeek(); drawMenu(); });
   strip.onclick = (e) => { const b = e.target.closest("[data-day]"); if (!b) return; S.menuSel = b.dataset.day; drawMenu(); };
   $(".days").onclick = async (e) => {
     const t = e.target.closest("button"); if (!t) return;
     try {
-      if (t.dataset.day) { S.menuSel = t.dataset.day; S.stripScroll = null; drawMenu(); const st = $("#strip"); const b = st.querySelector(`[data-day="${t.dataset.day}"]`); if (b && (b.offsetLeft - st.offsetLeft < st.scrollLeft || b.offsetLeft - st.offsetLeft > st.scrollLeft + st.clientWidth - b.offsetWidth)) st.scrollLeft = left(today); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+      if (t.dataset.day) { if (t.dataset.week === "1") S.menuWeek += 1; S.menuSel = t.dataset.day; drawMenu(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       if (t.dataset.add) return pickRecipeSheet(t.dataset.add);
       if (t.dataset.loose) return looseMealSheet(S.meals.find((x) => x.id === t.dataset.loose));
       if (t.dataset.swap) { S.swapMeal = t.dataset.swap; return pickRecipeSheet(sel.iso); }
@@ -3242,7 +3252,7 @@ function drawMenu() {
       drawMenu();
     } catch (err) { toast(err.message); }
   };
-  $("#make-list").onclick = () => makeShoppingList(planToday());
+  $("#make-list").onclick = () => makeShoppingList();
   const mc = $("#menu-clear"); if (mc) mc.onclick = async () => {
     const others = [...new Set(future.filter((m) => m.user_id && m.user_id !== S.user.id).map((m) => nameOf(m.user_id)))];
     const v = await choiceSheet("Planning leegmaken?",
@@ -3524,10 +3534,11 @@ function aggregate(meals, pantry = false) {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
-async function makeShoppingList(weekStart = planToday()) {
+async function makeShoppingList() {
+  const { from: weekStart, to: weekEnd } = shopRange();
   try {
-    const meals = await store.mealPlan(isoDate(weekStart), isoDate(addDays(weekStart, 6)));
-    if (!meals.length) { toast("Er staat voor die dagen nog niets op de planning"); return; }
+    const meals = await store.mealPlan(isoDate(weekStart), isoDate(weekEnd));
+    if (!meals.length) { toast(planToday().getDay() === 0 ? "Er staat voor volgende week nog niets op de planning" : "Er staat voor de rest van deze week nog niets op de planning"); return; }
     const items = aggregate(meals);
     try { localStorage.setItem(LIST_WEEK_KEY, isoDate(weekStart)); } catch (_) { /* niet erg */ }
     const current = await store.shopping();
@@ -3544,16 +3555,13 @@ async function makeShoppingList(weekStart = planToday()) {
   } catch (err) { toast(err.message); }
 }
 const LIST_WEEK_KEY = "receptenboek-lijstweek";
-function listWeek() {
-  try { const v = localStorage.getItem(LIST_WEEK_KEY); if (v) return new Date(v + "T12:00:00"); } catch (_) { /* standaard */ }
-  return planToday();
-}
+function listWeek() { return shopRange().from; }
 async function renderShop() {
   $("#app").innerHTML = `<header class="top"><div class="brand"><h1>Boodschappen</h1></div></header><div class="spinner" aria-label="Laden"></div>${tabBarHTML("shop")}`;
   bindTabBar();
   try {
     const ws = listWeek();
-    const [shop, meals] = await Promise.all([store.shopping(), store.mealPlan(isoDate(ws), isoDate(addDays(ws, 6)))]);
+    const [shop, meals] = await Promise.all([store.shopping(), store.mealPlan(isoDate(ws), isoDate(shopRange().to))]);
     S.shop = shop; S.shopPantry = aggregate(meals, true); S.shopPantryWeek = ws;
   } catch (e) { toast(e.message); S.shop = S.shop || []; S.shopPantry = []; }
   drawShop();
@@ -3664,13 +3672,11 @@ function drawShop() {
       } catch (err) { b.disabled = false; toast(err.message); }
     };
   };
-  $("#from-menu").onclick = () => {
-    const ws = planToday();
-    const s = sheet(`<div class="sheet-head"><h2>Lijst maken voor</h2></div>
-      <button class="btn block" data-w="0">De komende 7 dagen · t/m ${fmtDay(addDays(ws, 6))}</button>
-      <button class="btn block" data-w="7">De 7 dagen daarna · ${fmtDay(addDays(ws, 7))} t/m ${fmtDay(addDays(ws, 13))}</button>
-      <p class="muted" style="margin:0;font-size:14px">Een eerder gemaakte lijst uit de planning wordt vervangen.</p>`);
-    s.el.addEventListener("click", async (e) => { const b = e.target.closest("[data-w]"); if (!b) return; s.close(); await makeShoppingList(addDays(ws, +b.dataset.w)); });
+  $("#from-menu").onclick = async () => {
+    const r = shopRange();
+    const what = planToday().getDay() === 0 ? `volgende week (week ${weekNumber(r.from)}, ${fmtDay(r.from)} t/m ${fmtDay(r.to)})` : `de rest van deze week (t/m ${fmtDay(r.to)})`;
+    if (!(await confirmSheet(`Lijst maken voor ${what}? Een eerder gemaakte lijst uit de planning wordt vervangen; wat je zelf toevoegde blijft staan.`, "Lijst maken"))) return;
+    await makeShoppingList();
   };
 }
 
