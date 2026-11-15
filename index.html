@@ -883,6 +883,19 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .pantry-check { border: 0; background: var(--sunk); padding: 10px 14px; min-height: 48px; }
 .pantry-check > svg { color: var(--ink); width: 22px; height: 22px; }
 .fridge-entry { display: none; }
+
+/* Zoekbalk: plakt bovenaan bij scrollen; ster, dobbelsteen en filter in de balk */
+.search-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 14px max(16px, env(safe-area-inset-left, 0px)) 12px; }
+.search-sticky .search { padding: 0 4px 0 14px; gap: 8px; }
+.search-sticky input { min-width: 0; }
+.sbtns { display: flex; align-items: center; gap: 2px; flex: none; }
+.sbtn { width: 40px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); display: grid; place-items: center; padding: 0; }
+.sbtn svg { width: 21px; height: 21px; }
+.sbtn.fav.on { color: var(--acc); }
+.search-sticky .menu-btn { margin-left: 2px; }
+/* Pop-ups zweven als kaart, net als het filtermenu */
+.sheet { width: auto; margin: 0 max(12px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); max-width: 656px; border-radius: 28px; padding-bottom: 20px; box-shadow: 0 20px 50px rgb(0 0 0 / .3); max-height: calc(var(--vvh, 100dvh) - 36px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 681px) { .sheet { margin-left: auto; margin-right: auto; width: 100%; } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabbar { box-shadow: 0 12px 30px rgb(0 0 0 / .45); } }
 :root[data-theme="dark"] .tabbar { box-shadow: 0 12px 30px rgb(0 0 0 / .45); }
 </style>
@@ -2424,33 +2437,18 @@ const VIEW_KEY = "receptenboek-weergave";
 function getMode() { try { return localStorage.getItem(VIEW_KEY) === "raster" ? "raster" : "lijst"; } catch (_) { return "lijst"; } }
 function setMode(v) { try { localStorage.setItem(VIEW_KEY, v); } catch (_) { /* alleen nu */ } }
 function menuActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || getSort() !== "az"; }
-function quickChips() {
-  // Snelle keuzes: favorieten, de drie meest gebruikte tags en "onder 30 minuten"
-  const count = {};
-  for (const r of S.recipes) for (const t of r.tags || []) count[t] = (count[t] || 0) + 1;
-  const top = Object.keys(count).sort((a, b) => count[b] - count[a] || a.localeCompare(b, "nl")).slice(0, 3);
-  return [["all", `Alles · ${S.recipes.length}`], ["fav", "Favorieten"], ...top.map((t) => ["tag:" + t, t[0].toUpperCase() + t.slice(1)]), ["quick", "Onder 30 min"]];
-}
-function chipOn(k) {
-  const quick = S.time.length === 2 && S.time.includes("snel") && S.time.includes("20-30");
-  if (k === "all") return !S.favOnly && !S.tags.length && !S.time.length && S.owner === "all" && !S.src.length;
-  if (k === "fav") return S.favOnly;
-  if (k === "quick") return quick;
-  return S.tags.length === 1 && S.tags[0] === k.slice(4);
-}
-function chipsHTML() { return quickChips().map(([k, l]) => `<button class="chip" data-chip="${esc(k)}" aria-pressed="${chipOn(k)}">${esc(l)}</button>`).join(""); }
 function filterNote() {
   const parts = [];
   if (S.owner !== "all") parts.push(S.owner === "me" ? "van mij" : S.owner === "others" ? "van anderen" : "van " + nameOf(S.owner));
-  if (S.tags.length && !chipOn("tag:" + S.tags[0])) parts.push(S.tags.join(S.tagMode === "any" ? " of " : " + "));
-  if (S.time.length && !chipOn("quick")) parts.push(TIME_BLOCKS.filter((b) => S.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", "));
+  if (S.tags.length) parts.push(S.tags.join(S.tagMode === "any" ? " of " : " + "));
+  if (S.time.length) parts.push(TIME_BLOCKS.filter((b) => S.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", "));
   if (S.src.length) parts.push(S.src.join(", "));
   if (getSort() !== "az") parts.push("sortering " + (SORTS.find((x) => x[0] === getSort()) || SORTS[0])[1].toLowerCase());
   return parts.length ? "Ook: " + parts.join(" · ") : "";
 }
 function refreshFilters() {
-  const c = $("#chips"); if (c) c.innerHTML = chipsHTML();
   const m = $("#menu-btn"); if (m) m.classList.toggle("on", menuActive());
+  const f = $("#fav-btn"); if (f) { f.classList.toggle("on", S.favOnly); f.setAttribute("aria-pressed", S.favOnly); f.innerHTML = S.favOnly ? ICON.star : ICON.starOff; }
 }
 function thisWeekMeals() {
   const cur = isoDate(startOfWeek(new Date()));
@@ -2470,7 +2468,7 @@ async function noteMeal(m, swap) {
     S.weekMeals = S.weekMeals || [];
     if (S.weekMeals !== S.meals && !S.weekMeals.some((x) => x.id === m.id)) S.weekMeals.push(m);
   }
-  if (S.view === "menu") drawMenu(); else if (S.view === "list") drawList();
+  if (S.view === "menu") drawMenu(); else if (S.view === "list") drawTop();
 }
 function todayHTML() {
   const today = isoDate(new Date());
@@ -2500,29 +2498,50 @@ function tilesHTML() {
     <button class="tile" id="tile-fridge"><span class="ico">${ICON.fridge}</span><b>Wat kan ik maken?</b></button>
   </div>`;
 }
+function searchBarHTML() {
+  const filt = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h8M18 7h2M4 17h2M12 17h8"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>';
+  const dice = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="8.8" cy="8.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.2" cy="15.2" r="1.1" fill="currentColor" stroke="none"/></svg>';
+  return `<div class="search-sticky"><div class="search"><span aria-hidden="true" style="display:grid">${ICON.search}</span><input id="q" type="search" aria-label="Zoek op gerecht of ingrediënt" placeholder="Zoek in ${S.recipes.length} recepten" value="${esc(S.query)}" autocomplete="off">
+    <span class="sbtns"><button class="sbtn fav${S.favOnly ? " on" : ""}" id="fav-btn" aria-pressed="${S.favOnly}" aria-label="Alleen favorieten">${S.favOnly ? ICON.star : ICON.starOff}</button><button class="sbtn" id="dice-btn" aria-label="Verras me met een willekeurig recept">${dice}</button><button class="menu-btn${menuActive() ? " on" : ""}" id="menu-btn" aria-label="Weergave, sorteren en filters" aria-haspopup="dialog">${filt}</button></span></div></div>`;
+}
 function renderList() {
   $("#app").innerHTML = `
     <header class="stack" style="gap:14px;padding-top:12px">
       ${store.demo ? `<div class="demo-banner">Voorbeeldweergave met voorbeeldrecepten. Wat je hier wijzigt, wordt niet opgeslagen.</div>` : ""}
       <div class="brand" style="align-items:flex-start"><div class="hello"><p class="greet">${esc(greeting())}, ${esc(firstName(nameOf(S.user.id)))}</p><h1>Wat koken we <em class="uline">vanavond?</em></h1></div>
         <span class="hdr-actions"><button class="iconbtn" id="to-tip" aria-label="Geef een tip">${ICON.tip}</button><button class="me-btn" id="to-settings" aria-label="Instellingen">${avatarHTML(S.user.id, 42)}</button></span></div>
-      <div class="search"><span aria-hidden="true" style="display:grid">${ICON.search}</span><input id="q" type="search" aria-label="Zoek op gerecht of ingrediënt" placeholder="Zoek op gerecht of ingrediënt" value="${esc(S.query)}" autocomplete="off">
-        <button class="menu-btn${menuActive() ? " on" : ""}" id="menu-btn" aria-label="Weergave, sorteren en filters" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h8M18 7h2M4 17h2M12 17h8"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg></button></div>
     </header>
-    <main id="list" class="stack" style="gap:14px;margin-top:14px"></main>
+    <section id="top" class="stack" style="gap:14px;margin-top:14px"></section>
+    ${searchBarHTML()}
+    <main id="list" class="stack" style="gap:12px"></main>
     ${tabBarHTML("list")}`;
   bindTabBar();
+  drawTop();
   drawList();
   ptrHintMaybe();
   $("#q").oninput = (e) => { S.query = e.target.value; drawList(); };
   addClear($("#q"));
   $("#menu-btn").onclick = listMenu;
+  $("#dice-btn").onclick = () => surpriseMe();
+  $("#fav-btn").onclick = () => { S.favOnly = !S.favOnly; refreshFilters(); drawList(); };
   $("#to-settings").onclick = () => go("settings");
   $("#to-tip").onclick = tipSheet;
 }
-// Menu onder de filterknop: weergave, sorteren, filters en "Verras me" op één plek
+function drawTop() {
+  const el = $("#top"); if (!el) return;
+  el.innerHTML = todayHTML() + tilesHTML();
+  el.onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.id === "today-open") { S.surprisePool = null; S.detailList = null; return go("detail", b.dataset.id); }
+    if (b.id === "today-week" || b.id === "tile-week") return go("menu");
+    if (b.id === "today-pick") return pickRecipeSheet(isoDate(new Date()));
+    if (b.id === "today-surprise") return surpriseMe();
+    if (b.id === "tile-shop") return go("shop");
+    if (b.id === "tile-fridge") return go("fridge");
+  };
+}
+// Menu onder de filterknop: weergave, sorteren en filters op één plek
 function listMenu() {
-  window.scrollTo(0, 0);
   const anchor = $("#menu-btn").getBoundingClientRect();
   const bg = document.createElement("div"); bg.className = "pop-bg";
   const pop = document.createElement("div"); pop.className = "pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Weergave, sorteren en filters");
@@ -2545,7 +2564,7 @@ function listMenu() {
       <div class="sortgrid" role="radiogroup" aria-label="Sorteren">${SORTS.map(([k, l]) => `<button role="radio" data-sort="${k}" aria-checked="${k === cur}"><i aria-hidden="true"></i>${esc(l)}</button>`).join("")}</div>
       <div class="lab"><span>Filteren</span></div>
       <div class="frows">${[["person", "Van wie"], ["tags", "Tags"], ["time", "Tijd"], ["source", "Bron"]].map(([k, l]) => `<button data-f="${k}"><b>${l}</b><span class="${on(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
-      <div class="pop-foot">${n > 1 ? `<button class="ghost" id="pm-surprise"><span class="die-ico" aria-hidden="true">🎲</span>Verras me</button>` : `<span></span>`}<button class="solid" id="pm-done">Toon ${n} ${n === 1 ? "recept" : "recepten"}</button></div>`;
+      <div class="pop-foot"><button class="solid" id="pm-done">Toon ${n} ${n === 1 ? "recept" : "recepten"}</button></div>`;
   };
   const close = () => { bg.remove(); pop.remove(); document.removeEventListener("keydown", onKey); syncScrollLock(); refreshFilters(); drawList(); };
   const onKey = (e) => { if (e.key === "Escape") close(); };
@@ -2602,9 +2621,6 @@ function drawList() {
   const list = sortRecipes(filtered());
   const el = $("#list");
   if (!el) return;
-  const showToday = !S.query.trim();
-  const top = showToday ? todayHTML() + tilesHTML() : "";
-  const chips = `<div class="chiprow" id="chips" role="group" aria-label="Snelle filters">${chipsHTML()}</div>`;
   const note = filterNote();
   const noteHTML = note ? `<div class="fnote"><span>${esc(note)}</span><button class="linkbtn" id="clear-filters">Wissen</button></div>` : "";
   let body;
@@ -2620,24 +2636,11 @@ function drawList() {
     const own = ownerOf(r) && ownerOf(r) !== S.user.id ? ` · van ${esc(nameOf(ownerOf(r)))}` : "";
     return `<button class="rrow card" data-id="${r.id}"><span class="t"><b>${esc(r.title)}</b><small>${r.prep_time_minutes ? timeText(r) + " · " : ""}${r.servings} pers.${own}</small></span>${S.favs.has(r.id) ? `<span class="fav-pip" role="img" aria-label="Favoriet">${ICON.star}</span>` : ""}</button>`;
   }).join("")}</div>`;
-  el.innerHTML = `${top}${chips}${noteHTML}${body}${S.recipes.length ? updatedHTML() : ""}`;
+  el.innerHTML = `${S.favOnly ? `<div class="fnote"><span>Alleen favorieten</span><button class="linkbtn" id="fav-off">Alles tonen</button></div>` : ""}${noteHTML}${body}${S.recipes.length ? updatedHTML() : ""}`;
   el.onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.chip) {
-      const k = b.dataset.chip;
-      if (k === "all") Object.assign(S, { favOnly: false, tags: [], time: [], owner: "all", src: [] });
-      else if (k === "fav") S.favOnly = !S.favOnly;
-      else if (k === "quick") S.time = chipOn("quick") ? [] : ["snel", "20-30"];
-      else S.tags = chipOn(k) ? [] : [k.slice(4)];
-      refreshFilters(); drawList(); return;
-    }
+    if (b.id === "fav-off") { S.favOnly = false; refreshFilters(); drawList(); return; }
     if (b.id === "clear-filters") { Object.assign(S, { owner: "all", tags: [], time: [], src: [] }); setSort("az"); refreshFilters(); drawList(); return; }
-    if (b.id === "today-open") { S.surprisePool = null; S.detailList = null; return go("detail", b.dataset.id); }
-    if (b.id === "today-week" || b.id === "tile-week") return go("menu");
-    if (b.id === "today-pick") return pickRecipeSheet(isoDate(new Date()));
-    if (b.id === "today-surprise") return surpriseMe();
-    if (b.id === "tile-shop") return go("shop");
-    if (b.id === "tile-fridge") return go("fridge");
     const c = b.closest(".card"); if (c) { S.surprisePool = null; S.detailList = list.map((r) => r.id); go("detail", c.dataset.id); }
   };
 }
