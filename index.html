@@ -856,6 +856,10 @@ h1 em, h2 em { font-style: italic; font-weight: 500; }
 .listbar button { flex: none; height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-size: 14px; font-weight: 700; }
 .listbar button:disabled { opacity: .5; }
 .ld-quick { display: flex; gap: 8px; }
+.course-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.course-pick button { border: 1px solid var(--line2); background: transparent; color: var(--ink); border-radius: 999px; padding: 8px 14px; min-height: 38px; font: inherit; font-size: 15px; }
+.course-pick button[aria-pressed="true"] { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); font-weight: 600; }
+.tag.course { background: var(--herb); color: var(--herb-ink); border-color: var(--herb); }
 .sw-list { display: grid; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); padding: 0 12px; }
 .sw-day { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0; border: 0; border-bottom: 1px solid var(--sunk); background: transparent; color: var(--ink); text-align: left; font: inherit; }
 .sw-day:last-child { border-bottom: 0; }
@@ -1200,8 +1204,25 @@ const TAG_RULES = [
   ["kip", /\bkip|kippen/i], ["vlees", /gehakt|rund|varken|spek|ham\b|worst|lams/i],
   ["vis", /zalm|vis\b|kabeljauw|tonijn|garnal|pangasius|makreel/i],
   ["pasta", /orzo|pasta|spaghetti|penne|tagliatelle|fusilli|lasagne|gnocchi|macaroni/i],
-  ["rijst", /rijst|risotto/i], ["noedels", /noedel|mie\b/i], ["curry", /curry/i], ["soep", /soep/i],
+  ["rijst", /rijst|risotto/i], ["noedels", /noedel|mie\b/i], ["curry", /curry/i],
 ];
+// Soort gerecht: een vast filter (meerdere mogelijk, bijv. salade + hoofdgerecht)
+const COURSES = [["ontbijt", "Ontbijt"], ["lunch", "Lunch"], ["voorgerecht", "Voorgerecht"], ["soep", "Soep"], ["salade", "Salade"], ["hoofdgerecht", "Hoofdgerecht"],
+  ["bijgerecht", "Bijgerecht"], ["saus", "Sauzen en dips"], ["snack", "Snacks en borrel"], ["nagerecht", "Nagerecht"], ["bakken", "Bakken"]];
+const courseLabel = (k) => (COURSES.find((c) => c[0] === k) || [k, k])[1];
+function suggestCourses(r) {
+  const t = norm([r.title, r.subtitle].filter(Boolean).join(" ")).trim(), out = [];
+  if (/ontbijt|breakfast|overnight oats|baked oats|granola|pannenkoek|wentelteefje/.test(t)) out.push("ontbijt");
+  if (/soep\b|soup/.test(t)) out.push("soep");
+  if (/(saus|dips?|dressing|marinade|pesto|hummus|tzatziki|aioli|chutney|salsa)\b/.test(norm(r.title || "")) && !/\bmet\b/.test(norm(r.title || ""))) out.push("saus");
+  if (/taart|cake|brownie|koekjes?\b|muffins?\b|bananenbrood|ciabatta|focaccia|^\S*brood$/.test(norm(r.title || ""))) out.push("bakken");
+  if (/dessert|toetje|tiramisu|panna cotta|ijs\b|mousse|crumble|taart|repen/.test(t)) out.push("nagerecht");
+  if (/salade|salad/.test(t) && !/\bmet\b.*salade$/.test(t)) out.push("salade");
+  if (/carpaccio|tartaar|tataki|bruschetta|amuse/.test(t)) out.push("voorgerecht");
+  if (/borrel|hapje|bites|nachos|bitterbal/.test(t)) out.push("snack");
+  if (!out.some((c) => ["ontbijt", "saus", "bakken", "nagerecht", "voorgerecht", "snack", "soep"].includes(c))) out.push("hoofdgerecht");
+  return [...new Set(out)];
+}
 // Voorraadkast: wat het huishouden meestal in huis heeft. Aanpasbaar door de beheerder (Instellingen).
 let PANTRY_GROUPS = [
   { group: "Olie en azijn", items: ["olijfolie", "zonnebloemolie", "sesamolie", "olie", "azijn", "wijnazijn", "balsamico", "rijstazijn"] },
@@ -1401,7 +1422,7 @@ function parseRecipeText(src) {
   out.title = out.title.replace(/[\s\p{Extended_Pictographic}️‍!]+$/u, "").trim();
   const letters = out.title.replace(/[^\p{L}]/gu, "");
   if (letters.length > 6 && letters === letters.toUpperCase()) out.title = out.title.charAt(0) + out.title.slice(1).toLowerCase();
-  out.tags = suggestTags(out);
+  out.tags = suggestTags(out); out.courses = suggestCourses(out);
   if (!out.title) warnings.push("Geen titel gevonden: zet de naam van het gerecht op de eerste regel.");
   if (!out.ingredients.length) warnings.push("Geen ingrediënten gevonden: zet ze onder een kopje “Ingrediënten”.");
   if (!out.steps.length) warnings.push("Geen bereiding gevonden: zet de stappen onder een kopje “Bereidingswijze”.");
@@ -1503,7 +1524,7 @@ function liveStore() {
     async saveRecipe(householdId, rec, ingredients, photoBlob, removePhoto) {
       const fields = {
         title: rec.title, subtitle: rec.subtitle || null, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes || null, prep_time_estimated: !!(rec.prep_time_minutes && rec.prep_time_estimated), owner_id: rec.owner_id || null,
-        steps: rec.steps, tips: rec.tips, tags: rec.tags, source_url: rec.source_url || null, notes: rec.notes || null,
+        steps: rec.steps, tips: rec.tips, tags: rec.tags, courses: rec.courses || [], source_url: rec.source_url || null, notes: rec.notes || null,
       };
       let id = rec.id;
       if (id) { const { error } = await sb.from("recipes").update(fields).eq("id", id); fail(error); }
@@ -1805,11 +1826,11 @@ function demoStore() {
     async profiles() { return profs.filter((p) => members.some((m) => m.user_id === p.id)); },
     async updateName(id, name) { me.display_name = name; },
     async setEmoji(id, emoji) { me.avatar_emoji = emoji || null; },
-    async recipes() { return recs.slice().sort((a, b) => a.title.localeCompare(b.title, "nl")); },
+    async recipes() { recs.forEach((r) => { if (!r.courses) r.courses = suggestCourses(r); r.tags = (r.tags || []).filter((t) => !COURSES.some((c) => c[0] === t)); }); return recs.slice().sort((a, b) => a.title.localeCompare(b.title, "nl")); },
     async saveRecipe(hid, rec, ingredients, photoBlob, removePhoto) {
       let r = recs.find((x) => x.id === rec.id);
       if (!r) { r = mk({ ...rec, ingredients: [] }); recs.push(r); }
-      Object.assign(r, { owner_id: rec.owner_id || me.id, title: rec.title, subtitle: rec.subtitle, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes, steps: rec.steps, tips: rec.tips, tags: rec.tags, source_url: rec.source_url, updated_by: me.id, updated_at: now() });
+      Object.assign(r, { owner_id: rec.owner_id || me.id, title: rec.title, subtitle: rec.subtitle, servings: rec.servings, prep_time_minutes: rec.prep_time_minutes, steps: rec.steps, tips: rec.tips, tags: rec.tags, courses: rec.courses || [], source_url: rec.source_url, updated_by: me.id, updated_at: now() });
       r.recipe_ingredients = ingredients.map((i, k) => ({ ...i, position: k }));
       if (photoBlob) r.photo_url = URL.createObjectURL(photoBlob);
       if (removePhoto) r.photo_url = null;
@@ -1853,7 +1874,7 @@ function loadTagMode() { try { return localStorage.getItem(TAGMODE_KEY) === "any
 function saveTagMode(m) { try { localStorage.setItem(TAGMODE_KEY, m); } catch (_) { /* alleen voor deze sessie */ } }
 const S = {
   view: "list", user: null, role: null, household: null, recipes: [], names: {}, avatars: {}, roles: {}, favs: new Set(),
-  query: "", tags: [], tagMode: loadTagMode(), time: [], src: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
+  query: "", tags: [], courses: [], tagMode: loadTagMode(), time: [], src: [], favOnly: false, owner: "all", current: null, scale: null, draft: null,
   weekStart: startOfWeek(new Date()), meals: [], shop: [],
 };
 const ROLE_LABEL = { admin: "Beheerder", editor: "Bewerker", viewer: "Lezer" };
@@ -2418,6 +2439,7 @@ function matches(r, f) {
   if (f.owner === "me" && ownerOf(r) !== S.user.id) return false;
   if (f.owner === "others" && ownerOf(r) === S.user.id) return false;
   if (!["all", "me", "others"].includes(f.owner) && ownerOf(r) !== f.owner) return false;
+  if (f.courses && f.courses.length && !f.courses.some((c) => (r.courses || []).includes(c))) return false;
   if (f.tags.length && !f.tags[f.tagMode === "any" ? "some" : "every"]((t) => (r.tags || []).includes(t))) return false;
   if (f.time.length) {
     const t = r.prep_time_minutes;
@@ -2430,7 +2452,7 @@ function matches(r, f) {
   return terms.every((t) => hay.includes(t));
 }
 function filtered(f = S) { return S.recipes.filter((r) => matches(r, f)); }
-function filtersActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || S.favOnly; }
+function filtersActive() { return S.owner !== "all" || S.courses.length > 0 || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || S.favOnly; }
 function people() {
   return Object.entries(S.names).filter(([id]) => id !== S.user.id).sort((a, b) => a[1].localeCompare(b[1], "nl"));
 }
@@ -2550,9 +2572,10 @@ function thumbHTML(r, cls) {
 const VIEW_KEY = "receptenboek-weergave";
 function getMode() { try { return localStorage.getItem(VIEW_KEY) === "raster" ? "raster" : "lijst"; } catch (_) { return "lijst"; } }
 function setMode(v) { try { localStorage.setItem(VIEW_KEY, v); } catch (_) { /* alleen nu */ } }
-function menuActive() { return S.owner !== "all" || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || getSort() !== "az"; }
+function menuActive() { return S.owner !== "all" || S.courses.length > 0 || S.tags.length > 0 || S.time.length > 0 || S.src.length > 0 || getSort() !== "az"; }
 function filterNote() {
   const parts = [];
+  if (S.courses.length) parts.push(S.courses.map(courseLabel).join(" of ").toLowerCase());
   if (S.owner !== "all") parts.push(S.owner === "me" ? "van mij" : S.owner === "others" ? "van anderen" : "van " + nameOf(S.owner));
   if (S.tags.length) parts.push(S.tags.join(S.tagMode === "any" ? " of " : " + "));
   if (S.time.length) parts.push(TIME_BLOCKS.filter((b) => S.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", "));
@@ -2652,23 +2675,28 @@ function listMenu() {
   const bg = document.createElement("div"); bg.className = "pop-bg";
   const pop = document.createElement("div"); pop.className = "pop pop-bottom"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Weergave, sorteren en filters");
 
-  const f = { query: S.query, favOnly: S.favOnly, owner: S.owner, tags: [...S.tags], tagMode: S.tagMode, time: [...S.time], src: [...S.src], sort: getSort(), mode: getMode() };
+  const f = { query: S.query, favOnly: S.favOnly, owner: S.owner, courses: [...S.courses], tags: [...S.tags], tagMode: S.tagMode, time: [...S.time], src: [...S.src], sort: getSort(), mode: getMode() };
   let page = "main", tagQ = "";
   const count = (patch) => filtered({ ...f, ...patch }).length;
-  const isOn = (k) => k === "sort" ? f.sort !== "az" : k === "person" ? f.owner !== "all" : k === "tags" ? f.tags.length > 0 : k === "time" ? f.time.length > 0 : f.src.length > 0;
-  const anyOn = () => ["sort", "person", "tags", "time", "source"].some(isOn);
+  const isOn = (k) => k === "sort" ? f.sort !== "az" : k === "course" ? f.courses.length > 0 : k === "person" ? f.owner !== "all" : k === "tags" ? f.tags.length > 0 : k === "time" ? f.time.length > 0 : f.src.length > 0;
+  const anyOn = () => ["sort", "course", "person", "tags", "time", "source"].some(isOn);
   const fv = (k) => {
     if (k === "sort") return (SORTS.find((x) => x[0] === f.sort) || SORTS[0])[1];
+    if (k === "course") return f.courses.length ? f.courses.map(courseLabel).join(", ") : "Alles";
     if (k === "person") return f.owner === "all" ? "Iedereen" : f.owner === "me" ? "Van mij" : f.owner === "others" ? "Van anderen" : nameOf(f.owner);
     if (k === "tags") return f.tags.length ? f.tags.join(f.tagMode === "any" ? " of " : ", ") : "Alle";
     if (k === "time") return f.time.length ? TIME_BLOCKS.filter((b) => f.time.includes(b[0])).map((b) => TIME_SHORT[b[0]]).join(", ") : "Alle";
     return f.src.length ? f.src.join(", ") : "Alle";
   };
-  const TITLES = { sort: "Sorteren", person: "Van wie", tags: "Tags", time: "Bereidingstijd", source: "Bron" };
+  const TITLES = { course: "Soort gerecht", sort: "Sorteren", person: "Van wie", tags: "Tags", time: "Bereidingstijd", source: "Bron" };
   const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
   const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
   const opt = (type, v, checked, label, n, pre = "") => `<label class="opt"><input type="${type}" name="pm-opt" value="${esc(v)}" ${checked ? "checked" : ""}>${pre}<span>${label}</span>${n != null ? `<span class="n">${n}</span>` : ""}</label>`;
   const subBody = () => {
+    if (page === "course") {
+      const n = (k) => S.recipes.filter((r) => (r.courses || []).includes(k)).length;
+      return `<p class="muted pm-hint">Je kunt meerdere soorten kiezen. Een recept kan bij meer dan één soort horen, bijv. salade én hoofdgerecht.</p><div class="opts">${COURSES.filter(([k]) => n(k) || f.courses.includes(k)).map(([k, l]) => opt("checkbox", k, f.courses.includes(k), esc(l), n(k))).join("")}</div>`;
+    }
     if (page === "sort") return `<div class="opts">${SORTS.map(([k, l]) => opt("radio", k, f.sort === k, esc(l))).join("")}</div>`;
     if (page === "person") {
       const opts = [["all", "Iedereen"], ["me", "Van mij"], ["others", "Van anderen"], ...people()];
@@ -2691,7 +2719,7 @@ function listMenu() {
       <div class="seg"><button data-mode="lijst" aria-pressed="${f.mode === "lijst"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg>Lijst</button><button data-mode="raster" aria-pressed="${f.mode === "raster"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.5"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.5"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.5"/></svg>Raster</button></div>
       <div class="frows">${[["sort", "Sorteren"]].map(([k, l]) => `<button data-page="${k}"><b>${l}</b><span class="${isOn(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
       <div class="lab"><span>Filteren</span></div>
-      <div class="frows">${[["person", "Van wie"], ["tags", "Tags"], ["time", "Tijd"], ["source", "Bron"]].map(([k, l]) => `<button data-page="${k}"><b>${l}</b><span class="${isOn(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
+      <div class="frows">${[["course", "Soort gerecht"], ["person", "Van wie"], ["tags", "Tags"], ["time", "Tijd"], ["source", "Bron"]].map(([k, l]) => `<button data-page="${k}"><b>${l}</b><span class="${isOn(k) ? "on" : ""}">${esc(fv(k))}</span>${chev}</button>`).join("")}</div>
       ${foot()}`;
     } else {
       pop.innerHTML = `<div class="pm-head"><button class="pm-back" id="pm-back" aria-label="Terug naar alle filters">${back}</button><h2>${TITLES[page]}</h2>${isOn(page) ? `<button class="linkbtn" id="pm-reset">Wissen</button>` : "<span></span>"}</div>
@@ -2707,7 +2735,7 @@ function listMenu() {
   const refreshFoot = () => { const ft = $(".pop-foot", pop); if (ft) ft.outerHTML = foot(); const h = $(".pm-head", pop); if (h) { const r = $("#pm-reset", pop); if (isOn(page) && !r) draw(); else if (!isOn(page) && r) r.replaceWith(document.createElement("span")); } };
   const apply = () => {
     if (f.tagMode !== S.tagMode) saveTagMode(f.tagMode);
-    Object.assign(S, { owner: f.owner, tags: f.tags, tagMode: f.tagMode, time: f.time, src: f.src });
+    Object.assign(S, { owner: f.owner, courses: f.courses, tags: f.tags, tagMode: f.tagMode, time: f.time, src: f.src });
     setSort(f.sort); setMode(f.mode);
     close();
   };
@@ -2718,6 +2746,7 @@ function listMenu() {
     const vals = () => [...pop.querySelectorAll('input[name="pm-opt"]:checked')].map((i) => i.value);
     if (page === "sort") f.sort = inp.value;
     else if (page === "person") f.owner = inp.value;
+    else if (page === "course") f.courses = vals();
     else if (page === "time") f.time = vals();
     else if (page === "source") f.src = vals();
     else if (page === "tags") f.tags = vals();
@@ -2730,10 +2759,10 @@ function listMenu() {
     else if (b.dataset.tm) { f.tagMode = b.dataset.tm; draw(); }
     else if (b.id === "pm-back") { page = "main"; draw(); pop.scrollTop = 0; }
     else if (b.id === "pm-reset") {
-      if (page === "sort") f.sort = "az"; else if (page === "person") f.owner = "all"; else if (page === "time") f.time = []; else if (page === "source") f.src = []; else f.tags = [];
+      if (page === "sort") f.sort = "az"; else if (page === "course") f.courses = []; else if (page === "person") f.owner = "all"; else if (page === "time") f.time = []; else if (page === "source") f.src = []; else f.tags = [];
       draw();
     }
-    else if (b.id === "pm-clear") { Object.assign(f, { owner: "all", tags: [], time: [], src: [], sort: "az" }); draw(); }
+    else if (b.id === "pm-clear") { Object.assign(f, { owner: "all", courses: [], tags: [], time: [], src: [], sort: "az" }); draw(); }
     else if (b.id === "pm-done") apply();
   };
   bg.onclick = close;
@@ -2799,7 +2828,7 @@ function drawList() {
   el.onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.id === "fav-off") { S.favOnly = false; refreshFilters(); drawList(); return; }
-    if (b.id === "clear-filters") { Object.assign(S, { owner: "all", tags: [], time: [], src: [] }); setSort("az"); refreshFilters(); drawList(); return; }
+    if (b.id === "clear-filters") { Object.assign(S, { owner: "all", courses: [], tags: [], time: [], src: [] }); setSort("az"); refreshFilters(); drawList(); return; }
     const c = b.closest(".card"); if (c) { S.surprisePool = null; S.detailList = list.map((r) => r.id); go("detail", c.dataset.id); }
   };
 }
@@ -2960,7 +2989,7 @@ function renderDetail() {
         ${pos ? `<span class="pager" aria-live="polite" style="margin:0"><button class="pg-btn" id="pg-prev" aria-label="Vorig recept" ${pos.i === 0 ? "disabled" : ""}>‹</button><span>${pos.i + 1} van ${pos.n}</span><button class="pg-btn" id="pg-next" aria-label="Volgend recept" ${pos.i === pos.n - 1 ? "disabled" : ""}>›</button></span>` : "<span></span>"}
         ${S.surprisePool && S.lastSurprise === r.id && S.surprisePool.length > 1 ? `<button class="surprise" id="reroll"><span class="die" aria-hidden="true">🎲</span>Nog een keer</button>` : ""}</div>` : ""}
       <div class="stack" style="gap:6px">
-        ${(r.tags || []).length ? `<div class="tags">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+        ${(r.tags || []).length || (r.courses || []).length ? `<div class="tags">${(r.courses || []).map((c) => `<span class="tag course">${esc(courseLabel(c))}</span>`).join("")}${(r.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
         <h1>${esc(r.title)}</h1>
         ${r.subtitle ? `<p class="sub">${esc(r.subtitle)}</p>` : ""}
         ${r.source_url ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--ink);font-size:14px;font-weight:600;align-self:flex-start;min-height:32px;display:inline-flex;align-items:center">Bron bekijken ›</a>` : ""}
@@ -3125,7 +3154,7 @@ function renderPaste() {
           const p = parseRecipeText(r.fromText);
           r = { ...p, source_url: r.source_url, image: r.image, warnings: ["Uit de tekst onder de post gehaald. Controleer de ingrediënten en stappen even.", ...(p.warnings || [])] };
         }
-        const d = { id: null, photo_path: null, photo_url: null, owner_id: S.user.id, warnings: [], ...r, tags: suggestTags(r) };
+        const d = { id: null, photo_path: null, photo_url: null, owner_id: S.user.id, warnings: [], ...r, tags: suggestTags(r), courses: r.courses && r.courses.length ? r.courses : suggestCourses(r) };
         d.ingredients = (d.ingredients || []).map((i) => ({ ...i, is_pantry: isPantry(i.name) }));
         delete d.image; delete d.image_url; delete d.description;
         if (r.image) {
@@ -3150,10 +3179,10 @@ function renderPaste() {
   const sampleLink = $("#sample-link"); if (sampleLink) sampleLink.onclick = () => { $("#paste").value = "https://www.hellofresh.nl/recipes/bowl-met-orzo-en-kippendijreepjes-628665bf439bffaaa70d603e"; };
 }
 function emptyDraft() {
-  return { id: null, owner_id: S.user.id, title: "", subtitle: "", servings: 2, prep_time_minutes: null, ingredients: [{ name: "", amount: null, unit: "", original_text: "" }], steps: [{ title: "", text: "" }], tips: [], tags: [], source_url: "", photo_path: null, photo_url: null, warnings: [] };
+  return { id: null, owner_id: S.user.id, title: "", subtitle: "", servings: 2, prep_time_minutes: null, ingredients: [{ name: "", amount: null, unit: "", original_text: "" }], steps: [{ title: "", text: "" }], tips: [], tags: [], courses: [], source_url: "", photo_path: null, photo_url: null, warnings: [] };
 }
 function draftFrom(r) {
-  return { id: r.id, owner_id: ownerOf(r), title: r.title, subtitle: r.subtitle || "", servings: r.servings, prep_time_minutes: r.prep_time_minutes, prep_time_estimated: !!r.prep_time_estimated, tags: [...(r.tags || [])],
+  return { id: r.id, owner_id: ownerOf(r), title: r.title, subtitle: r.subtitle || "", servings: r.servings, prep_time_minutes: r.prep_time_minutes, prep_time_estimated: !!r.prep_time_estimated, tags: [...(r.tags || [])], courses: [...(r.courses || [])],
     ingredients: r.recipe_ingredients.map((i) => ({ name: i.name, amount: i.amount, unit: i.unit || "", original_text: i.original_text || "", is_pantry: !!i.is_pantry })),
     steps: (r.steps || []).map((s) => ({ ...s })), tips: (r.tips || []).map((s) => ({ ...s })), source_url: r.source_url || "",
     photo_path: r.photo_path, photo_url: r.photo_url, warnings: [] };
@@ -3188,6 +3217,7 @@ function renderEdit() {
         <label class="field"><span>Personen</span><input class="input" id="e-serv" type="number" min="1" max="20" value="${d.servings}"></label>
         <label class="field"><span>Bereidingstijd (min)${d.prep_time_estimated ? ' <span class="muted" style="font-weight:400">· geschat</span>' : ""}</span><input class="input" id="e-time" type="number" min="1" value="${d.prep_time_minutes || ""}"></label>
       </div>
+      <div class="field"><span>Soort gerecht</span><div class="course-pick" id="e-courses">${COURSES.map(([k, l]) => `<button type="button" data-c="${k}" aria-pressed="${(d.courses || []).includes(k)}">${l}</button>`).join("")}</div></div>
       <label class="field"><span>Tags, gescheiden door komma's</span><input class="input" id="e-tags" value="${esc((d.tags || []).join(", "))}" placeholder="kip, pasta, snel"></label>
       <div class="field"><span>Foto</span>
         <div class="photo-pick">${thumbHTML({ ...d, photo_url: d.newPhotoUrl || (d.removePhoto ? null : d.photo_url) }, "thumb")}
@@ -3220,6 +3250,7 @@ function renderEdit() {
     if (newTime !== d.prep_time_minutes) d.prep_time_estimated = false;
     d.prep_time_minutes = newTime;
     d.tags = $("#e-tags").value.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+    d.courses = [...document.querySelectorAll("#e-courses [aria-pressed=true]")].map((b) => b.dataset.c);
     d.source_url = $("#e-url").value.trim();
     d.ingredients = d.ingredients.map((_, k) => {
       const name = $(`#ing-name-${k}`).value.trim(), amtTxt = $(`#ing-amt-${k}`).value.trim(), unit = $(`#ing-unit-${k}`).value.trim();
@@ -3253,6 +3284,7 @@ function renderEdit() {
     sync();
     if (d.ingredients[k].is_pantry !== was) { rerender(); toast(d.ingredients[k].is_pantry ? `${d.ingredients[k].name} staat nu bij de voorraadkast` : `${d.ingredients[k].name} staat nu bij de ingrediënten`); }
   });
+  $("#e-courses").onclick = (e) => { const b = e.target.closest("[data-c]"); if (!b) return; b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); };
   $("#e-photo").onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     sync();
