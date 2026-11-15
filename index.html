@@ -1195,7 +1195,8 @@ let pantryRe = /$^/;
 function buildPantryRe() {
   const words = [...new Set(PANTRY_GROUPS.flatMap((g) => g.items).map((w) => norm(w).trim()).filter(Boolean))]
     .sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  pantryRe = words.length ? new RegExp("(^|[^a-z])(" + words.join("|") + ")", "i") : /$^/;
+  // Hele woorden (plus meervoud/verkleinwoord): "honing" telt niet in "honingpinda's", "laurier" wel in "laurierblaadjes"
+  pantryRe = words.length ? new RegExp("(^|[^a-z])(" + words.join("|") + ")(s|n|en|je|jes|tje|tjes|blad|blaadjes?|stokjes?|korrels|blokjes?|azijn|poeder|zaad|zaadjes|creme)?($|[^a-z])", "i") : /$^/;
 }
 function pantryCount() { return PANTRY_GROUPS.reduce((n, g) => n + g.items.length, 0); }
 // Engelse benamingen, gekoppeld aan het Nederlandse woord uit de voorraadkast
@@ -1204,7 +1205,7 @@ const PANTRY_EN = {
   "vinegar": "azijn", "balsamic": "balsamico", "rice vinegar": "rijstazijn", "soy sauce": "sojasaus", "fish sauce": "vissaus", "oyster sauce": "oestersaus",
   "hoisin": "hoisinsaus", "worcestershire": "worcestershiresaus", "sweet chili": "sweet chilisaus", "mayo": "mayonaise", "mayonnaise": "mayonaise", "mustard": "mosterd",
   "tomato paste": "tomatenpuree", "sesame seeds": "sesamzaad", "pine nuts": "pijnboompitten", "salt": "zout", "pepper": "peper", "black pepper": "peper",
-  "paprika": "paprikapoeder", "smoked paprika": "paprikapoeder", "curry powder": "kerrie", "cumin": "komijn", "coriander powder": "korianderpoeder", "ground coriander": "korianderpoeder",
+"paprika powder": "paprikapoeder", "smoked paprika": "paprikapoeder", "curry powder": "kerrie", "cumin": "komijn", "coriander powder": "korianderpoeder", "ground coriander": "korianderpoeder",
   "turmeric": "kurkuma", "ground ginger": "gemberpoeder", "oregano": "oregano", "thyme": "tijm", "rosemary": "rozemarijn", "italian seasoning": "italiaanse kruiden",
   "bay leaf": "laurier", "bay leaves": "laurier", "cinnamon": "kaneel", "nutmeg": "nootmuskaat", "chili flakes": "chilivlokken", "red pepper flakes": "chilivlokken",
   "cayenne": "cayennepeper", "garlic powder": "knoflookpoeder", "onion powder": "uienpoeder", "flour": "bloem", "sugar": "suiker", "brown sugar": "bruine suiker",
@@ -1214,7 +1215,7 @@ const PANTRY_EN = {
 function isPantry(name) {
   const n = norm(name);
   if (/(^|\s)(groente|kippen|runder)?bouillon$/.test(n) || /bloemkool|(rode|groene|verse) peper|bell pepper|chili pepper|peppers\b|butternut|peanut butter/.test(n)) return false;
-  if (pantryRe.test(n)) return true;
+  if (pantryRe.test(n) || /bouillonblok/.test(n)) return true;
   // Engelse naam (bijv. "olive oil"): telt mee als het Nederlandse woord in jullie voorraadkast staat
   const kast = new Set(PANTRY_GROUPS.flatMap((g) => g.items).map((w) => norm(w)));
   return Object.entries(PANTRY_EN).some(([en, nl]) => kast.has(nl) && new RegExp("(^|[^a-z])" + en.replace(/ /g, "\\s+") + "($|[^a-z])").test(n));
@@ -3842,7 +3843,7 @@ function drawShop() {
       ${!S.shop.length ? `<div class="empty"><h2>Je lijst is leeg</h2><p class="muted" style="margin:0">Zet gerechten op de planning en maak er een lijst van, of voeg hierboven zelf iets toe.</p></div>` : ""}
       ${open.length ? AISLES.map(([k, l]) => { const gs = openG.filter((g) => groupAisle(g) === k).sort(byName); return gs.length ? `<div class="aisle"><p class="label aisle-head">${esc(l)}</p><div class="shop-list">${gs.map(row).join("")}</div></div>` : ""; }).join("") : ""}
       ${done.length ? `<div class="stack" style="gap:6px"><div class="section-head"><p class="label" style="margin:0">In je mandje (${doneG.length})</p><button class="linkbtn" id="clear-done">Weghalen</button></div><div class="shop-list">${doneG.map(row).join("")}</div></div>` : ""}
-      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${S.shopPantry.length} ${S.shopPantry.length === 1 ? "ding" : "dingen"} uit de voorraadkast · ${pantryDaysLabel()}</small></span><span class="chev">›</span></button>` : ""}
+      ${(S.shopPantry || []).length && !S.shopEdit ? `<button class="pantry-check" id="pantry-check">${ICON.jar}<span><b>Voorraad checken</b><small class="muted">${groupShop(S.shopPantry).length} ${groupShop(S.shopPantry).length === 1 ? "ding" : "dingen"} uit de voorraadkast · ${pantryDaysLabel()}</small></span><span class="chev">›</span></button>` : ""}
       <div class="stack" style="gap:10px">
         <button class="btn block" id="from-menu">Lijst maken van planning</button>
         <p class="muted" style="margin:0;font-size:14px">Ingrediënten van dezelfde soort worden opgeteld en omgerekend naar het aantal personen op je planning. Dingen uit de voorraadkast komen er niet automatisch op. Wat je zelf hebt toegevoegd blijft staan.</p>
@@ -3946,10 +3947,12 @@ function drawShop() {
   };
   const pc = $("#pantry-check");
   if (pc) pc.onclick = () => {
-    const rows = () => S.shopPantry.map((i, k) => {
-      const onList = S.shop.some((x) => !x.is_checked && norm(x.name) === norm(i.name));
-      const amt = i.amount != null ? esc(fmtAmount(i.amount, i.unit)) + (i.unit ? " " + esc(i.unit) : "") : esc(i.unit || "");
-      return `<div class="row-item"><span class="shop-name">${esc(i.name)}</span><span class="shop-amt">${amt}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(i.name)} op de lijst">${onList ? "✓" : "+"}</button></div>`;
+    // Zelfde product (met en zonder hoeveelheid, enkel/meervoud) is één regel
+    const groups = groupShop(S.shopPantry).sort((a, b) => a.name.localeCompare(b.name, "nl", { sensitivity: "base" }));
+    const keys = (n) => [shopKey(n), shopKey(n, true)];
+    const rows = () => groups.map((g, k) => {
+      const onList = S.shop.some((x) => !x.is_checked && keys(x.name).some((y) => keys(g.name).includes(y)));
+      return `<div class="row-item"><span class="shop-name">${esc(g.name)}</span><span class="shop-amt">${esc(g.amt)}</span><button class="addbtn" data-sp="${k}" ${onList ? 'aria-pressed="true" disabled' : ""} aria-label="${esc(g.name)} op de lijst">${onList ? "✓" : "+"}</button></div>`;
     }).join("");
     const sh = sheet(`<div class="sheet-head"><h2>Voorraad checken</h2></div>
       <p class="muted" style="margin:-6px 0 0;font-size:14px">Dit heb je nodig voor de dagen van je lijst (${pantryDaysLabel()}), maar meestal heb je het in huis. Iets op? Tik op +.</p>
@@ -3958,10 +3961,13 @@ function drawShop() {
     $("#sp-done", sh.el).onclick = () => { sh.close(); drawShop(); };
     $("#sp-list", sh.el).onclick = async (e) => {
       const b = e.target.closest("[data-sp]"); if (!b || b.disabled) return;
-      const i = S.shopPantry[+b.dataset.sp]; b.disabled = true;
+      const g = groups[+b.dataset.sp]; b.disabled = true;
       try {
-        const [row] = await store.addShopping(S.household.id, [{ name: i.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: true, position: 0 }]);
-        S.shop.push(row); b.textContent = "✓"; b.setAttribute("aria-pressed", "true");
+        const withAmt = g.items.filter((i) => i.amount != null);
+        const one = withAmt.length > 1 && new Set(withAmt.map((i) => shopUnit(i.unit))).size === 1;
+        const src = one ? [{ ...withAmt[0], amount: withAmt.reduce((t, i) => t + i.amount, 0) }] : (withAmt.length ? withAmt : [g.items[0]]);
+        const add = src.map((i) => ({ name: g.name, amount: i.amount == null ? null : Math.round(i.amount * 1000) / 1000, unit: i.unit, is_manual: true, position: 0 }));
+        S.shop.push(...(await store.addShopping(S.household.id, add))); b.textContent = "✓"; b.setAttribute("aria-pressed", "true");
       } catch (err) { b.disabled = false; toast(err.message); }
     };
   };
